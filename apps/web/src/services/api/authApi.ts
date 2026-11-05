@@ -47,11 +47,13 @@ export async function fetchAuthStatus(): Promise<AuthStatusResponse> {
   }
 }
 
-export async function triggerLogout(): Promise<string> {
+export async function triggerLogout(): Promise<boolean> {
   try {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('aegis_auth');
-      sessionStorage.clear();
+      try {
+        localStorage.removeItem('aegis_auth');
+        sessionStorage.clear();
+      } catch {}
     }
     const res = await fetch('/api/auth/logout', {
       method: 'POST',
@@ -62,10 +64,13 @@ export async function triggerLogout(): Promise<string> {
     });
     if (res.ok) {
       const data = await res.json().catch(() => ({}));
-      if (data && data.logout_url) return data.logout_url;
+      if (typeof window !== 'undefined' && data && data.logout_url) {
+        window.location.href = data.logout_url;
+      }
+      return true;
     }
-    return '/login/';
+    return false;
   } catch {
-    return '/login/';
+    return false;
   }
 }
