@@ -243,3 +243,77 @@ test('Pure BFF AuthHandler — Handles /api/auth/config and Keycloak SLO /api/au
   assert.ok(logoutJson.logout_url.includes('client_id=aegis-cockpit'));
 });
 
+test('Aegis Gate PEP — ForwardAuth Endpoint (/_aegis/verify)', async () => {
+  const { createGateServer } = await import('../src/server.js');
+  const { WafInspector } = await import('../src/engine/inspector.js');
+  const { IpReputationManager } = await import('../src/quarantine/ip-reputation.js');
+  const config = {
+    port: 8000,
+    backendUrl: 'http://backend:80',
+    webUrl: 'http://web:80',
+    telemetryUrl: 'http://backend:80/api/v1/gate/telemetry/ingress',
+    tenantId: '00000000-0000-0000-0000-000000000001',
+    sessionSecret: 'test_secret_for_sovereign_bff_key_32!',
+    defaultMaxPayloadBytes: 32768,
+    defaultProtectionEnabled: true,
+    upstreamRouting: {},
+  };
+  const { createDefaultRuleRegistry } = await import('../src/rules/default-rules.js');
+  const ipRep = new IpReputationManager();
+  const ruleRegistry = createDefaultRuleRegistry();
+  const state = { protectionEnabled: true, maxPayloadBytes: 32768 };
+  const inspector = new WafInspector(ruleRegistry, ipRep, () => state.maxPayloadBytes);
+  const mockTelemetry: any = { send: () => {} };
+  const mockForwarder: any = { forward: () => {} };
+
+  const server = createGateServer(config, inspector, ipRep, mockTelemetry, mockForwarder, state);
+
+  // 1. Requête légitime vérifiée par Traefik ForwardAuth -> 200 OK
+  let verifiedCode = 0;
+  const mockResAuth: any = {
+    setHeader: () => {},
+    writeHead: (c: number) => { verifiedCode = c; },
+    end: () => {},
+  };
+  const mockReqAuth: any = {
+    url: '/_aegis/verify',
+    method: 'GET',
+    headers: {
+      'x-forwarded-method': 'GET',
+      'x-forwarded-uri': '/api/v1/workorders',
+      'x-forwarded-host': 'api.aivo.fr',
+      'x-forwarded-for': '1.2.3.4',
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+    on: () => {},
+  };
+  server.emit('request', mockReqAuth, mockResAuth);
+  assert.equal(verifiedCode, 200, 'Legitimate request should return 200 via ForwardAuth');
+
+  // 2. Requête d'attaque interceptée par Traefik ForwardAuth -> 403 Forbidden
+  let blockedCode = 0;
+  let blockedBody = '';
+  const mockResBlock: any = {
+    setHeader: () => {},
+    writeHead: (c: number) => { blockedCode = c; },
+    end: (d: string) => { blockedBody = d; },
+  };
+  const mockReqBlock: any = {
+    url: '/_aegis/verify',
+    method: 'GET',
+    headers: {
+      'x-forwarded-method': 'GET',
+      'x-forwarded-uri': '/wp-login.php',
+      'x-forwarded-host': 'app.aivo.fr',
+      'x-forwarded-for': '185.220.101.5',
+      'user-agent': 'sqlmap/1.5',
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+    on: () => {},
+  };
+  server.emit('request', mockReqBlock, mockResBlock);
+  assert.equal(blockedCode, 403, 'Malicious probe should return 403 via ForwardAuth');
+  const blockJson = JSON.parse(blockedBody);
+  assert.equal(blockJson.verdict, 'BLOCKED');
+});
+

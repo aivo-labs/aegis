@@ -54,7 +54,7 @@ export function createGateServer(
       return;
     }
 
-    // Endpoint de simulation de sondes bots / pentest pour le Cockpit SOC
+    // Endpoint de simulation de sondes bots / pentest (Ingress & Egress) pour le Cockpit SOC
     if (req.url === '/_aegis/simulate' && (req.method === 'POST' || req.method === 'GET' || req.method === 'OPTIONS')) {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -68,6 +68,8 @@ export function createGateServer(
 
       // IP d'attaque simulée dédiée (RFC 5737 TEST-NET-2) pour ne jamais impacter l'IP de l'administrateur
       const simulatedIp = '198.51.100.77';
+
+      // 1. Simulation des requêtes Ingress (Scanners, CMS, Exploits)
       const simulatedProbes = [
         { path: '/wp-login.php', method: 'GET', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) sqlmap/1.5.11', threat: 'SCANNER' },
         { path: '/wp-content/plugins/revslider/temp/update_extract/revslider/db.php', method: 'GET', ua: 'nikto/2.1.6', threat: 'CMS_PROBE' },
@@ -77,7 +79,7 @@ export function createGateServer(
         { path: '/api/v1/search?q=1+UNION+SELECT+username,password+FROM+users--', method: 'GET', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) sqlmap', threat: 'SQLI' }
       ];
 
-      const results = [];
+      const ingressResults: any[] = [];
       for (const p of simulatedProbes) {
         const headers = { 'user-agent': p.ua, host: req.headers.host || 'aegis.aivo.fr' };
         const inspection = inspector.inspect(p.path, p.method, headers, '', 0, simulatedIp);
@@ -104,7 +106,7 @@ export function createGateServer(
           }
         });
 
-        results.push({
+        ingressResults.push({
           uri: p.path,
           method: p.method,
           decision,
@@ -113,13 +115,167 @@ export function createGateServer(
         });
       }
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        status: 'success',
-        protection_enabled: state.protectionEnabled,
-        simulated_count: results.length,
-        results
-      }));
+      // 2. Simulation des requêtes Egress (DNS & Callbacks C2 Sortants)
+      const simulatedEgress = [
+        { fqdn: 'c2-beacon.random-domain.top', entropy: 4.85, threat: 'KNOWN_C2_INFRASTRUCTURE', conf: 0.98, lat: 1.2, isMalicious: true },
+        { fqdn: 'revshell.xmrig-pool.xyz', entropy: 4.62, threat: 'REVERSE_SHELL_C2', conf: 0.95, lat: 0.9, isMalicious: true },
+        { fqdn: 'data-tunnel.exfil-dns-payload.io', entropy: 4.92, threat: 'DNS_TUNNEL_EXFIL', conf: 0.99, lat: 1.1, isMalicious: true },
+        { fqdn: 'api.github.com', entropy: 2.15, threat: 'CLEAN_EGRESS', conf: 0.05, lat: 3.2, isMalicious: false }
+      ];
+
+      const egressEndpoint = `${config.backendUrl}/api/v1/gate/telemetry/egress`;
+      const egressPromises = simulatedEgress.map(async eg => {
+        const action = eg.isMalicious
+          ? (state.protectionEnabled ? 'BLOCK' : 'BYPASS')
+          : 'ALLOW';
+
+        const egressPayload = {
+          tenant_id: config.tenantId,
+          client_ip: simulatedIp,
+          fqdn: eg.fqdn,
+          domain_entropy: eg.entropy,
+          action,
+          threat_type: eg.threat,
+          confidence: eg.conf,
+          latency_ms: eg.lat,
+          metadata: {
+            simulated: true,
+            sinkhole_ip: action === 'BLOCK' ? '0.0.0.0' : undefined,
+            engine: eg.isMalicious
+              ? (state.protectionEnabled ? 'Aegis System One DNS Sinkhole (:5053)' : '⚠️ Egress Désactivé (Fuite C2 Active)')
+              : 'DNS Direct'
+          }
+        };
+
+        try {
+          await fetch(egressEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(egressPayload)
+          });
+        } catch {
+          // Tolérance réseau
+        }
+
+        return {
+          fqdn: eg.fqdn,
+          action,
+          threat_type: eg.threat,
+          entropy: eg.entropy
+        };
+      });
+
+      Promise.all(egressPromises).then(egressRes => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'success',
+          protection_enabled: state.protectionEnabled,
+          simulated_ingress_count: ingressResults.length,
+          simulated_egress_count: egressRes.length,
+          ingress_results: ingressResults,
+          egress_results: egressRes
+        }));
+      }).catch(() => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'success',
+          protection_enabled: state.protectionEnabled,
+          simulated_ingress_count: ingressResults.length,
+          ingress_results: ingressResults
+        }));
+      });
+      return;
+    }
+
+    // Endpoint de vérification ForwardAuth pour Traefik / Dokploy (WAF en coupure sur les autres applications du VPS)
+    if ((req.url || '').startsWith('/_aegis/verify')) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS');
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      const targetMethod = (req.headers['x-forwarded-method'] as string) || req.method || 'GET';
+      const targetUri = (req.headers['x-forwarded-uri'] as string) || (req.url || '/').replace(/^\/_aegis\/verify/, '') || '/';
+      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || getClientIp(req);
+      const userAgent = (req.headers['user-agent'] as string) || 'unknown';
+
+      // Immunité d'accès pour l'administrateur SOC
+      const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret);
+      const isAdminSession = session?.role === 'admin' || session?.role === 'secops';
+
+      const verdict = inspector.inspect(
+        targetUri,
+        targetMethod,
+        req.headers,
+        '',
+        0,
+        clientIp
+      );
+
+      if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && isAdminSession) {
+        ipReputation.unban(clientIp);
+        fetch(`${config.backendUrl}/api/v1/dashboard/bans?ip=${encodeURIComponent(clientIp)}`, { method: 'DELETE' }).catch(() => {});
+      } else if (verdict.blocked && state.protectionEnabled) {
+        const statusCode = verdict.http_status || 403;
+        const eventId = `aegis-fwd-${crypto.randomBytes(6).toString('hex')}`;
+
+        telemetry.send({
+          tenant_id: config.tenantId,
+          client_ip: clientIp,
+          user_agent: userAgent,
+          http_method: targetMethod,
+          request_uri: targetUri,
+          decision: verdict.decision,
+          http_status_returned: statusCode,
+          latency_ms: 0.4,
+          threat_type: verdict.threat_type,
+          severity: verdict.severity,
+          risk_score: verdict.risk_score,
+          entropy: verdict.entropy,
+          matched_pattern: verdict.pattern,
+          metadata: {
+            threat_type: verdict.threat_type,
+            severity: verdict.severity,
+            risk_score: verdict.risk_score,
+            entropy: verdict.entropy,
+            pattern: verdict.pattern,
+            event_id: eventId,
+            engine: 'Traefik ForwardAuth PEP',
+            host: req.headers['x-forwarded-host'] || req.headers.host
+          }
+        });
+
+        res.writeHead(statusCode, {
+          'Content-Type': 'application/json',
+          'X-Aegis-Decision': 'BLOCK',
+          'X-Aegis-Threat': verdict.threat_type || 'SECURITY_THREAT'
+        });
+        res.end(JSON.stringify({
+          status: statusCode,
+          error: 'Access Denied by Aegis Gate Zero-Trust PEP (Traefik ForwardAuth)',
+          verdict: 'BLOCKED',
+          threat_detected: verdict.threat_type,
+          severity: verdict.severity,
+          risk_score: verdict.risk_score,
+          client_ip: clientIp,
+          target_uri: targetUri,
+          event_id: eventId,
+          security_standard: 'ANSSI NIS 2 Hardened • Virtual Patching Active'
+        }));
+        return;
+      }
+
+      // Requête autorisée -> HTTP 200 avec headers transmis à l'application cible
+      res.writeHead(200, {
+        'X-Aegis-Verified': state.protectionEnabled ? 'true' : 'bypass-unprotected',
+        'X-Aegis-Engine': 'Aegis Gate PEP',
+        'X-Aegis-Client-IP': clientIp
+      });
+      res.end();
       return;
     }
 
@@ -356,10 +512,16 @@ export function createGateServer(
         }
       }
 
-      // Si une attaque passe alors que le bouclier est désactivé, on la route vers le backend cible
+      // Résolution de l'Upstream : routage multi-hôtes Dokploy ou par défaut Aegis
+      const reqHost = ((req.headers['x-forwarded-host'] || req.headers.host || '') as string)
+        .split(':')[0]
+        .toLowerCase();
       const isApiOrExploitTarget =
         (req.url || '').startsWith('/api/') || (verdict.blocked && !state.protectionEnabled);
-      const targetBase = isApiOrExploitTarget ? config.backendUrl : config.webUrl;
+      let targetBase = config.upstreamRouting[reqHost];
+      if (!targetBase) {
+        targetBase = isApiOrExploitTarget ? config.backendUrl : config.webUrl;
+      }
       const bufferedBody = Buffer.concat(bodyChunks);
 
       const additionalHeaders: http.OutgoingHttpHeaders = {};
