@@ -7,6 +7,7 @@ import type { ITelemetryReporter } from './telemetry/reporter.js';
 import type { IProxyForwarder } from './proxy/forwarder.js';
 import type { GateConfig } from './config.js';
 import { BffAuthHandler } from './bff/auth-handler.js';
+import { extractSessionFromRequest } from './bff/session.js';
 
 export function getClientIp(req: IncomingMessage): string {
   const forwarded = req.headers['x-forwarded-for'];
@@ -65,7 +66,8 @@ export function createGateServer(
         return;
       }
 
-      const clientIp = getClientIp(req);
+      // IP d'attaque simulée dédiée (RFC 5737 TEST-NET-2) pour ne jamais impacter l'IP de l'administrateur
+      const simulatedIp = '198.51.100.77';
       const simulatedProbes = [
         { path: '/wp-login.php', method: 'GET', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) sqlmap/1.5.11', threat: 'SCANNER' },
         { path: '/wp-content/plugins/revslider/temp/update_extract/revslider/db.php', method: 'GET', ua: 'nikto/2.1.6', threat: 'CMS_PROBE' },
@@ -78,13 +80,13 @@ export function createGateServer(
       const results = [];
       for (const p of simulatedProbes) {
         const headers = { 'user-agent': p.ua, host: req.headers.host || 'aegis.aivo.fr' };
-        const inspection = inspector.inspect(p.path, p.method, headers, '', 0, clientIp);
+        const inspection = inspector.inspect(p.path, p.method, headers, '', 0, simulatedIp);
         const decision = state.protectionEnabled ? (inspection.decision || 'BLOCK') : 'BYPASS';
         const statusCode = decision === 'BLOCK' ? 403 : 200;
 
         telemetry.send({
           tenant_id: config.tenantId,
-          client_ip: clientIp,
+          client_ip: simulatedIp,
           user_agent: p.ua,
           http_method: p.method,
           request_uri: p.path,
@@ -223,8 +225,15 @@ export function createGateServer(
       );
       const latency = Math.max(0.2, parseFloat((performance.now() - startTime).toFixed(2)));
 
-      // CAS 1 : ATTAQUE DÉTECTÉE ET BOUCLIER ACTIF -> BLOCAGE IMMÉDIAT (403 ou 413)
-      if (verdict.blocked && state.protectionEnabled) {
+      // Immunité d'accès pour l'Administrateur SOC Authentifié (Zero-Trust Identity > IP Heuristic)
+      const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret);
+      const isAdminSession = session?.role === 'admin' || session?.role === 'secops';
+
+      if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && isAdminSession) {
+        ipReputation.unban(clientIp);
+        // Débannissement automatique dans PostgreSQL / TimescaleDB
+        fetch(`${config.backendUrl}/api/v1/dashboard/bans?ip=${encodeURIComponent(clientIp)}`, { method: 'DELETE' }).catch(() => {});
+      } else if (verdict.blocked && state.protectionEnabled) {
         const statusCode = verdict.http_status || 403;
         const eventId = `aegis-blk-${crypto.randomBytes(6).toString('hex')}`;
 

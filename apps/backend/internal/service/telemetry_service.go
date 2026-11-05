@@ -118,8 +118,14 @@ func (s *TelemetryService) IngestIngress(t domain.IngressTelemetry) error {
 		return err
 	}
 
-	// Auto-ban si seuil d'attaques dépassé
-	if t.Decision == "BLOCK" && clientIP != "127.0.0.1" && clientIP != "" {
+	// Auto-ban si seuil d'attaques dépassé (les simulations ne déclenchent jamais d'auto-ban)
+	isSimulated := false
+	if t.Metadata != nil {
+		if sim, ok := t.Metadata["simulated"].(bool); ok && sim {
+			isSimulated = true
+		}
+	}
+	if !isSimulated && t.Decision == "BLOCK" && clientIP != "127.0.0.1" && clientIP != "" {
 		s.checkAutoBan(clientIP, t.ThreatType)
 	}
 
