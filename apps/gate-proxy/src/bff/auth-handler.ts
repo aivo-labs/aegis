@@ -56,6 +56,23 @@ export class BffAuthHandler {
     const sessionSecret = this.config.sessionSecret;
     const isHttps = this.isSecure(req);
 
+    // 0. GET /api/auth/config : Informations OIDC & SSO actives
+    if (pathname === '/api/auth/config' && req.method === 'GET') {
+      const isOidcActive = Boolean(this.oidcConfig.issuerUrl && this.oidcConfig.clientId);
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate'
+      });
+      res.end(
+        JSON.stringify({
+          oidc_active: isOidcActive,
+          issuer_url: this.oidcConfig.issuerUrl || null,
+          client_id: this.oidcConfig.clientId || null
+        })
+      );
+      return true;
+    }
+
     // 1. GET ou POST /api/auth/login : Démarrage du flux de connexion
     if (pathname === '/api/auth/login' && (req.method === 'GET' || req.method === 'POST' || req.method === 'HEAD')) {
       if (req.method === 'HEAD') {
@@ -212,9 +229,28 @@ export class BffAuthHandler {
       return true;
     }
 
-    // 4. POST /api/auth/logout : Révocation de session & suppression du Cookie
-    if (pathname === '/api/auth/logout' && req.method === 'POST') {
+    // 4. POST ou GET /api/auth/logout : Révocation de session & Single Logout Keycloak (SLO)
+    if (pathname === '/api/auth/logout' && (req.method === 'POST' || req.method === 'GET')) {
       const logoutCookie = serializeLogoutCookie(isHttps);
+      const isOidcActive = Boolean(this.oidcConfig.issuerUrl && this.oidcConfig.clientId);
+
+      const host = req.headers.host || 'aegis.aivo.fr';
+      const postLogoutRedirect = `${isHttps ? 'https' : 'http'}://${host}/login/`;
+
+      let logoutUrl = '/login/';
+      if (isOidcActive) {
+        logoutUrl = `${this.oidcConfig.issuerUrl}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirect)}&client_id=${encodeURIComponent(this.oidcConfig.clientId || 'aegis-cockpit')}`;
+      }
+
+      if (req.method === 'GET') {
+        res.writeHead(302, {
+          'Set-Cookie': logoutCookie,
+          Location: logoutUrl
+        });
+        res.end();
+        return true;
+      }
+
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Set-Cookie': logoutCookie
@@ -222,7 +258,8 @@ export class BffAuthHandler {
       res.end(
         JSON.stringify({
           status: 'success',
-          message: 'Session révoquée avec succès'
+          message: 'Session révoquée avec succès',
+          logout_url: logoutUrl
         })
       );
       return true;

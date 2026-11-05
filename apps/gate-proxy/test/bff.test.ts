@@ -193,3 +193,53 @@ test('Pure BFF AuthHandler — Handles /api/auth/login in standalone demo mode (
   assert.equal(postJson.redirect, '/app/');
 });
 
+test('Pure BFF AuthHandler — Handles /api/auth/config and Keycloak SLO /api/auth/logout', () => {
+  const config: any = {
+    tenantId: '00000000-0000-0000-0000-000000000001',
+    sessionSecret: 'secret_key_for_unit_tests_32_bytes!',
+  };
+  const oidcConfig = {
+    issuerUrl: 'https://auth.aivo.fr/realms/aegis',
+    clientId: 'aegis-cockpit',
+  };
+  const authHandler = new BffAuthHandler(config, oidcConfig);
+
+  // 1. GET /api/auth/config
+  let configStatus = 0;
+  let configData = '';
+  const mockResConfig: any = {
+    writeHead: (c: number) => { configStatus = c; },
+    end: (d: string) => { configData = d; },
+  };
+  const configReq: any = { url: '/api/auth/config', method: 'GET', headers: {} };
+  assert.equal(authHandler.handleAuthRequest(configReq, mockResConfig), true);
+  assert.equal(configStatus, 200);
+  const cfg = JSON.parse(configData);
+  assert.equal(cfg.oidc_active, true);
+  assert.equal(cfg.issuer_url, 'https://auth.aivo.fr/realms/aegis');
+
+  // 2. POST /api/auth/logout with Keycloak SLO URL
+  let logoutStatus = 0;
+  let logoutData = '';
+  let logoutHeaders: any = {};
+  const mockResLogout: any = {
+    writeHead: (c: number, hdrs?: any) => {
+      logoutStatus = c;
+      if (hdrs) logoutHeaders = hdrs;
+    },
+    end: (d: string) => { logoutData = d; },
+  };
+  const logoutReq: any = {
+    url: '/api/auth/logout',
+    method: 'POST',
+    headers: { host: 'aegis.aivo.fr' },
+  };
+  assert.equal(authHandler.handleAuthRequest(logoutReq, mockResLogout), true);
+  assert.equal(logoutStatus, 200);
+  assert.ok(logoutHeaders['Set-Cookie'].includes('Max-Age=0'));
+  const logoutJson = JSON.parse(logoutData);
+  assert.equal(logoutJson.status, 'success');
+  assert.ok(logoutJson.logout_url.includes('protocol/openid-connect/logout'));
+  assert.ok(logoutJson.logout_url.includes('client_id=aegis-cockpit'));
+});
+

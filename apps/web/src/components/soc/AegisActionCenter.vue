@@ -178,7 +178,14 @@ const emitLogout = async () => {
   emit('logout');
   if (typeof window !== 'undefined') {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      const res = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data && data.logout_url) {
+          window.location.href = data.logout_url;
+          return;
+        }
+      }
     } catch {}
     window.location.href = '/login/';
   }
@@ -186,7 +193,7 @@ const emitLogout = async () => {
 
 async function handleSimulateProbes() {
   await simulateBotProbes();
-  showToast('6 sondes bots (wp-login.php, wp-content, xmlrpc.php, .env, phpmyadmin, SQLi) envoyées sur Aegis Gate (:8000) !');
+  showToast('6 sondes bots (wp-login.php, wp-content, xmlrpc.php, .env, phpmyadmin, SQLi) envoyées et interceptées par Aegis Gate !');
 }
 
 async function handleQuickBan(ip: string, category: string) {

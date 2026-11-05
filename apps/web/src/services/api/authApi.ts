@@ -47,8 +47,12 @@ export async function fetchAuthStatus(): Promise<AuthStatusResponse> {
   }
 }
 
-export async function triggerLogout(): Promise<boolean> {
+export async function triggerLogout(): Promise<string> {
   try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('aegis_auth');
+      sessionStorage.clear();
+    }
     const res = await fetch('/api/auth/logout', {
       method: 'POST',
       headers: {
@@ -56,8 +60,12 @@ export async function triggerLogout(): Promise<boolean> {
       },
       credentials: 'include',
     });
-    return res.ok;
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (data && data.logout_url) return data.logout_url;
+    }
+    return '/login/';
   } catch {
-    return false;
+    return '/login/';
   }
 }

@@ -144,7 +144,7 @@ import AegisLogo from '../components/AegisLogo.astro';
 </Layout>
 
 <script is:inline>
-  // 1. Session check via Pure BFF or local storage
+  // 1. Session check via Pure BFF and auto-redirect to Keycloak if OIDC is active
   (async function() {
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
@@ -152,6 +152,20 @@ import AegisLogo from '../components/AegisLogo.astro';
         const data = await res.json();
         if (data && data.authenticated) {
           window.location.replace('/app/');
+          return;
+        }
+      } else {
+        localStorage.removeItem('aegis_auth');
+      }
+    } catch (e) {}
+
+    // Check if Keycloak SSO is active: if yes, redirect directly to Keycloak!
+    try {
+      const cfgRes = await fetch('/api/auth/config');
+      if (cfgRes.ok) {
+        const cfg = await cfgRes.json();
+        if (cfg && cfg.oidc_active) {
+          window.location.replace('/api/auth/login');
           return;
         }
       }

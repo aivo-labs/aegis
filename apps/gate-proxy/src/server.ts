@@ -53,6 +53,74 @@ export function createGateServer(
       return;
     }
 
+    // Endpoint de simulation de sondes bots / pentest pour le Cockpit SOC
+    if (req.url === '/_aegis/simulate' && (req.method === 'POST' || req.method === 'GET' || req.method === 'OPTIONS')) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      const clientIp = getClientIp(req);
+      const simulatedProbes = [
+        { path: '/wp-login.php', method: 'GET', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) sqlmap/1.5.11', threat: 'SCANNER' },
+        { path: '/wp-content/plugins/revslider/temp/update_extract/revslider/db.php', method: 'GET', ua: 'nikto/2.1.6', threat: 'CMS_PROBE' },
+        { path: '/xmlrpc.php', method: 'POST', ua: 'python-requests/2.31.0', threat: 'CMS_PROBE' },
+        { path: '/.env', method: 'GET', ua: 'gobuster/3.5', threat: 'SENSITIVE_PROBE' },
+        { path: '/phpmyadmin/index.php', method: 'GET', ua: 'zgrab/0.x', threat: 'CMS_PROBE' },
+        { path: '/api/v1/search?q=1+UNION+SELECT+username,password+FROM+users--', method: 'GET', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) sqlmap', threat: 'SQLI' }
+      ];
+
+      const results = [];
+      for (const p of simulatedProbes) {
+        const headers = { 'user-agent': p.ua, host: req.headers.host || 'aegis.aivo.fr' };
+        const inspection = inspector.inspect(p.path, p.method, headers, '', 0, clientIp);
+        const decision = state.protectionEnabled ? (inspection.decision || 'BLOCK') : 'BYPASS';
+        const statusCode = decision === 'BLOCK' ? 403 : 200;
+
+        telemetry.send({
+          tenant_id: config.tenantId,
+          client_ip: clientIp,
+          user_agent: p.ua,
+          http_method: p.method,
+          request_uri: p.path,
+          decision,
+          http_status_returned: statusCode,
+          latency_ms: 0.8,
+          threat_type: inspection.threat_type || p.threat,
+          severity: inspection.severity,
+          risk_score: inspection.risk_score,
+          entropy: inspection.entropy,
+          matched_pattern: inspection.pattern,
+          metadata: {
+            simulated: true,
+            pattern: inspection.pattern
+          }
+        });
+
+        results.push({
+          uri: p.path,
+          method: p.method,
+          decision,
+          status_code: statusCode,
+          threat_type: inspection.threat_type || p.threat
+        });
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'success',
+        protection_enabled: state.protectionEnabled,
+        simulated_count: results.length,
+        results
+      }));
+      return;
+    }
+
     // Endpoint interne de contrôle du bouclier (activation / désactivation à chaud + seuil 413 + Ban IP)
     if (req.url === '/_aegis/mode') {
       res.setHeader('Access-Control-Allow-Origin', '*');

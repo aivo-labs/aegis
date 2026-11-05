@@ -68,9 +68,8 @@ export function useLiveStreams() {
   async function simulateBotProbes() {
     if (isSimulatingProbes.value) return;
     isSimulatingProbes.value = true;
-    const gateHost = typeof window !== 'undefined' ? `http://${window.location.hostname}:8000` : 'http://localhost:8000';
     try {
-      await streamsApi.simulateBotProbes(gateHost);
+      await streamsApi.simulateBotProbes();
       await fetchLiveStreams();
     } finally {
       isSimulatingProbes.value = false;

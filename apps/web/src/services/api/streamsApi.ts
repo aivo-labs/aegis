@@ -38,7 +38,15 @@ export const streamsApi = {
     return apiRequest<LiveStreamsResponse>('/api/v1/dashboard/live-streams', { method: 'GET' });
   },
 
-  async simulateBotProbes(gateHost: string) {
+  async simulateBotProbes() {
+    try {
+      const res = await fetch('/_aegis/simulate', { method: 'POST' });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {}
+
+    // Fallback direct relatif
     const probes = [
       '/wp-login.php',
       '/wp-content/plugins/revslider/temp/update_extract/revslider/db.php',
@@ -48,7 +56,7 @@ export const streamsApi = {
       '/api/v1/search?q=1+UNION+SELECT+username,password+FROM+users--',
     ];
     for (const p of probes) {
-      await fetch(`${gateHost}${p}`, { method: 'GET' }).catch(() => {});
+      await fetch(p, { method: 'GET' }).catch(() => {});
     }
   },
 };
