@@ -1,0 +1,127 @@
+# =============================================================================
+# AEGIS BY AIVO — COMPOSITION DOCKER ENTERPRISE (FULL KEYCLOAK & ENVOY PEP)
+# Infrastructure de niveau entreprise (Multi-tenant, Keycloak v26, Envoy Proxy, Nimble 9B)
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # 1. BASE DE DONNÉES TIMESCALEDB (PERSISTENCE & HYPERTABLES)
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: aegis_enterprise_timescaledb
+    restart: always
+    environment:
+      POSTGRES_DB: aegis_db
+      POSTGRES_USER: aegis_user
+      POSTGRES_PASSWORD: aegis_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - aegis_pgdata_ent:/var/lib/postgresql/data
+      - ../../apps/backend/migrations/schema-database-postgresql-aegis.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aegis_user -d aegis_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. KEYCLOAK V26 (SERVEUR D'IDENTITÉ OIDC / IAM ENTERPRISE)
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.0
+    container_name: aegis_enterprise_keycloak
+    restart: always
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin_password_2026
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://timescaledb:5432/aegis_db
+      KC_DB_USERNAME: aegis_user
+      KC_DB_PASSWORD: aegis_dev_password
+    ports:
+      - "8443:8080"
+    volumes:
+      - ../keycloak/aegis-realm.json:/opt/keycloak/data/import/aegis-realm.json
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  # 3. BACKEND API CONTROL PLANE (SYMFONY 7)
+  backend:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    container_name: aegis_enterprise_backend
+    restart: always
+    environment:
+      DATABASE_URL: "postgresql://aegis_user:aegis_dev_password@timescaledb:5432/aegis_db?serverVersion=16&charset=utf8"
+      APP_ENV: dev
+      APP_SECRET: 4f88631b14a9a08990b7e452a32bf
+    ports:
+      - "8080:80"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  # 4. ENVOY PROXY & AUTHORINO PEP (PASSINGRESS ZERO-TRUST)
+  gate-proxy:
+    image: envoyproxy/envoy:v1.31-latest
+    container_name: aegis_enterprise_gate_proxy
+    restart: always
+    ports:
+      - "443:10000"
+    volumes:
+      - ../../apps/gate-proxy/envoy-config.yaml:/etc/envoy/envoy.yaml
+    depends_on:
+      - backend
+      - keycloak
+
+  # 5. PASSERELLE SORTANTE AEGIS EGRESS (SYSTEM ONE AI ENGINE & CORE-DNS)
+  egress-gateway:
+    build:
+      context: ../../apps/egress-gateway
+      dockerfile: Dockerfile
+    container_name: aegis_enterprise_egress_gateway
+    restart: always
+    environment:
+      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/egress"
+      SYSTEMONE_API_URL: "http://ollama-nimble:11434/v1/systemone"
+      SYSTEMONE_MODEL_NAME: "nimble"
+      EGRESS_LISTEN_PORT: 5053
+    ports:
+      - "5053:5053/udp"
+      - "5053:5053/tcp"
+    depends_on:
+      - backend
+      - ollama-nimble
+
+  # 6. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE RUST (SCAPHANDRE / RGESN)
+  telemetry-agent:
+    build:
+      context: ../../apps/telemetry-agent
+      dockerfile: Dockerfile
+    container_name: aegis_enterprise_telemetry_agent
+    restart: always
+    environment:
+      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/energy"
+      POLL_INTERVAL_SECS: "5"
+    depends_on:
+      - backend
+
+  # 7. MOTEUR IA SYSTEM ONE SOUVERAIN (OLLAMA / NIMBLE 9B LOCAL)
+  ollama-nimble:
+    image: ollama/ollama:latest
+    container_name: aegis_enterprise_ollama_nimble
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - aegis_ollama_data_ent:/root/.ollama
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull nimble && wait"]
+
+volumes:
+  aegis_pgdata_ent:
+  aegis_ollama_data_ent:

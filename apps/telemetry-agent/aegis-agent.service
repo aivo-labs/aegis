@@ -1,0 +1,25 @@
+[Unit]
+Description=Aegis Gate Telemetry Daemon (Rust / Scaphandre)
+After=network.target scaphandre.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/aegis-telemetry-agent
+Restart=always
+RestartSec=5
+
+# Environment Configuration
+Environment=AEGIS_TENANT_ID=00000000-0000-0000-0000-000000000001
+Environment=AEGIS_SERVER_ID=vps-aivo-main
+Environment=SCAPHANDRE_URL=http://localhost:8080/metrics
+Environment=AEGIS_GATE_API_URL=http://localhost:8080/api/v1/gate/telemetry/energy
+Environment=AEGIS_GATE_API_KEY=dev_secret_key_aivo
+Environment=POLL_INTERVAL_SECS=5
+
+# Security hardening
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

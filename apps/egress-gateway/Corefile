@@ -1,0 +1,23 @@
+# CoreDNS Configuration pour Aegis Egress (Sinkhole DNS Sortant)
+. {
+    log
+    errors
+    health {
+       lameduck 5s
+    }
+    ready
+    
+    # Interception et redirection des requêtes de test malveillantes vers le Sinkhole Local (127.0.0.1)
+    hosts /etc/aegis/sinkhole.hosts {
+        fallthrough
+    }
+
+    # Transféreur vers le résolveur public upstream
+    forward . 1.1.1.1 8.8.8.8 {
+        max_fails 3
+        expire 10s
+    }
+    
+    cache 30
+    reload 10s
+}

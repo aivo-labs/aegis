@@ -1,0 +1,13 @@
+{
+  "name": "@aivo/aegis-gate-proxy",
+  "version": "1.0.0",
+  "description": "Passerelle Ingress PEP & WAF Léger pour Aegis Gate (OWASP Top 10 + Pentest Scanners Interception)",
+  "type": "module",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "../../apps/web/node_modules/.bin/tsc -p tsconfig.json",
+    "start": "node dist/src/index.js",
+    "test": "node --test dist/test/inspector.test.js dist/test/bff.test.js"
+  },
+  "license": "AGPL-3.0-only"
+}

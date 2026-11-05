@@ -1,0 +1,19 @@
+{
+  "name": "@aivo/aegis-egress-gateway",
+  "version": "4.3.0",
+  "type": "module",
+  "description": "Passerelle Réseau Outbound Aegis Egress — CoreDNS Sinkhole & Client Inférence System One AI (Nimble 9B Ollama / Jev)",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "../../apps/web/node_modules/.bin/tsc -p tsconfig.json",
+    "start": "node dist/src/index.js",
+    "test": "node --test dist/test/egress.test.js",
+    "test:simulation": "node test/attack-simulation.mjs"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}

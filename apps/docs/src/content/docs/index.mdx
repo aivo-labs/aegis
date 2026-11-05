@@ -1,0 +1,104 @@
+---
+title: Official Aegis Documentation
+description: Sovereign Zero-Trust cybersecurity and verifiable hardware energy telemetry compliant with RGESN, ANSSI, and EFRAG.
+template: splash
+hero:
+  tagline: Ingress Zero-Trust Gateway (< 1.5 ms), DNS exfiltration prevention powered by local Nimble 9B Air-Gapped SLM, and raw hardware telemetry (Watts/Joules RAPL & Kepler). Zero SaaS per-seat tax.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Quickstart (2 min)
+      link: /docs/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: Deployment Guides
+      link: /docs/guides/vps/
+      icon: external
+      variant: secondary
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<div class="not-content my-8 p-6 rounded-2xl bg-slate-900/60 backdrop-blur-xl border border-emerald-500/30 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.15)]">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div>
+      <div class="text-[11px] font-mono uppercase tracking-widest text-emerald-400 font-bold mb-1">
+        1-CLICK EXPRESS INSTALLATION (AGPLv3)
+      </div>
+      <div class="text-sm text-slate-200">
+        Instantly deploy the complete suite or standalone modules on any Linux server.
+      </div>
+    </div>
+    <a href="/docs/quickstart/" class="aegis-back-btn shrink-0">
+      <span>Read Quickstart</span>
+      <span>➔</span>
+    </a>
+  </div>
+
+  <div class="mt-4 p-3.5 rounded-xl bg-slate-950/90 border border-slate-800 font-mono text-xs text-emerald-300 flex items-center justify-between gap-3 overflow-x-auto select-all">
+    <code>curl -sSL https://aegis.aivo.fr/install.sh | sudo bash -s -- --profile vps</code>
+  </div>
+</div>
+
+## The 3 Architectural Pillars of Aegis
+
+<CardGrid>
+  <Card title="① Aegis Gate (Ingress PEP)" icon="shield">
+    <div class="text-xs text-slate-300 space-y-2">
+      <p>Ultra-lightweight reverse proxy gateway (<strong>&lt; 25 MB RAM</strong>, <strong>&lt; 1.5 ms</strong> latency). In-line HTTP header inspection, multi-pass SQLi/XSS decoding, and instant mitigation of automated scanners (Nikto, Nuclei, sqlmap).</p>
+      <a href="/docs/security/ingress-pep/" class="text-emerald-400 hover:text-emerald-300 font-semibold inline-flex items-center gap-1 mt-2">
+        <span>Ingress PEP Technical Guide</span> <span>➔</span>
+      </a>
+    </div>
+  </Card>
+
+  <Card title="② Aegis Egress (Outbound & AI)" icon="laptop">
+    <div class="text-xs text-slate-300 space-y-2">
+      <p>Hardened sovereign DNS gateway built on CoreDNS. Shannon entropy analysis and instant <strong>0.0.0.0 (Sinkhole)</strong> containment of Command & Control (C2) and DNS tunneling via the local <strong>Nimble 9B Air-Gapped</strong> SLM.</p>
+      <a href="/docs/security/egress-gateway/" class="text-emerald-400 hover:text-emerald-300 font-semibold inline-flex items-center gap-1 mt-2">
+        <span>Egress Gateway Technical Guide</span> <span>➔</span>
+      </a>
+    </div>
+  </Card>
+
+  <Card title="③ Aegis Green (RAPL Telemetry)" icon="document">
+    <div class="text-xs text-slate-300 space-y-2">
+      <p>Ultra-frugal Rust daemon (<strong>&lt; 15 MB RAM</strong>, 0% idle CPU). Direct sampling of CPU/DRAM <strong>RAPL</strong> hardware registers on Linux and fine-grained Kubernetes namespace attribution via <strong>Kepler eBPF</strong>.</p>
+      <a href="/docs/esg/telemetry/" class="text-emerald-400 hover:text-emerald-300 font-semibold inline-flex items-center gap-1 mt-2">
+        <span>ESG Telemetry Technical Guide</span> <span>➔</span>
+      </a>
+    </div>
+  </Card>
+</CardGrid>
+
+## Commitments & Regulatory Compliance
+
+<CardGrid stagger>
+  <Card title="🛡️ ANSSI & NIS 2 Hardened" icon="approve-check">
+    Designed in strict adherence to ANSSI cyber hygiene recommendations, assisting Essential (EE) and Important (EI) entities toward full compliance with NIS 2 Directive and DORA regulation.
+  </Card>
+  <Card title="🌿 EFRAG VS Standard & RGESN 2024" icon="star">
+    Auditable physical attribution in raw Joules for CSR auditors, avoiding inaccurate spend-based proxies. Continuous automated EcoIndex v3 score calculation for web applications.
+  </Card>
+  <Card title="🇪🇺 Cloud Act Immune (100% Sovereign)" icon="seti:lock">
+    Zero reliance on US commercial cloud APIs or third-party backends. The Nimble 9B semantic inspection model runs entirely on-premise on your CPU/GPU without a single packet leaving your boundary.
+  </Card>
+  <Card title="⚖️ 100% Open Source AGPLv3" icon="open-book">
+    Zero licensing costs per seat or user. The complete codebase is transparently auditable and forkable, guaranteeing complete operational autonomy for your infrastructure.
+  </Card>
+</CardGrid>
+
+<div class="not-content mt-12 p-6 rounded-2xl bg-slate-900/50 backdrop-blur-lg border border-slate-800 text-center space-y-3">
+  <div class="text-xs font-mono text-slate-400">
+    Need assistance dimensioning your architecture or qualifying your environment?
+  </div>
+  <div class="flex flex-wrap items-center justify-center gap-4 text-xs font-mono">
+    <a href="/docs/guides/vps/" class="text-emerald-400 hover:underline">VPS Deployment Guide</a>
+    <span class="text-slate-600">•</span>
+    <a href="/docs/guides/baremetal/" class="text-emerald-400 hover:underline">Bare-Metal Guide</a>
+    <span class="text-slate-600">•</span>
+    <a href="/docs/guides/kubernetes/" class="text-emerald-400 hover:underline">Kubernetes Helm Guide</a>
+    <span class="text-slate-600">•</span>
+    <a href="/" class="text-cyan-400 hover:underline">Back to Aegis Homepage</a>
+  </div>
+</div>

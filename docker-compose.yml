@@ -1,0 +1,148 @@
+# =============================================================================
+# AEGIS BY AIVO — COMPOSITION DOCKER UNIFIÉE (PROFIL FRUGAL COMMUNITY < 200 MB RAM)
+# Auto-hébergement ultra-léger pour TPE / PME (AGPLv3)
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # 1. BASE DE DONNÉES TIMESCALEDB (PERSISTENCE & HYPERTABLES)
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: aegis_timescaledb
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aegis_db}
+      POSTGRES_USER: ${POSTGRES_USER:-aegis_user}
+      # ⚠️ AVERTISSEMENT DE SÉCURITÉ PRODUCTION :
+      # Ne JAMAIS déployer avec ce mot de passe de test. Définir POSTGRES_PASSWORD dans un fichier .env non versionné.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aegis_dev_password}
+    ports:
+      # ⚠️ AVERTISSEMENT : Ne pas exposer publiquement le port 5432 sur Internet en production.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - aegis_pgdata:/var/lib/postgresql/data
+      - ./apps/backend/migrations/schema-database-postgresql-aegis.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aegis_user} -d ${POSTGRES_DB:-aegis_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. BACKEND API CONTROL PLANE (GO 1.22 STANDARD LIBRARY - ZERO DEPENDENCY)
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: aegis_backend
+    restart: always
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-aegis_user}:${POSTGRES_PASSWORD:-aegis_dev_password}@timescaledb:5432/${POSTGRES_DB:-aegis_db}?serverVersion=16&charset=utf8"
+      APP_ENV: ${APP_ENV:-dev}
+      # ⚠️ AVERTISSEMENT DE SÉCURITÉ PRODUCTION :
+      # Remplacer cette clé statique par une clé aléatoire forte générée avec 'openssl rand -hex 32'
+      APP_SECRET: ${APP_SECRET:-4f88631b14a9a08990b7e452a32bf}
+    ports:
+      - "8080:80"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  # 3. PASSERELLE SORTANTE AEGIS EGRESS (SYSTEM ONE AI ENGINE & CORE-DNS)
+  egress-gateway:
+    build:
+      context: ./apps/egress-gateway
+      dockerfile: Dockerfile
+    container_name: aegis_egress_gateway
+    restart: always
+    environment:
+      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/egress"
+      SYSTEMONE_API_URL: "http://ollama-nimble:11434/v1/systemone"
+      SYSTEMONE_MODEL_NAME: "nimble"
+      EGRESS_LISTEN_PORT: 5053
+    ports:
+      - "5053:5053/udp"
+      - "5053:5053/tcp"
+    depends_on:
+      - backend
+
+  # 4. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE RUST (SCAPHANDRE / RGESN / RAPL)
+  telemetry-agent:
+    build:
+      context: ./apps/telemetry-agent
+      dockerfile: Dockerfile
+    container_name: aegis_telemetry_agent
+    restart: always
+    pid: "host"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    environment:
+      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/energy"
+      POLL_INTERVAL_SECS: "5"
+    depends_on:
+      - backend
+
+  # 5. MOTEUR IA SYSTEM ONE SOUVERAIN (OLLAMA / NIMBLE 9B LOCAL)
+  ollama-nimble:
+    image: ollama/ollama:latest
+    container_name: aegis_ollama_nimble
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - aegis_ollama_data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && (ollama pull nimble || true) && wait"]
+
+  # 6. APPLICATION WEB & COCKPIT SOC / ESG UNIFIÉ (ASTRO / VUE 3 / NGINX HARDENED)
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: aegis_web
+    restart: always
+    ports:
+      - "4321:80"
+    depends_on:
+      - backend
+
+  # 7. PASSERELLE INGRESS PEP & WAF (OWASP TOP 10 & PENTEST INTERCEPTION)
+  gate-proxy:
+    build:
+      context: ./apps/gate-proxy
+      dockerfile: Dockerfile
+    container_name: aegis_gate_proxy
+    restart: always
+    environment:
+      GATE_PORT: ${GATE_PORT:-8000}
+      BACKEND_URL: "http://backend:80"
+      WEB_URL: "http://web:80"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/ingress"
+      AEGIS_TENANT_ID: "${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+      # ⚠️ AVERTISSEMENT DE SÉCURITÉ PRODUCTION (Pure BFF Token Handler) :
+      # Ne JAMAIS déployer avec le secret par défaut. Définir une clé AES-256 de 32 caractères dans .env
+      BFF_SESSION_SECRET: "${BFF_SESSION_SECRET:-aegis_sovereign_session_secret_32b_key!}"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - backend
+      - web
+
+  # 8. DOCUMENTATION OFFICIELLE (ASTRO STARLIGHT - PROFIL OPTIONNEL)
+  docs:
+    build:
+      context: ./apps/docs
+      dockerfile: Dockerfile
+    container_name: aegis_docs
+    restart: always
+    ports:
+      - "4322:80"
+    profiles:
+      - docs
+      - all
+
+volumes:
+  aegis_pgdata:
+  aegis_ollama_data:

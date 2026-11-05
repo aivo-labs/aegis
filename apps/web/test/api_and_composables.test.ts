@@ -1,0 +1,112 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { buildAivoLeadPayload } from '../src/utils/aivoControlApi';
+import { useAegisTheme } from '../src/composables/useAegisTheme';
+import { useLiveStreams } from '../src/composables/useLiveStreams';
+import { useTelemetry } from '../src/composables/useTelemetry';
+import { useCveFeed } from '../src/composables/useCveFeed';
+
+test('buildAivoLeadPayload builds compliant payload', () => {
+  const payload = buildAivoLeadPayload({
+    source: 'test_runner',
+    offerType: 'TEST_OFFER',
+    contact: {
+      name: 'Cyber RSSI',
+      email: 'rssi@enterprise.fr',
+      company: 'SecCorp',
+      domain: 'seccorp.fr',
+    },
+    auditReport: {
+      domain: 'seccorp.fr',
+      security_score: 92,
+      security_grade: 'A',
+      overall_eco_score: 78,
+      overall_eco_grade: 'B',
+      pages_scanned: 5,
+    },
+  });
+
+  assert.equal(payload.schema_version, '1.0');
+  assert.equal(payload.product, 'AEGIS_CYBER_GREEN');
+  assert.equal(payload.source, 'test_runner');
+  assert.equal(payload.prospect.full_name, 'Cyber RSSI');
+  assert.equal(payload.prospect.email, 'rssi@enterprise.fr');
+  assert.equal(payload.full_audit_report.security_score, 92);
+  assert.equal(payload.full_audit_report.eco_index_score, 78);
+});
+
+test('sendLeadToAivoControlCenter respects privacy when endpoint is unconfigured', async () => {
+  const { sendLeadToAivoControlCenter } = await import('../src/utils/aivoControlApi');
+  const res = await sendLeadToAivoControlCenter({
+    source: 'unit_test',
+    contact: { name: 'Test User', email: 'test@example.com' },
+  });
+
+  assert.equal(res.ok, true);
+  assert.equal(res.delivered_remotely, false);
+  assert.equal(res.reason, 'unconfigured_open_source_mode');
+});
+
+test('useTelemetry dynamicSvgPath computes correct polyline', () => {
+  const { powerHistory, dynamicSvgPath, instantWatts } = useTelemetry();
+
+  // Initial zero watts
+  assert.equal(dynamicSvgPath.value, 'M 40,140 L 480,140');
+
+  // Value set
+  instantWatts.value = 10;
+  assert.equal(dynamicSvgPath.value, 'M 40,90 L 480,90');
+
+  // History path
+  powerHistory.value = [
+    { time: '10:00', watts: 5 },
+    { time: '10:01', watts: 15 },
+  ];
+  assert.equal(dynamicSvgPath.value, 'M 40,120 L 480,60');
+});
+
+test('useLiveStreams filters and classifies threats accurately', () => {
+  const { ingressStream, probeEventsCount, exploitEventsCount, cleanEventsCount, filteredIngressStream, streamFilter } = useLiveStreams();
+
+  ingressStream.value = [
+    { id: '1', client_ip: '1.1.1.1', method: 'GET', target: '/wp-login.php', category: 'SONDE_WP', decision: 'BLOCK', status_code: 403, timestamp: '10:00' },
+    { id: '2', client_ip: '2.2.2.2', method: 'GET', target: '/test', category: 'SCANNER_NIKTO', decision: 'BLOCK', status_code: 403, timestamp: '10:01' },
+    { id: '3', client_ip: '3.3.3.3', method: 'POST', target: '/login', threat_type: 'SQLI', decision: 'BLOCK', status_code: 403, timestamp: '10:02' },
+    { id: '4', client_ip: '4.4.4.4', method: 'GET', target: '/api/v1/health', decision: 'ALLOW', status_code: 200, timestamp: '10:03' },
+  ];
+
+  assert.equal(probeEventsCount.value, 2);
+  assert.equal(exploitEventsCount.value, 1);
+  assert.equal(cleanEventsCount.value, 1);
+
+  streamFilter.value = 'probes';
+  assert.equal(filteredIngressStream.value.length, 2);
+
+  streamFilter.value = 'exploits';
+  assert.equal(filteredIngressStream.value.length, 1);
+
+  streamFilter.value = 'clean';
+  assert.equal(filteredIngressStream.value.length, 1);
+});
+
+test('useCveFeed handles activeDefenses and catalog fallbacks', () => {
+  const { cves, catalogCves, activeDefenses } = useCveFeed();
+
+  cves.value = [
+    { id: 'CVE-1', name: 'Test 1', component: 'php', severity: 'CRITICAL', cvss: 9.8, description: 'desc', status: 'active', is_active_defense: true },
+    { id: 'CVE-2', name: 'Test 2', component: 'c2', severity: 'HIGH', cvss: 8.5, description: 'desc', status: 'active', is_active_defense: false, blocked_by_aegis: true } as any,
+    { id: 'CVE-3', name: 'Test 3', component: 'misc', severity: 'MEDIUM', cvss: 5.0, description: 'desc', status: 'info', is_active_defense: false },
+  ];
+
+  assert.equal(activeDefenses.value.length, 2);
+});
+
+test('authApi handles fetchAuthStatus and logout gracefully in test environment', async () => {
+  const { fetchAuthStatus, triggerLogout } = await import('../src/services/api/authApi');
+  
+  const status = await fetchAuthStatus();
+  assert.equal(status.authenticated, false);
+
+  const logoutOk = await triggerLogout();
+  assert.equal(typeof logoutOk, 'boolean');
+});

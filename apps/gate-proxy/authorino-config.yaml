@@ -1,0 +1,20 @@
+# Authorino Policy Enforcement Point (PEP) Configuration pour Aegis Gate
+apiVersion: authorino.kuadrant.io/v1beta1
+kind: AuthConfig
+metadata:
+  name: aegis-gate-zero-trust-policy
+  namespace: aegis-system
+spec:
+  hosts:
+    - "*"
+  identity:
+    - name: keycloak-oidc-realm-aivo
+      jwt:
+        issuerUrl: https://auth.aivo.fr/realms/AIVO
+  authorization:
+    - name: check-dns-verified-and-roles
+      json:
+        rules:
+          - selector: auth.identity.realm_access.roles
+            operator: incl
+            value: "aegis_user"

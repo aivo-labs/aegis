@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aegis-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: aegis
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
+data:
+  AEGIS_TENANT_ID: {{ .Values.global.tenantId | quote }}
+  AEGIS_CLUSTER_NAME: {{ .Values.global.clusterName | quote }}
+  AEGIS_CONTROL_PLANE_URL: {{ .Values.global.controlPlaneUrl | quote }}
+  DATACENTER_PUE: {{ .Values.energy.datacenterPue | quote }}
+  GRID_PROVIDER: {{ .Values.energy.gridProvider | quote }}
+  KEPLER_SCRAPE_INTERVAL: {{ .Values.energy.kepler.scrapeInterval | quote }}
+  NAMESPACES_MONITORED: {{ range .Values.energy.namespaces }}{{ .name }}:{{ .slaLimitWatts }},{{ end }}

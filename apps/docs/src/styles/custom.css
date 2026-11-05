@@ -1,0 +1,390 @@
+/* =============================================================================
+   AEGIS DOCUMENTATION DESIGN SYSTEM (Astro Starlight)
+   Charte graphique souveraine : Vert Émeraude / Menthe / Slate #080d18 & Glassmorphisme
+   ============================================================================= */
+
+:root {
+  /* Palette de couleurs principales Aegis */
+  --sl-color-accent-low: #064e3b;
+  --sl-color-accent: #10b981;
+  --sl-color-accent-high: #6ee7b7;
+
+  /* Teintes de fond et de surface sombres souveraines */
+  --sl-color-bg: #080d18;
+  --sl-color-bg-nav: rgba(8, 13, 24, 0.85);
+  --sl-color-bg-sidebar: rgba(8, 13, 24, 0.95);
+  --sl-color-bg-inline-code: rgba(16, 185, 129, 0.12);
+
+  /* Liserés et bordures */
+  --sl-color-hairline: rgba(30, 41, 59, 0.7);
+  --sl-color-hairline-shade: rgba(16, 185, 129, 0.2);
+
+  /* Échelle de gris neutre */
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #f8fafc;
+  --sl-color-gray-2: #e2e8f0;
+  --sl-color-gray-3: #94a3b8;
+  --sl-color-gray-4: #64748b;
+  --sl-color-gray-5: #334155;
+  --sl-color-gray-6: #1e293b;
+  --sl-color-black: #080d18;
+
+  /* Typographie */
+  --sl-font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --sl-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+/* Mode Clair Haute Lisibilité */
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d1fae5;
+  --sl-color-accent: #059669;
+  --sl-color-accent-high: #047857;
+
+  --sl-color-bg: #f8fafc;
+  --sl-color-bg-nav: rgba(255, 255, 255, 0.92);
+  --sl-color-bg-sidebar: #ffffff;
+  --sl-color-bg-inline-code: #ecfdf5;
+
+  --sl-color-hairline: #e2e8f0;
+  --sl-color-hairline-shade: #cbd5e1;
+
+  --sl-color-white: #0f172a;
+  --sl-color-gray-1: #1e293b;
+  --sl-color-gray-2: #334155;
+  --sl-color-gray-3: #475569;
+  --sl-color-gray-4: #64748b;
+  --sl-color-gray-5: #cbd5e1;
+  --sl-color-gray-6: #f1f5f9;
+  --sl-color-black: #ffffff;
+}
+
+/* =============================================================================
+   1. SURFACES GLOBALES & MOTIF DE GRILLE CYBER
+   ============================================================================= */
+
+body {
+  background-color: var(--sl-color-bg) !important;
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(16, 185, 129, 0.12) 0%, transparent 70%),
+    linear-gradient(to right, rgba(16, 185, 129, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+  background-attachment: fixed;
+}
+
+:root[data-theme='light'] body {
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(16, 185, 129, 0.07) 0%, transparent 70%),
+    linear-gradient(to right, rgba(0, 0, 0, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.025) 1px, transparent 1px);
+}
+
+/* =============================================================================
+   2. EN-TÊTE GLASSMORPHISME & BARRE DE NAVIGATION
+   ============================================================================= */
+
+header.header {
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  background: rgba(8, 13, 24, 0.85) !important;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.22) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme='light'] header.header {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+/* Logo dans l'en-tête */
+header.header .site-title {
+  gap: 0.75rem !important;
+}
+
+header.header .site-title img {
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.45));
+  transition: transform 0.25s ease;
+}
+
+header.header .site-title:hover img {
+  transform: scale(1.06);
+}
+
+/* =============================================================================
+   3. BARRE LATÉRALE (SIDEBAR) & NAVIGATION
+   ============================================================================= */
+
+/* Ne JAMAIS appliquer backdrop-filter ou transform sur nav.sidebar : cela crée
+   un nouveau containing block qui casse le position:fixed et collapse .sidebar-pane à 0px */
+nav.sidebar {
+  border: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Le conteneur réel fixé de la barre latérale Starlight est .sidebar-pane */
+.sidebar-pane {
+  background-color: rgba(8, 13, 24, 0.94) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-right: 1px solid rgba(30, 41, 59, 0.7) !important;
+  height: calc(100vh - var(--sl-nav-height)) !important;
+  max-height: calc(100vh - var(--sl-nav-height)) !important;
+}
+
+:root[data-theme='light'] .sidebar-pane {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+@media (min-width: 50rem) {
+  .sidebar-pane {
+    visibility: visible !important;
+    display: block !important;
+    width: var(--sl-sidebar-width) !important;
+    top: var(--sl-nav-height) !important;
+  }
+}
+
+/* Liens actifs dans la sidebar */
+.sidebar-content a[aria-current='page'] {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  border-left: 3px solid #10b981 !important;
+  padding-left: calc(var(--sl-sidebar-item-padding-inline) - 3px) !important;
+  font-weight: 600 !important;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+:root[data-theme='light'] .sidebar-content a[aria-current='page'] {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border-left: 3px solid #059669 !important;
+}
+
+/* =============================================================================
+   4. GLASSMORPHISME DU HERO SUR LA PAGE D'ACCUEIL (SPLASH)
+   ============================================================================= */
+
+.hero {
+  position: relative !important;
+  padding: 3.5rem 2rem !important;
+  margin-top: 1rem;
+  margin-bottom: 3.5rem !important;
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  border-radius: 2rem !important;
+  box-shadow: 
+    0 25px 60px -15px rgba(16, 185, 129, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+:root[data-theme='light'] .hero {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 
+    0 20px 45px -15px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Logo Hero animé avec aura lumineuse */
+.hero img {
+  filter: drop-shadow(0 0 35px rgba(16, 185, 129, 0.55)) !important;
+  animation: aegisFloat 5s ease-in-out infinite !important;
+}
+
+@keyframes aegisFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Titre Hero */
+.hero h1 {
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+  background: linear-gradient(to right, #ffffff 40%, #6ee7b7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+:root[data-theme='light'] .hero h1 {
+  background: linear-gradient(to right, #0f172a 40%, #047857 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Boutons d'action Hero */
+.hero .action.primary {
+  background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%) !important;
+  color: #032018 !important;
+  font-weight: 700 !important;
+  border: none !important;
+  border-radius: 0.875rem !important;
+  padding: 0.85rem 1.75rem !important;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35) !important;
+  transition: all 0.25s ease !important;
+}
+
+.hero .action.primary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5) !important;
+}
+
+.hero .action.secondary {
+  background: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(51, 65, 85, 0.9) !important;
+  color: #e2e8f0 !important;
+  border-radius: 0.875rem !important;
+  padding: 0.85rem 1.75rem !important;
+  transition: all 0.25s ease !important;
+}
+
+.hero .action.secondary:hover {
+  border-color: #10b981 !important;
+  color: #34d399 !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  transform: translateY(-2px) !important;
+}
+
+:root[data-theme='light'] .hero .action.secondary {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+:root[data-theme='light'] .hero .action.secondary:hover {
+  border-color: #059669 !important;
+  color: #047857 !important;
+  background: #ffffff !important;
+}
+
+/* =============================================================================
+   5. CARTES GLASSMORPHISM (<CardGrid> & <Card>)
+   ============================================================================= */
+
+.card {
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(51, 65, 85, 0.8) !important;
+  border-radius: 1.25rem !important;
+  padding: 1.75rem !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  border-color: rgba(16, 185, 129, 0.55) !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 16px 35px -10px rgba(16, 185, 129, 0.22) !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+:root[data-theme='light'] .card {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme='light'] .card:hover {
+  border-color: #10b981 !important;
+  background: #ffffff !important;
+  box-shadow: 0 12px 25px -8px rgba(16, 185, 129, 0.15) !important;
+}
+
+.card .title {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 1.15rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+:root[data-theme='light'] .card .title {
+  color: #0f172a !important;
+}
+
+.card svg.icon {
+  color: #34d399 !important;
+}
+
+:root[data-theme='light'] .card svg.icon {
+  color: #059669 !important;
+}
+
+/* =============================================================================
+   6. BLOCS DE CODE TERMINAL & ENCADRÉS ASIDES
+   ============================================================================= */
+
+.expressive-code pre {
+  border-radius: 1rem !important;
+  border: 1px solid rgba(30, 41, 59, 0.9) !important;
+  background-color: #090d16 !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Badges de documentation */
+.sl-badge {
+  font-family: var(--sl-font-mono) !important;
+  font-size: 0.75rem !important;
+  border-radius: 0.5rem !important;
+  padding: 0.2rem 0.6rem !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Aside / Callout Containers */
+.starlight-aside {
+  border-radius: 1rem !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.starlight-aside--note {
+  border-color: #06b6d4 !important;
+  background: rgba(6, 182, 212, 0.08) !important;
+}
+
+.starlight-aside--tip {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+
+.starlight-aside--caution {
+  border-color: #f59e0b !important;
+  background: rgba(245, 158, 11, 0.08) !important;
+}
+
+.starlight-aside--danger {
+  border-color: #f43f5e !important;
+  background: rgba(244, 63, 94, 0.08) !important;
+}
+
+/* Bouton Retour au site Aegis */
+.aegis-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 0.65rem;
+  font-size: 0.8rem;
+  font-family: var(--sl-font-mono);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.aegis-back-btn:hover {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: #34d399;
+  color: #ffffff;
+}

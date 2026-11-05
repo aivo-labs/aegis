@@ -1,0 +1,101 @@
+name: Aegis CI / CD — Validation Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ===========================================================================
+  # 1. CONTRÔLE STATIQUE, SYNTAXE & COMPILATION ASTRO
+  # ===========================================================================
+  static-checks:
+    name: 🔍 Contrôles Statiques & Builds Astro
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupération du code source
+        uses: actions/checkout@v4
+
+      - name: Configuration de PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo, pdo_pgsql, opcache
+          coverage: none
+
+      - name: Vérification syntaxique PHP (php -l)
+        run: |
+          echo "Vérification des scripts PHP du backend..."
+          find apps/backend -name "*.php" -exec php -l {} +
+
+      - name: Configuration de Node.js 22 & Corepack
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Installation de pnpm v10
+        run: corepack enable && corepack prepare pnpm@latest --activate
+
+      - name: Vérification syntaxique JavaScript / Node.js
+        run: |
+          echo "Vérification des composants Node.js..."
+          node --check apps/gate-proxy/src/index.mjs
+          node --check apps/egress-gateway/src/index.mjs
+
+      - name: Installation des dépendances monorepo
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Compilation du Cockpit Web (Astro + Vue 3)
+        run: pnpm --filter @aivo/aegis-web build
+
+      - name: Compilation de la Documentation (Astro Starlight)
+        run: pnpm --filter @aivo/aegis-docs build
+
+  # ===========================================================================
+  # 2. DÉMARRAGE DOCKER COMPOSE & EXÉCUTION DU BANC D'ESSAI PENTEST
+  # ===========================================================================
+  docker-and-pentest:
+    name: 🛡️ Banc d'Essai Docker & Batterie Pentest
+    needs: static-checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupération du code source
+        uses: actions/checkout@v4
+
+      - name: Démarrage des conteneurs Aegis (SOC Frugal)
+        run: |
+          docker compose up -d --build timescaledb backend gate-proxy web egress-gateway
+
+      - name: Attente de la disponibilité des passerelles Zero-Trust
+        run: |
+          echo "Attente de la passerelle Ingress PEP (port 8000)..."
+          timeout 60 bash -c 'until curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/dashboard/summary | grep -q "200"; do
+            echo "En attente d Aegis Gate PEP..."
+            sleep 3
+          done'
+          echo "✓ Aegis Gate PEP & Backend opérationnels !"
+
+      - name: Exécution de la batterie de tests Pentest
+        run: |
+          chmod +x ./scripts/run-pentest-demo.sh
+          ./scripts/run-pentest-demo.sh
+
+      - name: Collecte des journaux Docker en cas d'erreur
+        if: failure()
+        run: |
+          echo "--- JOURNAUX GATE-PROXY ---"
+          docker compose logs gate-proxy
+          echo "--- JOURNAUX BACKEND ---"
+          docker compose logs backend
+          echo "--- JOURNAUX EGRESS ---"
+          docker compose logs egress-gateway
+
+      - name: Arrêt et nettoyage des conteneurs
+        if: always()
+        run: |
+          docker compose down -v

@@ -1,0 +1,117 @@
+{
+  "realm": "aegis",
+  "enabled": true,
+  "displayName": "Aegis Zero-Trust Security Suite",
+  "displayNameHtml": "<div class=\"kc-logo-text\"><span>Aegis</span> Zero-Trust</div>",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Super-administrateur SOC Aegis (accès complet métriques, WAF, virtual patching et règles)"
+      },
+      {
+        "name": "soc_operator",
+        "description": "Opérateur de sécurité (consultation des flux en direct, triage des alertes et acquittement)"
+      },
+      {
+        "name": "tenant_admin",
+        "description": "Administrateur du tenant client en mode multi-tenant"
+      },
+      {
+        "name": "tenant_user",
+        "description": "Utilisateur standard du Dashboard SOC"
+      }
+    ]
+  },
+  "defaultRoles": [
+    "tenant_user"
+  ],
+  "clients": [
+    {
+      "clientId": "aegis-cockpit",
+      "name": "Aegis Cockpit SOC & Pure BFF Gateway",
+      "description": "Client OIDC officiel pour la passerelle Ingress PEP et le Cockpit SOC Aegis",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://aegis.aivo.fr/*##http://localhost:8000/*##http://localhost:4321/*"
+      },
+      "redirectUris": [
+        "http://localhost:8000/api/auth/callback",
+        "http://localhost:8000/*",
+        "http://localhost:4321/api/auth/callback",
+        "http://localhost:4321/*",
+        "https://aegis.aivo.fr/api/auth/callback",
+        "https://aegis.aivo.fr/*",
+        "https://soc.aegis.aivo.fr/api/auth/callback",
+        "https://soc.aegis.aivo.fr/*"
+      ],
+      "webOrigins": [
+        "+",
+        "http://localhost:8000",
+        "http://localhost:4321",
+        "https://aegis.aivo.fr",
+        "https://soc.aegis.aivo.fr"
+      ],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "aegis-app",
+      "name": "Aegis Web Application (Alias de compatibilité)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "redirectUris": [
+        "http://localhost:8000/*",
+        "http://localhost:4321/*",
+        "https://aegis.aivo.fr/*",
+        "https://soc.aegis.aivo.fr/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@aivo.fr",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Administrateur",
+      "lastName": "Aegis SOC",
+      "email": "admin@aivo.fr",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "aegis_admin_2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin",
+        "soc_operator",
+        "tenant_admin",
+        "tenant_user"
+      ],
+      "attributes": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001"
+      }
+    }
+  ]
+}

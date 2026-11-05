@@ -1,0 +1,57 @@
+# =============================================================================
+# AEGIS HELM CHART VALUES — SÉCURITÉ ZERO-TRUST & TÉLÉMÉTRIE ÉNERGÉTIQUE KEPLER
+# =============================================================================
+
+# 1. Identification globale du Cluster et du Tenant Aegis
+global:
+  tenantId: "00000000-0000-0000-0000-000000000001"
+  clusterName: "k8s-production-cluster"
+  controlPlaneUrl: "https://aegis.aivo.fr"
+  enrollToken: ""
+
+# 2. Sonde Énergétique & Attribution par Namespace (Kepler eBPF / RAPL)
+energy:
+  enabled: true
+  kepler:
+    enabled: true
+    image: "quay.io/sustainable_computing_io/kepler:v0.7.1"
+    scrapeInterval: "5s"
+  
+  # Attribution énergétique granulaire par Namespace
+  namespaces:
+    - name: "production"
+      slaLimitWatts: 200.0
+    - name: "staging"
+      slaLimitWatts: 80.0
+    - name: "monitoring"
+      slaLimitWatts: 40.0
+
+  # Facteur d'efficacité énergétique datacenter (PUE) et mix réseau
+  datacenterPue: 1.15
+  gridProvider: "rte_ecowatt"
+
+# 3. Sécurité Ingress PEP (WAF & Blocage Pentest)
+ingressPep:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: "ghcr.io/aivo/aegis-gate-proxy"
+    tag: "latest"
+    pullPolicy: "IfNotPresent"
+  service:
+    type: ClusterIP
+    port: 8000
+  rules:
+    blockScanners: true
+    blockSqlInjection: true
+    blockPathTraversal: true
+    blockRce: true
+    blockXss: true
+
+# 4. Sécurité Egress (CoreDNS Sinkhole & System One)
+egressSecurity:
+  enabled: true
+  coreDnsIntegration: true
+  systemOne:
+    model: "nimble:9b"
+    endpoint: "http://ollama-nimble.aegis-system.svc.cluster.local:11434"

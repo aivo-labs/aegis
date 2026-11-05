@@ -1,0 +1,22 @@
+{
+  "name": "@aivo/aegis-monorepo",
+  "version": "4.2.0",
+  "private": true,
+  "description": "Monorepo Unifié Suite Aegis par AIVO — Sécurité Zero-Trust (Ingress/Egress) & Sobriété Numérique RGESN 2024",
+  "license": "AGPL-3.0-only",
+  "author": "AIVO / Nicolas BAUD",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "pnpm --filter @aivo/aegis-web dev",
+    "build:web": "pnpm --filter @aivo/aegis-web build",
+    "dev:docs": "pnpm --filter @aivo/aegis-docs dev",
+    "build:docs": "pnpm --filter @aivo/aegis-docs build",
+    "scan": "pnpm --filter @aivo/aegis-scanner scan",
+    "test": "pnpm --filter @aivo/aegis-gate-proxy test && pnpm --filter @aivo/aegis-egress-gateway test && pnpm --filter @aivo/aegis-web test",
+    "test:gateways": "node --test apps/gate-proxy/dist/test/inspector.test.js && node --test apps/egress-gateway/dist/test/egress.test.js",
+    "test:pentest": "./scripts/run-pentest-demo.sh"
+  }
+}
