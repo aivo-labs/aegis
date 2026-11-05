@@ -18,5 +18,11 @@
     "test": "pnpm --filter @aivo/aegis-gate-proxy test && pnpm --filter @aivo/aegis-egress-gateway test && pnpm --filter @aivo/aegis-web test",
     "test:gateways": "node --test apps/gate-proxy/dist/test/inspector.test.js && node --test apps/egress-gateway/dist/test/egress.test.js",
     "test:pentest": "./scripts/run-pentest-demo.sh"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
   }
 }

@@ -2,13 +2,22 @@
 # AEGIS GATE PEP & WAF — PASSERELLE D'INTERCEPTION INGRESS LÉGÈRE (< 25 MB RAM)
 # =============================================================================
 
-FROM node:22-alpine
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json tsconfig.json ./
+RUN npm install
+
+COPY src/ ./src/
+RUN npx tsc -p tsconfig.json
+
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
 COPY package.json ./
-COPY src/ ./src/
-COPY dist/ ./dist/
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 8000
 

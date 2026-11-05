@@ -124,6 +124,10 @@ services:
       AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/ingress"
       AEGIS_TENANT_ID: "${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
       BFF_SESSION_SECRET: "${BFF_SESSION_SECRET:-aegis_sovereign_session_secret_32b_key!}"
+      OIDC_ISSUER_URL: "${OIDC_ISSUER_URL:-}"
+      OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-aegis-cockpit}"
+      OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:-}"
+      OIDC_REDIRECT_URI: "${OIDC_REDIRECT_URI:-}"
     ports:
       - "8000:8000"
     networks:

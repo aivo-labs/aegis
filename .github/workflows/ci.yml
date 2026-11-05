@@ -12,43 +12,46 @@ concurrency:
 
 jobs:
   # ===========================================================================
-  # 1. CONTRÔLE STATIQUE, SYNTAXE & COMPILATION ASTRO
+  # 1. CONTRÔLE STATIQUE, TESTS UNITAIRES & COMPILATION ASTRO
   # ===========================================================================
   static-checks:
-    name: 🔍 Contrôles Statiques & Builds Astro
+    name: 🔍 Contrôles Statiques, Tests & Builds
     runs-on: ubuntu-latest
     steps:
       - name: Récupération du code source
         uses: actions/checkout@v4
 
-      - name: Configuration de PHP 8.3
-        uses: shivammathur/setup-php@v2
+      - name: Configuration de Go 1.22
+        uses: actions/setup-go@v5
         with:
-          php-version: '8.3'
-          extensions: pdo, pdo_pgsql, opcache
-          coverage: none
+          go-version: '1.22'
 
-      - name: Vérification syntaxique PHP (php -l)
+      - name: Tests unitaires du Backend Go
         run: |
-          echo "Vérification des scripts PHP du backend..."
-          find apps/backend -name "*.php" -exec php -l {} +
+          echo "Exécution des tests unitaires Go..."
+          cd apps/backend && go test -v ./...
 
-      - name: Configuration de Node.js 22 & Corepack
+      - name: Configuration de pnpm v9
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Configuration de Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Installation de pnpm v10
-        run: corepack enable && corepack prepare pnpm@latest --activate
-
-      - name: Vérification syntaxique JavaScript / Node.js
-        run: |
-          echo "Vérification des composants Node.js..."
-          node --check apps/gate-proxy/src/index.mjs
-          node --check apps/egress-gateway/src/index.mjs
+          cache: 'pnpm'
 
       - name: Installation des dépendances monorepo
         run: pnpm install --frozen-lockfile=false
+
+      - name: Compilation TypeScript des Passerelles
+        run: |
+          pnpm --filter @aivo/aegis-gate-proxy build
+          pnpm --filter @aivo/aegis-egress-gateway build
+
+      - name: Exécution des tests unitaires Monorepo (Gate PEP, Egress DNS, Web)
+        run: pnpm test
 
       - name: Compilation du Cockpit Web (Astro + Vue 3)
         run: pnpm --filter @aivo/aegis-web build
@@ -74,7 +77,7 @@ jobs:
       - name: Attente de la disponibilité des passerelles Zero-Trust
         run: |
           echo "Attente de la passerelle Ingress PEP (port 8000)..."
-          timeout 60 bash -c 'until curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/dashboard/summary | grep -q "200"; do
+          timeout 60 bash -c 'until curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; do
             echo "En attente d Aegis Gate PEP..."
             sleep 3
           done'

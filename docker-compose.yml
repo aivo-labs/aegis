@@ -124,6 +124,10 @@ services:
       # ⚠️ AVERTISSEMENT DE SÉCURITÉ PRODUCTION (Pure BFF Token Handler) :
       # Ne JAMAIS déployer avec le secret par défaut. Définir une clé AES-256 de 32 caractères dans .env
       BFF_SESSION_SECRET: "${BFF_SESSION_SECRET:-aegis_sovereign_session_secret_32b_key!}"
+      OIDC_ISSUER_URL: "${OIDC_ISSUER_URL:-}"
+      OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-aegis-cockpit}"
+      OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:-}"
+      OIDC_REDIRECT_URI: "${OIDC_REDIRECT_URI:-}"
     ports:
       - "8000:8000"
     depends_on:

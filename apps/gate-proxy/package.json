@@ -5,9 +5,13 @@
   "type": "module",
   "main": "dist/src/index.js",
   "scripts": {
-    "build": "../../apps/web/node_modules/.bin/tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
     "start": "node dist/src/index.js",
     "test": "node --test dist/test/inspector.test.js dist/test/bff.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
   },
   "license": "AGPL-3.0-only"
 }
