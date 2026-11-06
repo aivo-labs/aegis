@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/aivo-labs/aegis/backend/internal/httputil"
 	"github.com/aivo-labs/aegis/backend/internal/service"
@@ -34,7 +35,14 @@ func (h *DashboardHandler) LiveStreams(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusNoContent, nil)
 		return
 	}
-	streams, err := h.dashboardService.GetLiveStreams()
+	dateFilter := r.URL.Query().Get("date")
+	hostFilter := r.URL.Query().Get("host")
+	limitStr := r.URL.Query().Get("limit")
+	limit := 50
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 500 {
+		limit = l
+	}
+	streams, err := h.dashboardService.GetLiveStreamsFiltered(dateFilter, hostFilter, limit)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return

@@ -415,6 +415,7 @@ export function createGateServer(
             pattern: verdict.pattern,
             payload_bytes: effectiveBytes,
             event_id: eventId,
+            host: ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0],
             engine:
               statusCode === 413
                 ? 'Aegis Gate PEP (Virtual Patching Volumétrique)'
@@ -481,6 +482,7 @@ export function createGateServer(
             pattern: `⚠️ BOUCLIER DÉSACTIVÉ — Exploit transmis au serveur : ${verdict.pattern}`,
             payload_bytes: effectiveBytes,
             event_id: eventId,
+            host: ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0],
             engine: '⚠️ Protection Désactivée (Serveur Exposé)'
           }
         });
@@ -506,6 +508,7 @@ export function createGateServer(
               severity: 'COMPLIANT',
               risk_score: 5,
               entropy: verdict.entropy,
+              host: ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0],
               engine: 'Aegis Gate PEP'
             }
           });

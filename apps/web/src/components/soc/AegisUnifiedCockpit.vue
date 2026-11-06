@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 font-sans text-slate-100 select-none">
+  <div class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 font-sans text-slate-100">
     
     <!-- 1. ÉTAT TRANSITOIRE OU REDIRECTION VERS /login/ -->
     <div v-if="!isAuthenticated" class="h-full w-full flex items-center justify-center p-6 bg-slate-950">
@@ -346,10 +346,10 @@ async function exportVSReport() {
 
 onMounted(async () => {
   if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
     const isAuthed = await checkSession();
 
     if (!isAuthed) {
-      const urlParams = new URLSearchParams(window.location.search);
       const hasAuthParam = urlParams.get('mode') === 'login' || urlParams.get('auth') === 'true';
       if (hasAuthParam) {
         window.location.href = '/api/auth/login';

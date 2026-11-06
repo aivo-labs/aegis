@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* Densité d'affichage optimale & typographie compacte haute lisibilité (~81% du standard) */
+html {
+  font-size: 13px;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (min-width: 1536px) {
+  html {
+    font-size: 13.5px;
+  }
+}
+
 /* =============================================================================
    AEGIS DESIGN SYSTEM — MODE CLAIR PREMIUM & HAUTE LISIBILITÉ
    Harmonisation complète pour toutes les pages (Landing & Cockpit SOC)

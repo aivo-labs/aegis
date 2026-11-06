@@ -34,13 +34,23 @@
       <StreamsPanel 
         v-else-if="activeTab === 'streams'"
         :ingressStream="ingressStream"
-        :egressStream="egressStream"
+        :egressStream="filteredEgressStream"
         :filteredIngressStream="filteredIngressStream"
         :probeEventsCount="probeEventsCount"
         :exploitEventsCount="exploitEventsCount"
         :cleanEventsCount="cleanEventsCount"
+        :totalIngress24h="totalIngress24h"
+        :blockedIngress24h="blockedIngress24h"
+        :totalEgress24h="totalEgress24h"
+        :blockedEgress24h="blockedEgress24h"
+        :availableHosts="availableHosts"
+        v-model:streamFilter="streamFilter"
+        v-model:selectedHost="selectedHost"
+        v-model:selectedDate="selectedDate"
+        v-model:searchQuery="searchQuery"
         :mapEvents="mapEvents"
         :isSimulatingProbes="isSimulatingProbes"
+        @filter-change="() => fetchLiveStreams()"
         @simulate="handleSimulateProbes"
         @quick-ban="handleQuickBan"
       />
@@ -121,8 +131,10 @@ function showToast(msg: string) {
 // Composables
 const { isLightMode, toggleTheme } = useAegisTheme();
 const { 
-  ingressStream, egressStream, filteredIngressStream, 
+  ingressStream, egressStream, filteredIngressStream, filteredEgressStream,
   probeEventsCount, exploitEventsCount, cleanEventsCount, 
+  totalIngress24h, blockedIngress24h, totalEgress24h, blockedEgress24h,
+  availableHosts, selectedHost, selectedDate, searchQuery, streamFilter,
   mapEvents, isSimulatingProbes, fetchLiveStreams, simulateBotProbes 
 } = useLiveStreams();
 

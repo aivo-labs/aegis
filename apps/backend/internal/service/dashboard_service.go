@@ -324,27 +324,59 @@ func (s *DashboardService) GetSummary() map[string]any {
 }
 
 func (s *DashboardService) GetLiveStreams() (map[string]any, error) {
+	return s.GetLiveStreamsFiltered("", "", 50)
+}
+
+func (s *DashboardService) GetLiveStreamsFiltered(dateFilter, hostFilter string, limit int) (map[string]any, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
 	if s.db == nil {
 		return map[string]any{
-			"status":         "success",
-			"ingress_stream": []any{},
-			"egress_stream":  []any{},
-			"timestamp":      time.Now().UTC().Format(time.RFC3339),
+			"status":              "success",
+			"ingress_stream":      []any{},
+			"egress_stream":       []any{},
+			"total_ingress_24h":   0,
+			"blocked_ingress_24h": 0,
+			"total_egress_24h":    0,
+			"blocked_egress_24h":  0,
+			"timestamp":           time.Now().UTC().Format(time.RFC3339),
 		}, nil
 	}
 
-	inRows, _ := s.db.Query(fmt.Sprintf(`
+	whereClauseIn := fmt.Sprintf("WHERE tenant_id = %s", database.QuoteLiteral(s.defaultTenantID))
+	whereClauseEg := fmt.Sprintf("WHERE tenant_id = %s", database.QuoteLiteral(s.defaultTenantID))
+
+	if dateFilter != "" {
+		if _, err := time.Parse("2006-01-02", dateFilter); err == nil {
+			whereClauseIn += fmt.Sprintf(" AND timestamp::date = '%s'::date", dateFilter)
+			whereClauseEg += fmt.Sprintf(" AND timestamp::date = '%s'::date", dateFilter)
+		}
+	}
+
+	if hostFilter != "" {
+		quotedHost := database.QuoteLiteral("%" + strings.ToLower(hostFilter) + "%")
+		whereClauseIn += fmt.Sprintf(" AND (LOWER(COALESCE(metadata->>'host', '')) LIKE %s OR LOWER(request_uri) LIKE %s)", quotedHost, quotedHost)
+		whereClauseEg += fmt.Sprintf(" AND LOWER(fqdn) LIKE %s", quotedHost)
+	}
+
+	// 1. Ingress stream
+	inQuery := fmt.Sprintf(`
 		SELECT id, timestamp, host(client_ip) AS client_ip, user_agent, http_method, request_uri,
 		       decision, http_status_returned, latency_ms, metadata
 		FROM security_audit_logs
-		WHERE tenant_id = %s
+		%s
 		ORDER BY timestamp DESC
-		LIMIT 50;`, database.QuoteLiteral(s.defaultTenantID)))
+		LIMIT %d;`, whereClauseIn, limit)
 
+	inRows, _ := s.db.Query(inQuery)
 	ingressStream := make([]map[string]any, 0, len(inRows))
 	for _, row := range inRows {
 		var meta map[string]any
 		_ = json.Unmarshal([]byte(row.String("metadata")), &meta)
+		if meta == nil {
+			meta = make(map[string]any)
+		}
 		dec := row.String("decision")
 		status := row.Int("http_status_returned")
 		uri := row.String("request_uri")
@@ -353,6 +385,11 @@ func (s *DashboardService) GetLiveStreams() (map[string]any, error) {
 
 		ip := row.String("client_ip")
 		lat, lon := IPToGeoCoordinates(ip)
+
+		host := asString(meta, "host", "")
+		if host == "" {
+			host = asString(meta, "domain", "aegis.aivo.fr")
+		}
 
 		ingressStream = append(ingressStream, map[string]any{
 			"id":                "in-" + row.String("id"),
@@ -363,6 +400,9 @@ func (s *DashboardService) GetLiveStreams() (map[string]any, error) {
 			"method":            row.String("http_method"),
 			"request_uri":       uri,
 			"target":            uri,
+			"host":              host,
+			"domain":            host,
+			"user_agent":        row.String("user_agent"),
 			"decision":          dec,
 			"http_status":       status,
 			"status_code":       status,
@@ -376,19 +416,27 @@ func (s *DashboardService) GetLiveStreams() (map[string]any, error) {
 			"entropy":           asFloat(meta, "entropy", 2.5),
 			"lat":               lat,
 			"lon":               lon,
+			"metadata":          meta,
 		})
 	}
 
-	egRows, _ := s.db.Query(fmt.Sprintf(`
+	// 2. Egress stream
+	egQuery := fmt.Sprintf(`
 		SELECT id, timestamp, host(client_ip) AS client_ip, fqdn, domain_entropy,
 		       action, threat_type, confidence, latency_ms, metadata
 		FROM egress_security_logs
-		WHERE tenant_id = %s
+		%s
 		ORDER BY timestamp DESC
-		LIMIT 50;`, database.QuoteLiteral(s.defaultTenantID)))
+		LIMIT %d;`, whereClauseEg, limit)
 
+	egRows, _ := s.db.Query(egQuery)
 	egressStream := make([]map[string]any, 0, len(egRows))
 	for _, row := range egRows {
+		var meta map[string]any
+		_ = json.Unmarshal([]byte(row.String("metadata")), &meta)
+		if meta == nil {
+			meta = make(map[string]any)
+		}
 		action := row.String("action")
 		threatType := row.String("threat_type")
 		entropy := row.Float("domain_entropy")
@@ -407,6 +455,7 @@ func (s *DashboardService) GetLiveStreams() (map[string]any, error) {
 			"target":            row.String("fqdn"),
 			"domain":            row.String("fqdn"),
 			"target_ip":         row.String("fqdn"),
+			"host":              row.String("fqdn"),
 			"decision":          action,
 			"threat_type":       threatType,
 			"exfil_probability": confPct,
@@ -414,14 +463,36 @@ func (s *DashboardService) GetLiveStreams() (map[string]any, error) {
 			"latency_ms":        row.Float("latency_ms"),
 			"lat":               lat,
 			"lon":               lon,
+			"metadata":          meta,
 		})
 	}
 
+	// 3. Stats 24h
+	totalIn24hRow, _ := s.db.QueryRow(fmt.Sprintf(`
+		SELECT COUNT(*) AS total_24h,
+		       COUNT(*) FILTER (WHERE decision = 'BLOCK') AS blocked_24h
+		FROM security_audit_logs
+		WHERE tenant_id = %s AND timestamp >= NOW() - INTERVAL '24 hours';`, database.QuoteLiteral(s.defaultTenantID)))
+	totalIn24h := totalIn24hRow.Int("total_24h")
+	blockedIn24h := totalIn24hRow.Int("blocked_24h")
+
+	totalEg24hRow, _ := s.db.QueryRow(fmt.Sprintf(`
+		SELECT COUNT(*) AS total_24h,
+		       COUNT(*) FILTER (WHERE action IN ('BLOCK', 'QUARANTINE')) AS blocked_24h
+		FROM egress_security_logs
+		WHERE tenant_id = %s AND timestamp >= NOW() - INTERVAL '24 hours';`, database.QuoteLiteral(s.defaultTenantID)))
+	totalEg24h := totalEg24hRow.Int("total_24h")
+	blockedEg24h := totalEg24hRow.Int("blocked_24h")
+
 	return map[string]any{
-		"status":         "success",
-		"ingress_stream": ingressStream,
-		"egress_stream":  egressStream,
-		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+		"status":              "success",
+		"ingress_stream":      ingressStream,
+		"egress_stream":       egressStream,
+		"total_ingress_24h":   totalIn24h,
+		"blocked_ingress_24h": blockedIn24h,
+		"total_egress_24h":    totalEg24h,
+		"blocked_egress_24h":  blockedEg24h,
+		"timestamp":           time.Now().UTC().Format(time.RFC3339),
 	}, nil
 }
 
