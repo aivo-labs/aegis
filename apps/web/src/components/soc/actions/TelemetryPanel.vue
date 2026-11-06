@@ -115,10 +115,10 @@
               @change="refreshData"
               class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-amber-300 font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
             >
-              <option value="all">Tous les namespaces &amp; services</option>
-              <option value="dokploy">dokploy (Traefik, Dokploy Core, Apps)</option>
-              <option value="aegis-system">aegis-system (Gate Proxy, Backend, TimescaleDB)</option>
-              <option value="kube-system">kube-system (K8s Control Plane)</option>
+              <option value="all">🌐 Tous les namespaces &amp; workloads</option>
+              <option value="dokploy">🐳 dokploy (aivo.fr, flow n8n, blog, traefik)</option>
+              <option value="aegis-system">🛡️ aegis-system (Cockpit, PEP, DB, Backend)</option>
+              <option value="kube-system">⚙️ kube-system (K8s Control Plane)</option>
             </select>
           </div>
 
@@ -437,6 +437,9 @@
                 </div>
 
                 <div class="flex items-center gap-3 shrink-0">
+                  <span v-if="wl.req_count && wl.req_count > 0" class="px-2 py-0.5 rounded bg-cyan-950/70 border border-cyan-700/40 text-cyan-300 text-[10px] font-bold">
+                    {{ wl.req_count }} req
+                  </span>
                   <span class="text-amber-400 font-bold">{{ wl.watts }} W</span>
                   <span class="text-cyan-300 font-bold">{{ wl.share_pct }}%</span>
                 </div>

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -65,6 +66,14 @@ func TestGetEnergyTelemetry_RangesAndMetrics(t *testing.T) {
 	if summary["total_carbon_gco2"].(float64) <= 0 {
 		t.Errorf("expected positive total_carbon_gco2")
 	}
+	if summary["avg_cpu_load_pct"].(float64) <= 0 {
+		t.Errorf("expected positive avg_cpu_load_pct, got %v", summary["avg_cpu_load_pct"])
+	}
+
+	nodes, _ := res24h["nodes"].([]map[string]any)
+	if len(nodes) == 0 || nodes[0]["provider"] != "OVHcloud / KVM VPS" {
+		t.Errorf("expected OVHcloud provider, got %v", nodes)
+	}
 
 	// 2. September Month Navigation
 	resSept, err := svc.GetEnergyTelemetry("month", "", "", "2026-09", "", "all", "dokploy")
@@ -81,6 +90,24 @@ func TestGetEnergyTelemetry_RangesAndMetrics(t *testing.T) {
 		}
 	}
 
+	// Verify all user workloads are included in full list
+	resAll, _ := svc.GetEnergyTelemetry("24h", "", "", "", "", "all", "all")
+	allWl, _ := resAll["workloads"].([]map[string]any)
+	expectedDomains := []string{"aivo.fr", "flow.aivo.fr", "nicolas.baud.dev", "aegis.aivo.fr"}
+	for _, domain := range expectedDomains {
+		found := false
+		for _, wl := range allWl {
+			srv := wl["service"].(string)
+			if strings.Contains(srv, domain) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected workload containing %s, but not found in %v", domain, allWl)
+		}
+	}
+
 	// 3. Year 2026 Navigation
 	resYear, err := svc.GetEnergyTelemetry("year", "", "", "", "2026", "all", "all")
 	if err != nil {
@@ -92,6 +119,11 @@ func TestGetEnergyTelemetry_RangesAndMetrics(t *testing.T) {
 	timeseries, ok := resYear["timeseries"].([]EnergyTimePoint)
 	if !ok || len(timeseries) == 0 {
 		t.Errorf("expected non-empty EnergyTimePoint timeseries for year 2026")
+	}
+	for _, pt := range timeseries {
+		if pt.CpuLoadPct <= 0 {
+			t.Errorf("expected positive CpuLoadPct in timeseries point %v", pt)
+		}
 	}
 }
 

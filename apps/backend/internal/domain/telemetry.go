@@ -37,6 +37,7 @@ type EnergyTelemetry struct {
 	TenantID             string  `json:"tenant_id"`
 	Hostname             string  `json:"hostname"`
 	IPAddress            string  `json:"ip_address"`
+	Provider             string  `json:"provider,omitempty"`
 	CPUPowerWatts        float64 `json:"cpu_power_watts"`
 	RAMPowerWatts        float64 `json:"ram_power_watts"`
 	EnergyConsumedJoules float64 `json:"energy_consumed_joules"`

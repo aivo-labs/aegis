@@ -40,18 +40,26 @@ func (s *TelemetryService) IngestEnergy(t domain.EnergyTelemetry) error {
 		ip = "127.0.0.1"
 	}
 
+	provider := t.Provider
+	if provider == "" {
+		provider = "ovhcloud"
+	}
+
 	// Upsert node dans infrastructure_nodes
 	nodeUpsertSQL := fmt.Sprintf(`
 		INSERT INTO infrastructure_nodes (tenant_id, hostname, ip_address, provider, os_info, scaphandre_agent_version, status, updated_at)
-		VALUES (%s, %s, %s, 'scaleway', 'Linux Baremetal Hardened (RAPL)', 'v4.3.0', 'active', CURRENT_TIMESTAMP)
+		VALUES (%s, %s, %s, %s, 'Linux KVM VPS (Kernel /proc/stat & RAPL)', 'v4.3.0', 'active', CURRENT_TIMESTAMP)
 		ON CONFLICT (tenant_id, hostname) DO UPDATE SET
 			ip_address = EXCLUDED.ip_address,
+			provider = EXCLUDED.provider,
+			os_info = EXCLUDED.os_info,
 			status = 'active',
 			updated_at = CURRENT_TIMESTAMP
 		RETURNING id;`,
 		database.QuoteLiteral(tenantID),
 		database.QuoteLiteral(hostname),
 		database.QuoteLiteral(ip),
+		database.QuoteLiteral(provider),
 	)
 
 	nodeRow, err := s.db.QueryRow(nodeUpsertSQL)

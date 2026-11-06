@@ -48,7 +48,7 @@ test('sendLeadToAivoControlCenter respects privacy when endpoint is unconfigured
 });
 
 test('useTelemetry dynamicSvgPath computes correct polyline', () => {
-  const { powerHistory, dynamicSvgPath, instantWatts } = useTelemetry();
+  const { powerHistory, dynamicSvgPath, instantWatts, dynamicCpuLoadSvgPath, timeseries } = useTelemetry();
 
   // Initial zero watts
   assert.equal(dynamicSvgPath.value, 'M 40,140 L 480,140');
@@ -63,6 +63,14 @@ test('useTelemetry dynamicSvgPath computes correct polyline', () => {
     { time: '10:01', watts: 15 },
   ];
   assert.equal(dynamicSvgPath.value, 'M 40,120 L 480,60');
+
+  // CPU Load path
+  timeseries.value = [
+    { time: '10:00', timestamp: '2026-11-06T10:00:00Z', watts: 8.8, cpu_watts: 6.1, ram_watts: 2.7, cpu_load_pct: 5.0, carbon_gco2: 0.45, water_cl: 1.32 },
+    { time: '10:01', timestamp: '2026-11-06T10:01:00Z', watts: 10.2, cpu_watts: 7.1, ram_watts: 3.1, cpu_load_pct: 10.0, carbon_gco2: 0.53, water_cl: 1.53 },
+  ];
+  assert.ok(dynamicCpuLoadSvgPath.value.startsWith('M 40,'));
+  assert.ok(dynamicCpuLoadSvgPath.value.includes('L 480,'));
 });
 
 test('useLiveStreams filters and classifies threats accurately', () => {

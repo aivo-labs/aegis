@@ -135,11 +135,12 @@ export function useTelemetry() {
 
   const maxYCpu = computed(() => {
     const maxVal = Math.max(
-      summary.value.max_cpu_load_pct,
-      ...timeseries.value.map(t => t.cpu_load_pct),
-      10
+      summary.value.max_cpu_load_pct || 0,
+      summary.value.avg_cpu_load_pct || 0,
+      ...timeseries.value.map(t => t.cpu_load_pct || 0),
+      5
     );
-    return Math.min(100, Math.ceil(maxVal / 10) * 10);
+    return Math.min(100, Math.max(10, Math.ceil(maxVal / 5) * 5));
   });
 
   // SVG Paths with 40 -> 480 scale (baseline y=140 / 150)
@@ -175,16 +176,17 @@ export function useTelemetry() {
 
   const dynamicCpuLoadSvgPath = computed(() => {
     const pts = timeseries.value;
+    const maxCpu = maxYCpu.value || 10;
     if (pts.length < 2) {
-      const cpu = summary.value.avg_cpu_load_pct || 0;
-      const y = Math.max(20, Math.min(145, Math.round(150 - (cpu * 1.2))));
+      const cpu = summary.value.avg_cpu_load_pct || 4.8;
+      const y = Math.max(20, Math.min(148, Math.round(150 - ((cpu / maxCpu) * 128))));
       return `M 40,${y} L 480,${y}`;
     }
     const stepX = 440 / (pts.length - 1);
     const points = pts.map((pt, idx) => {
       const x = Math.round(40 + idx * stepX);
       const cpu = Number(pt.cpu_load_pct) || 0;
-      const y = Math.max(20, Math.min(145, Math.round(150 - (cpu * 1.2))));
+      const y = Math.max(20, Math.min(148, Math.round(150 - ((cpu / maxCpu) * 128))));
       return `${x},${y}`;
     });
     return `M ${points.join(' L ')}`;
@@ -193,11 +195,12 @@ export function useTelemetry() {
   const dynamicCpuAreaSvgPath = computed(() => {
     const pts = timeseries.value;
     if (pts.length < 2) return '';
+    const maxCpu = maxYCpu.value || 10;
     const stepX = 440 / (pts.length - 1);
     const points = pts.map((pt, idx) => {
       const x = Math.round(40 + idx * stepX);
       const cpu = Number(pt.cpu_load_pct) || 0;
-      const y = Math.max(20, Math.min(145, Math.round(150 - (cpu * 1.2))));
+      const y = Math.max(20, Math.min(148, Math.round(150 - ((cpu / maxCpu) * 128))));
       return `${x},${y}`;
     });
     return `M ${points.join(' L ')} L 480,150 L 40,150 Z`;

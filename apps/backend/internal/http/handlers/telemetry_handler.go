@@ -22,14 +22,47 @@ func (h *TelemetryHandler) IngestEnergy(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	body := httputil.ReadJSONBody(r)
+
+	hostname := httputil.AsString(body, "hostname", "")
+	if hostname == "" {
+		hostname = httputil.AsString(body, "server_id", "vps-main-01")
+	}
+
+	provider := httputil.AsString(body, "provider", "ovhcloud")
+
+	powerWatts := httputil.AsFloat(body, "power_watts", 0)
+	cpuPower := httputil.AsFloat(body, "cpu_power_watts", 0)
+	if cpuPower == 0 && powerWatts > 0 {
+		cpuPower = powerWatts * 0.70
+	}
+
+	ramPower := httputil.AsFloat(body, "ram_power_watts", 0)
+	if ramPower == 0 {
+		ramPower = httputil.AsFloat(body, "memory_power_watts", 0)
+	}
+	if ramPower == 0 && powerWatts > 0 {
+		ramPower = powerWatts * 0.30
+	}
+
+	energyJoules := httputil.AsFloat(body, "energy_consumed_joules", 0)
+	if energyJoules == 0 {
+		energyJoules = httputil.AsFloat(body, "energy_joules_delta", 0)
+	}
+
+	cpuUtil := httputil.AsFloat(body, "cpu_utilization_pct", 0)
+	if cpuUtil == 0 {
+		cpuUtil = httputil.AsFloat(body, "cpu_usage_percent", 0)
+	}
+
 	payload := domain.EnergyTelemetry{
 		TenantID:             httputil.AsString(body, "tenant_id", ""),
-		Hostname:             httputil.AsString(body, "hostname", "aegis-sovereign-node"),
+		Hostname:             hostname,
 		IPAddress:            httputil.AsString(body, "ip_address", "127.0.0.1"),
-		CPUPowerWatts:        httputil.AsFloat(body, "cpu_power_watts", 0),
-		RAMPowerWatts:        httputil.AsFloat(body, "ram_power_watts", 0),
-		EnergyConsumedJoules: httputil.AsFloat(body, "energy_consumed_joules", 0),
-		CPUUtilizationPct:    httputil.AsFloat(body, "cpu_utilization_pct", 0),
+		Provider:             provider,
+		CPUPowerWatts:        cpuPower,
+		RAMPowerWatts:        ramPower,
+		EnergyConsumedJoules: energyJoules,
+		CPUUtilizationPct:    cpuUtil,
 		MemoryUsedMB:         httputil.AsInt(body, "memory_used_mb", 0),
 	}
 	if err := h.telemetryService.IngestEnergy(payload); err != nil {

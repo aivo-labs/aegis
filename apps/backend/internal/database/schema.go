@@ -33,7 +33,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 			tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
 			hostname VARCHAR(255) NOT NULL,
 			ip_address INET NOT NULL,
-			provider VARCHAR(50) NOT NULL DEFAULT 'scaleway',
+			provider VARCHAR(50) NOT NULL DEFAULT 'ovhcloud',
 			os_info VARCHAR(100),
 			scaphandre_agent_version VARCHAR(50),
 			status VARCHAR(20) NOT NULL DEFAULT 'active',
@@ -41,6 +41,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			CONSTRAINT uq_tenant_node UNIQUE (tenant_id, hostname)
 		);`,
+		`UPDATE infrastructure_nodes SET provider = 'ovhcloud' WHERE provider = 'scaleway';`,
 
 		`CREATE TABLE IF NOT EXISTS security_audit_logs (
 			id BIGSERIAL,
