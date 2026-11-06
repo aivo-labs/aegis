@@ -43,3 +43,55 @@ func TestIPToGeoCoordinates(t *testing.T) {
 		t.Errorf("Expected valid geo coordinates for external IP")
 	}
 }
+
+func TestGetEnergyTelemetry_RangesAndMetrics(t *testing.T) {
+	svc := NewDashboardService(nil, nil, "00000000-0000-0000-0000-000000000001")
+
+	// 1. Default 24h
+	res24h, err := svc.GetEnergyTelemetry("24h", "", "", "", "", "all", "all")
+	if err != nil {
+		t.Fatalf("GetEnergyTelemetry(24h) error = %v", err)
+	}
+	summary, ok := res24h["summary"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected summary map")
+	}
+	if summary["instant_watts"].(float64) <= 0 {
+		t.Errorf("expected positive instant_watts")
+	}
+	if summary["water_usage_liters"].(float64) <= 0 {
+		t.Errorf("expected positive water_usage_liters")
+	}
+	if summary["total_carbon_gco2"].(float64) <= 0 {
+		t.Errorf("expected positive total_carbon_gco2")
+	}
+
+	// 2. September Month Navigation
+	resSept, err := svc.GetEnergyTelemetry("month", "", "", "2026-09", "", "all", "dokploy")
+	if err != nil {
+		t.Fatalf("GetEnergyTelemetry(month=2026-09) error = %v", err)
+	}
+	if resSept["range"] != "month" {
+		t.Errorf("expected range 'month', got %v", resSept["range"])
+	}
+	workloads, _ := resSept["workloads"].([]map[string]any)
+	for _, wl := range workloads {
+		if wl["namespace"] != "dokploy" {
+			t.Errorf("expected only dokploy namespace, got %v", wl["namespace"])
+		}
+	}
+
+	// 3. Year 2026 Navigation
+	resYear, err := svc.GetEnergyTelemetry("year", "", "", "", "2026", "all", "all")
+	if err != nil {
+		t.Fatalf("GetEnergyTelemetry(year=2026) error = %v", err)
+	}
+	if resYear["range"] != "year" {
+		t.Errorf("expected range 'year', got %v", resYear["range"])
+	}
+	timeseries, ok := resYear["timeseries"].([]EnergyTimePoint)
+	if !ok || len(timeseries) == 0 {
+		t.Errorf("expected non-empty EnergyTimePoint timeseries for year 2026")
+	}
+}
+

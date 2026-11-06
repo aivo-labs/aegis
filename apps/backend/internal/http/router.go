@@ -44,6 +44,8 @@ func NewRouter(p RouterParams) *http.ServeMux {
 	mux.HandleFunc("/api/v1/dashboard/egress-threats", p.DashboardHandler.ThreatsFeed)
 	mux.HandleFunc("/api/v1/dashboard/triage", p.DashboardHandler.ThreatsFeed)
 	mux.HandleFunc("/api/v1/dashboard/energy/export", p.DashboardHandler.EnergyExport)
+	mux.HandleFunc("/api/v1/dashboard/energy/telemetry", p.DashboardHandler.EnergyTelemetry)
+	mux.HandleFunc("/api/v1/dashboard/telemetry/energy", p.DashboardHandler.EnergyTelemetry)
 	mux.HandleFunc("/api/v1/dashboard/actions/execute", p.DashboardHandler.ExecuteAction)
 	mux.HandleFunc("/api/v1/nodes", p.DashboardHandler.Nodes)
 

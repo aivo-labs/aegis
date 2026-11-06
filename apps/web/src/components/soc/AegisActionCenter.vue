@@ -57,13 +57,6 @@
 
       <TelemetryPanel 
         v-else-if="activeTab === 'telemetry'"
-        :instantWatts="instantWatts"
-        :cpuWatts="cpuWatts"
-        :ramWatts="ramWatts"
-        :cpuLoadPct="cpuLoadPct"
-        :carbonIntensity="carbonIntensity"
-        :powerHistoryCount="powerHistory.length"
-        :dynamicSvgPath="dynamicSvgPath"
       />
 
       <CveFeedPanel 
@@ -104,7 +97,6 @@ import RoadmapPanel from './actions/RoadmapPanel.vue';
 
 import { useAegisTheme } from '../../composables/useAegisTheme';
 import { useLiveStreams } from '../../composables/useLiveStreams';
-import { useTelemetry } from '../../composables/useTelemetry';
 import { useCveFeed } from '../../composables/useCveFeed';
 import { useControls } from '../../composables/useControls';
 
@@ -137,11 +129,6 @@ const {
   availableHosts, selectedHost, selectedDate, searchQuery, streamFilter,
   mapEvents, isSimulatingProbes, fetchLiveStreams, simulateBotProbes 
 } = useLiveStreams();
-
-const { 
-  instantWatts, cpuWatts, ramWatts, cpuLoadPct, carbonIntensity, 
-  powerHistory, dynamicSvgPath, fetchTelemetry 
-} = useTelemetry();
 
 const { 
   activeRulesCount, blockedByPatchCount, exposedCves, catalogCves, fetchCveFeed 
@@ -245,13 +232,11 @@ let pollTimer: any = null;
 
 onMounted(() => {
   fetchLiveStreams();
-  fetchTelemetry();
   fetchCveFeed();
   fetchControls();
 
   pollTimer = setInterval(() => {
     fetchLiveStreams();
-    if (activeTab.value === 'telemetry') fetchTelemetry();
     if (activeTab.value === 'cve') fetchCveFeed();
   }, 3000);
 });

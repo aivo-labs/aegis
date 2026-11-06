@@ -134,3 +134,29 @@ func (h *DashboardHandler) EnergyExport(w http.ResponseWriter, r *http.Request) 
 		"green":  green,
 	})
 }
+
+func (h *DashboardHandler) EnergyTelemetry(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		httputil.WriteJSON(w, http.StatusNoContent, nil)
+		return
+	}
+	q := r.URL.Query()
+	timeRange := q.Get("range")
+	if timeRange == "" {
+		timeRange = "24h"
+	}
+	fromDate := q.Get("from")
+	toDate := q.Get("to")
+	month := q.Get("month")
+	year := q.Get("year")
+	nodeID := q.Get("node")
+	namespace := q.Get("namespace")
+
+	data, err := h.dashboardService.GetEnergyTelemetry(timeRange, fromDate, toDate, month, year, nodeID, namespace)
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, data)
+}
+
