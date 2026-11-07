@@ -1,8 +1,8 @@
 <template>
   <div class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 font-sans text-slate-100">
     
-    <!-- 1. ÉTAT TRANSITOIRE OU REDIRECTION VERS /login/ -->
-    <div v-if="!isAuthenticated" class="h-full w-full flex items-center justify-center p-6 bg-slate-950">
+    <!-- 1. ÉTAT TRANSITOIRE OU REDIRECTION VERS /login/ (DÉSACTIVÉ EN MODE DEMO) -->
+    <div v-if="!isAuthenticated && !isDemo" class="h-full w-full flex items-center justify-center p-6 bg-slate-950">
       <div class="max-w-md w-full p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center font-mono space-y-4 shadow-2xl">
         <AegisLogo size="lg" class="mx-auto" />
         <h2 class="text-xl font-bold text-white font-sans">Session Non Autorisée</h2>
@@ -13,38 +13,65 @@
       </div>
     </div>
 
-    <!-- 2. MODE CONNECTÉ : COCKPIT AVEC SIDEBAR FIXE PERMANENTE -->
-    <div v-else class="h-full w-full flex overflow-hidden">
+    <!-- 2. MODE CONNECTÉ OU DÉMO : COCKPIT AVEC SIDEBAR FIXE PERMANENTE -->
+    <div v-else class="h-full w-full flex flex-col overflow-hidden">
       
-      <!-- SIDEBAR GAUCHE PERMANENTE -->
-      <CockpitSidebar
-        :isSidebarExpanded="isSidebarExpanded"
-        :activeNav="activeNav"
-        @toggle-expand="isSidebarExpanded = !isSidebarExpanded"
-        @switch-nav="switchNav"
-        @open-account="showAccountModal = true"
-        @logout="logout"
-      />
-
-      <!-- ZONE CENTRALE : DÉFILEMENT INDÉPENDANT À DROITE -->
-      <div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto overflow-x-hidden">
-        
-        <!-- VUE A : KANBAN SOC DE TRIAGE DÉDIÉ (SI activeNav === 'triage') -->
-        <div v-if="activeNav === 'triage'" class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
-          <AegisTriageKanban />
+      <!-- BANDEAU HAUT EN MODE DÉMO (SANDBOX REPLAY) -->
+      <div v-if="isDemo" class="shrink-0 px-4 py-2.5 bg-gradient-to-r from-cyan-950 via-slate-900 to-emerald-950 border-b border-cyan-500/40 text-xs font-mono flex flex-col sm:flex-row items-center justify-between gap-2 shadow-lg z-20">
+        <div class="flex items-center gap-2.5 text-cyan-300">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <span class="font-extrabold tracking-wide">MODE DÉMONSTRATEUR INTERACTIF</span>
+          <span class="hidden sm:inline text-slate-500">•</span>
+          <span class="hidden sm:inline text-slate-300 text-[11px]">Moteur Zero-Trust exécuté en local (&lt; 0.25 ms) • Télémétrie 24h anonymisée</span>
         </div>
+        <div class="flex items-center gap-2">
+          <button
+            @click="switchNav('fuzzer')"
+            class="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-200 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm active:scale-95"
+          >
+            <span>🔬</span>
+            <span>Tester un payload (Fuzzer)</span>
+          </button>
+          <button
+            @click="toggleReplay"
+            class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+            :title="isPlaying ? 'Mettre en pause le replayer' : 'Relancer le replayer'"
+          >
+            <span>{{ isPlaying ? '⏸️ Pause Replay' : '▶️ Replay' }}</span>
+          </button>
+        </div>
+      </div>
 
-        <!-- VUE B : ACTION CENTER DÉDIÉ (DIAGNOSTIC, FLUX, TÉLÉMÉTRIE, CVE, CONTRÔLES, ROADMAP) -->
-        <AegisActionCenter 
-          v-else-if="['audit', 'streams', 'telemetry', 'cve', 'controls', 'roadmap', 'security', 'green', 'compliance'].includes(activeNav)"
-          :initialTab="activeNav === 'security' ? 'streams' : activeNav === 'green' ? 'telemetry' : activeNav === 'compliance' ? 'controls' : activeNav"
-          :initialDomain="initialScanDomain"
-          :key="activeNav"
+      <div class="flex-1 flex overflow-hidden">
+        <!-- SIDEBAR GAUCHE PERMANENTE -->
+        <CockpitSidebar
+          :isSidebarExpanded="isSidebarExpanded"
+          :activeNav="activeNav"
+          @toggle-expand="isSidebarExpanded = !isSidebarExpanded"
+          @switch-nav="switchNav"
+          @open-account="showAccountModal = true"
           @logout="logout"
         />
 
-        <!-- VUE C : COCKPIT PRINCIPAL VUE D'ENSEMBLE (100% MÉTRIQUES RÉELLES) -->
-        <div v-else class="flex-1 flex flex-col min-w-0 p-4 sm:p-6 lg:p-7 max-w-[1720px] mx-auto w-full">
+        <!-- ZONE CENTRALE : DÉFILEMENT INDÉPENDANT À DROITE -->
+        <div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto overflow-x-hidden">
+          
+          <!-- VUE A : KANBAN SOC DE TRIAGE DÉDIÉ (SI activeNav === 'triage') -->
+          <div v-if="activeNav === 'triage'" class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
+            <AegisTriageKanban />
+          </div>
+
+          <!-- VUE B : ACTION CENTER DÉDIÉ (DIAGNOSTIC, FLUX, TÉLÉMÉTRIE, CVE, CONTRÔLES, ROADMAP, FUZZER) -->
+          <AegisActionCenter 
+            v-else-if="['audit', 'streams', 'telemetry', 'cve', 'controls', 'roadmap', 'security', 'green', 'compliance', 'fuzzer'].includes(activeNav)"
+            :initialTab="activeNav === 'security' ? 'streams' : activeNav === 'green' ? 'telemetry' : activeNav === 'compliance' ? 'controls' : activeNav"
+            :initialDomain="initialScanDomain"
+            :key="activeNav"
+            @logout="logout"
+          />
+
+          <!-- VUE C : COCKPIT PRINCIPAL VUE D'ENSEMBLE (100% MÉTRIQUES RÉELLES) -->
+          <div v-else class="flex-1 flex flex-col min-w-0 p-4 sm:p-6 lg:p-7 max-w-[1720px] mx-auto w-full">
           
           <!-- TOP HEADER BAR -->
           <CockpitHeader
@@ -59,20 +86,20 @@
 
           <!-- TOP 4 EXECUTIVE KPI CARDS -->
           <CockpitKpiCards
-            :traffic="metrics.traffic"
-            :green="metrics.green"
-            :instantWatts="animatedWatts"
-            :interceptionRate="metrics.soc.interception_rate_pct ?? 100"
+            :traffic="activeMetrics.traffic"
+            :green="activeMetrics.green"
+            :instantWatts="activeWatts"
+            :interceptionRate="activeMetrics.soc.interception_rate_pct ?? 100"
           />
 
           <!-- GRILLE PRINCIPALE 3 COLONNES DU COCKPIT -->
           <CockpitColumnsGrid
-            :traffic="metrics.traffic"
-            :monitoredNodes="metrics.soc.monitored_nodes || []"
-            :powerHistoryCount="(metrics.green.power_history || []).length"
-            :dynamicPowerPath="dynamicPowerPath"
-            :instantWatts="animatedWatts"
-            :retention="metrics.retention"
+            :traffic="activeMetrics.traffic"
+            :monitoredNodes="activeMetrics.soc.monitored_nodes || []"
+            :powerHistoryCount="(activeMetrics.green.power_history || []).length"
+            :dynamicPowerPath="activeDynamicPowerPath"
+            :instantWatts="activeWatts"
+            :retention="activeMetrics.retention"
             @switch-nav="switchNav"
             @export-report="exportVSReport"
           />
@@ -80,7 +107,7 @@
           <!-- TIROIR DES LOGS DE MENACES EN BAS DE PAGE -->
           <CockpitThreatLogsDrawer
             :show="showLogDrawer"
-            :threats="threats"
+            :threats="activeThreats"
             @switch-nav="switchNav"
             @close="showLogDrawer = false"
           />
@@ -98,6 +125,7 @@
           </footer>
 
         </div>
+      </div>
       </div>
 
       <!-- MODALE MON COMPTE -->
@@ -141,12 +169,25 @@ import CockpitAccountModal from './cockpit/CockpitAccountModal.vue';
 import CockpitExportModal from './cockpit/CockpitExportModal.vue';
 import { useAegisTheme } from '../../composables/useAegisTheme';
 import { useAuth } from '../../composables/useAuth';
+import { useSandboxReplay } from '../../composables/useSandboxReplay';
 
 const props = withDefaults(defineProps<{
   initialView?: string;
+  isDemo?: boolean;
 }>(), {
   initialView: 'dashboard',
+  isDemo: false,
 });
+
+// Replayer Sandbox Interactif (Mode Démo)
+const {
+  isPlaying,
+  toggleReplay,
+  metrics: sandboxMetrics,
+  animatedWatts: sandboxWatts,
+  dynamicPowerPath: sandboxPowerPath,
+  threats: sandboxThreats,
+} = useSandboxReplay();
 
 // Authentication state (Pure BFF)
 const { isAuthenticated, currentUser, checkSession, logout: bffLogout } = useAuth();
@@ -226,6 +267,13 @@ const metrics = ref({
 
 const threats = ref<ThreatEvent[]>([]);
 
+// Variables actives selon le mode (Production vs Démonstrateur Sandbox)
+const isDemoMode = computed(() => props.isDemo);
+const activeMetrics = computed(() => (isDemoMode.value ? (sandboxMetrics.value as any) : metrics.value));
+const activeWatts = computed(() => (isDemoMode.value ? sandboxWatts.value : animatedWatts.value));
+const activeThreats = computed(() => (isDemoMode.value ? sandboxThreats.value : threats.value));
+const activeDynamicPowerPath = computed(() => (isDemoMode.value ? sandboxPowerPath.value : dynamicPowerPath.value));
+
 const dynamicPowerPath = computed(() => {
   const history = metrics.value.green.power_history || [];
   if (history.length >= 2) {
@@ -249,12 +297,13 @@ async function logout() {
 }
 
 function getPathForNav(view: string): string {
-  if (view === 'dashboard') return '/app/';
-  if (view === 'triage') return '/app/triage';
-  if (view === 'streams' || view === 'security') return '/app/actions/security';
-  if (view === 'telemetry' || view === 'green') return '/app/actions/green';
-  if (view === 'controls' || view === 'compliance') return '/app/actions/compliance';
-  return `/app/?tab=${view}`;
+  const prefix = props.isDemo ? '/demo' : '/app';
+  if (view === 'dashboard') return props.isDemo ? '/demo' : '/app/';
+  if (view === 'triage') return `${prefix}/triage`;
+  if (view === 'streams' || view === 'security') return `${prefix}/actions/security`;
+  if (view === 'telemetry' || view === 'green') return `${prefix}/actions/green`;
+  if (view === 'controls' || view === 'compliance') return `${prefix}/actions/compliance`;
+  return `${prefix}/?tab=${view}`;
 }
 
 function switchNav(view: string, updateHistory = true) {
@@ -347,27 +396,30 @@ async function exportVSReport() {
 onMounted(async () => {
   if (typeof window !== 'undefined') {
     const urlParams = new URLSearchParams(window.location.search);
-    const isAuthed = await checkSession();
 
-    if (!isAuthed) {
-      const hasAuthParam = urlParams.get('mode') === 'login' || urlParams.get('auth') === 'true';
-      if (hasAuthParam) {
-        window.location.href = '/api/auth/login';
+    if (!props.isDemo) {
+      const isAuthed = await checkSession();
+
+      if (!isAuthed) {
+        const hasAuthParam = urlParams.get('mode') === 'login' || urlParams.get('auth') === 'true';
+        if (hasAuthParam) {
+          window.location.href = '/api/auth/login';
+          return;
+        }
+        window.location.href = '/login/';
         return;
       }
-      window.location.href = '/login/';
-      return;
     }
 
     // Détection de la vue selon l'URL (pathname ou query param)
     const pathname = window.location.pathname.replace(/\/$/, '');
-    if (pathname === '/app/triage') {
+    if (pathname.endsWith('/triage')) {
       activeNav.value = 'triage';
-    } else if (pathname === '/app/actions/security') {
+    } else if (pathname.endsWith('/actions/security')) {
       activeNav.value = 'streams';
-    } else if (pathname === '/app/actions/green') {
+    } else if (pathname.endsWith('/actions/green')) {
       activeNav.value = 'telemetry';
-    } else if (pathname === '/app/actions/compliance') {
+    } else if (pathname.endsWith('/actions/compliance')) {
       activeNav.value = 'controls';
     } else {
       const tabParam = urlParams.get('tab');
@@ -378,32 +430,36 @@ onMounted(async () => {
       }
     }
 
-    checkDeployMode();
+    if (!props.isDemo) {
+      checkDeployMode();
+    }
 
     const handlePopState = (e: PopStateEvent) => {
       if (e.state && e.state.nav) {
         activeNav.value = e.state.nav;
       } else {
         const curPath = window.location.pathname.replace(/\/$/, '');
-        if (curPath === '/app/triage') activeNav.value = 'triage';
-        else if (curPath === '/app/actions/security') activeNav.value = 'streams';
-        else if (curPath === '/app/actions/green') activeNav.value = 'telemetry';
-        else if (curPath === '/app/actions/compliance') activeNav.value = 'controls';
+        if (curPath.endsWith('/triage')) activeNav.value = 'triage';
+        else if (curPath.endsWith('/actions/security')) activeNav.value = 'streams';
+        else if (curPath.endsWith('/actions/green')) activeNav.value = 'telemetry';
+        else if (curPath.endsWith('/actions/compliance')) activeNav.value = 'controls';
         else activeNav.value = 'dashboard';
       }
     };
     window.addEventListener('popstate', handlePopState);
   }
 
-  fetchSummary();
-  fetchThreats();
+  if (!props.isDemo) {
+    fetchSummary();
+    fetchThreats();
 
-  pollTimer = setInterval(() => {
-    if (isAuthenticated.value) {
-      fetchSummary();
-      fetchThreats();
-    }
-  }, 2500);
+    pollTimer = setInterval(() => {
+      if (isAuthenticated.value) {
+        fetchSummary();
+        fetchThreats();
+      }
+    }, 2500);
+  }
 });
 
 onUnmounted(() => {
