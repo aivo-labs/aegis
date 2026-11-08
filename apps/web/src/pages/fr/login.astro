@@ -1,150 +1,22 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import AegisLogo from '../../components/AegisLogo.astro';
 ---
 
 <Layout 
-  title="Connexion Espace Souverain • Aegis SOC"
-  description="Mire d'authentification souveraine du Cockpit SOC Aegis. Protection Zero-Trust et pilotage ESG on-premise."
+  title="Connexion SSO • Aegis SOC"
+  description="Redirection sécurisée vers la mire d'authentification souveraine OIDC / Keycloak."
   isApp={true}
   lang="fr"
 >
-  <div class="min-h-screen bg-[#090e1a] text-slate-100 flex flex-col justify-between relative overflow-hidden">
-    
-    <!-- Halos d'ambiance vert émeraude / menthe -->
-    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-emerald-500/10 blur-[130px] rounded-full pointer-events-none"></div>
-    <div class="absolute bottom-10 right-10 w-[300px] h-[200px] bg-cyan-500/8 blur-[100px] rounded-full pointer-events-none"></div>
-
-    <!-- 1. HEADER MINIMALISTE SOUVERAIN -->
-    <header class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between z-20">
-      <a href="/fr/" class="flex items-center gap-3 group" title="Accueil Aegis">
-        <AegisLogo size="md" class="group-hover:scale-105 transition-transform" />
-        <div class="flex flex-col">
-          <span class="text-xl font-extrabold tracking-tight text-white leading-tight">Aegis</span>
-          <span class="text-[10px] text-emerald-400 font-mono tracking-wider uppercase font-semibold">
-            CYBERSÉCURITÉ SOUVERAINE
-          </span>
-        </div>
-      </a>
-
-      <!-- Utilitaires droite : Documentation + GitHub + Toggle Thème -->
-      <div class="flex items-center gap-3 font-mono text-xs">
-        <a 
-          href="/docs/fr/" 
-          class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-emerald-400 transition-colors"
-        >
-          <span>📖 Documentation</span>
-        </a>
-
-        <a 
-          href="https://github.com/aivo-labs/aegis" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-white transition-colors"
-          title="Code source sur GitHub (AGPLv3)"
-        >
-          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-          </svg>
-        </a>
-
-        <!-- Bouton bascule Thème Clair/Sombre -->
-        <button
-          type="button"
-          onclick="toggleAegisTheme()"
-          class="w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-emerald-400 transition-colors cursor-pointer"
-          title="Basculer entre thème clair et sombre"
-        >
-          <span id="login-theme-icon">🌙</span>
-        </button>
-      </div>
-    </header>
-
-    <!-- 2. CARTE DE CONNEXION CENTRÉE -->
-    <main class="flex-1 flex items-center justify-center p-4 z-20">
-      <div class="bg-slate-900/90 backdrop-blur-xl border border-slate-800 hover:border-slate-700/80 rounded-3xl max-w-md w-full p-7 sm:p-9 shadow-2xl shadow-black/60 relative text-left transition-all">
-        
-        <!-- Header de la carte -->
-        <div class="flex items-center justify-between pb-5 mb-5 border-b border-slate-800/80">
-          <div class="flex items-center gap-3.5">
-            <AegisLogo size="md" />
-            <div>
-              <h1 class="text-lg font-extrabold text-white tracking-tight leading-tight">Connexion Espace Souverain</h1>
-              <p class="text-xs text-slate-400 font-mono mt-0.5">Cockpit d'Administration SOC Aegis</p>
-            </div>
-          </div>
-          <div class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-semibold tracking-wider uppercase shrink-0">
-            On-Premise
-          </div>
-        </div>
-
-        <!-- Formulaire de connexion -->
-        <form id="login-form" class="space-y-4 font-mono text-xs">
-          <div>
-            <label for="login-email" class="block text-slate-300 mb-1.5 font-bold">Identifiant / Email SOC</label>
-            <input 
-              id="login-email"
-              name="email"
-              type="email" 
-              required 
-              value="admin@aegis.local" 
-              placeholder="admin@aegis.local" 
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
-            />
-          </div>
-
-          <div>
-            <label for="login-password" class="block text-slate-300 mb-1.5 font-bold">Mot de Passe Master</label>
-            <input 
-              id="login-password"
-              name="password"
-              type="password" 
-              required 
-              value="••••••••••••"
-              placeholder="••••••••••••" 
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-colors"
-            />
-          </div>
-
-          <!-- Encadré Démo -->
-          <div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-[11px] text-emerald-300 leading-relaxed font-sans">
-            💡 <strong>Mode Démonstration Actif :</strong> Les identifiants sont préremplis. Cliquez directement sur <em>« Se connecter »</em> pour accéder instantanément au cockpit connecté avec les métriques réelles en direct.
-          </div>
-
-          <!-- Bouton de soumission -->
-          <button 
-            type="submit"
-            id="login-submit-btn"
-            class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-extrabold font-mono text-xs cursor-pointer shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/35 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-          >
-            <span id="btn-icon">✓</span>
-            <span id="btn-text">Se connecter au Cockpit</span>
-          </button>
-        </form>
-
-        <!-- Message d'état -->
-        <div id="login-feedback" class="mt-4 text-center text-xs font-mono text-slate-400 hidden">
-          Authentification validée. Redirection vers le Cockpit...
-        </div>
-      </div>
-    </main>
-
-    <!-- 3. FOOTER MINIMAL -->
-    <footer class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-500 text-[11px] font-mono z-20">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Aegis Security Gateway • Architecture Souveraine Air-Gapped</span>
-      </div>
-      <div>
-        <span>Licence Open-Core AGPLv3 • Conforme ANSSI &amp; NIS 2</span>
-      </div>
-    </footer>
-
+  <div class="min-h-screen bg-[#090e1a] text-slate-100 flex flex-col items-center justify-center p-4">
+    <div class="flex flex-col items-center gap-4 text-center">
+      <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-sm font-mono text-slate-300">Redirection vers la mire d'authentification souveraine...</p>
+    </div>
   </div>
 </Layout>
 
 <script is:inline>
-  // 1. Vérification de la session active et redirection automatique vers Keycloak si OIDC est actif
   (async function() {
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
@@ -154,104 +26,10 @@ import AegisLogo from '../../components/AegisLogo.astro';
           window.location.replace('/app/');
           return;
         }
-      } else {
-        localStorage.removeItem('aegis_auth');
       }
     } catch (e) {}
 
-    // Vérifier si le SSO Keycloak est actif : si oui, basculer directement sur la mire Keycloak !
-    try {
-      const cfgRes = await fetch('/api/auth/config');
-      if (cfgRes.ok) {
-        const cfg = await cfgRes.json();
-        if (cfg && cfg.oidc_active) {
-          window.location.replace('/api/auth/login');
-          return;
-        }
-      }
-    } catch (e) {}
-
-    try {
-      const saved = localStorage.getItem('aegis_auth');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.authenticated) {
-          window.location.replace('/app/');
-          return;
-        }
-      }
-    } catch (e) {}
+    // Redirection directe vers la mire Keycloak via Pure BFF
+    window.location.replace('/api/auth/login');
   })();
-
-  // 2. Synchronisation initiale du thème
-  function syncLoginThemeIcon() {
-    const isLight = document.documentElement.classList.contains('theme-light');
-    const icon = document.getElementById('login-theme-icon');
-    if (icon) icon.innerText = isLight ? '☀️' : '🌙';
-  }
-  document.addEventListener('DOMContentLoaded', syncLoginThemeIcon);
-  window.addEventListener('aegis-theme-changed', syncLoginThemeIcon);
-
-  // 3. Gestion de la connexion avec Pure BFF & Fallback autonome garanti
-  const form = document.getElementById('login-form');
-  const btn = document.getElementById('login-submit-btn');
-  const btnIcon = document.getElementById('btn-icon');
-  const btnText = document.getElementById('btn-text');
-  const feedback = document.getElementById('login-feedback');
-
-  if (form) {
-    form.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      
-      btn.disabled = true;
-      btn.classList.add('opacity-80', 'cursor-not-allowed');
-      btnIcon.innerText = '⏳';
-      btnText.innerText = 'Connexion sécurisée en cours...';
-      if (feedback) feedback.classList.remove('hidden');
-
-      const email = document.getElementById('login-email')?.value || 'admin@aegis.local';
-
-      try {
-        // Tente la connexion POST via le Pure BFF
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-          body: JSON.stringify({ email })
-        });
-
-        if (res.ok) {
-          const data = await res.json().catch(() => ({}));
-          window.location.replace(data.redirect || '/app/');
-          return;
-        }
-
-        if (res.status === 302 || res.redirected) {
-          window.location.replace(res.url || '/app/');
-          return;
-        }
-      } catch (err) {
-        console.warn('[Aegis Login] Pure BFF non joignable via POST:', err);
-      }
-
-      // Mode Démonstration Autonome Garanti (Fallback immédiat si BFF non actif ou environnement isolé)
-      try {
-        localStorage.setItem('aegis_auth', JSON.stringify({
-          authenticated: true,
-          user: {
-            id: 'usr_sovereign_admin',
-            name: 'Administrateur SOC Souverain',
-            email: email,
-            role: 'admin',
-            tenant_id: '00000000-0000-0000-0000-000000000001'
-          }
-        }));
-      } catch (e) {}
-
-      window.location.replace('/app/');
-    });
-  }
 </script>

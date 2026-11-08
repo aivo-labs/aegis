@@ -47,22 +47,7 @@
         <span v-if="isSidebarExpanded" class="truncate">Vue d'ensemble</span>
       </button>
 
-      <!-- Item 1b : Fuzzer Interactif & Laboratoire d'Entropie -->
-      <button 
-        @click="$emit('switch-nav', 'fuzzer')"
-        :class="[
-          'w-full flex items-center rounded-xl transition-all cursor-pointer font-bold relative',
-          isSidebarExpanded ? 'px-3 py-2.5 gap-3' : 'w-11 h-11 justify-center mx-auto',
-          activeNav === 'fuzzer'
-            ? 'bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 text-cyan-200 border border-cyan-400/50 shadow-md shadow-cyan-500/10'
-            : 'text-slate-300 hover:text-white hover:bg-slate-900/80 border border-transparent'
-        ]"
-        title="Fuzzer Interactif & Calculateur d'Entropie de Shannon (Test In-Browser)"
-      >
-        <span class="text-base shrink-0">🔬</span>
-        <span v-if="isSidebarExpanded" class="truncate">Fuzzer &amp; Entropie</span>
-        <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-      </button>
+
 
       <!-- Item 2 : Diagnostic (5 Pages) -->
       <button 

@@ -81,11 +81,6 @@
         @purge-clean="handlePurgeClean"
       />
 
-      <AegisInteractiveFuzzer
-        v-else-if="activeTab === 'fuzzer'"
-        @payload-evaluated="handleFuzzerEvaluated"
-      />
-
       <RoadmapPanel v-else />
     </div>
 
@@ -101,13 +96,6 @@ import TelemetryPanel from './actions/TelemetryPanel.vue';
 import CveFeedPanel from './actions/CveFeedPanel.vue';
 import ControlsPanel from './actions/ControlsPanel.vue';
 import RoadmapPanel from './actions/RoadmapPanel.vue';
-import AegisInteractiveFuzzer from './AegisInteractiveFuzzer.vue';
-import type { SandboxInspectionResult, SandboxRequest } from '../../services/sandboxEngine';
-
-import { useAegisTheme } from '../../composables/useAegisTheme';
-import { useLiveStreams } from '../../composables/useLiveStreams';
-import { useCveFeed } from '../../composables/useCveFeed';
-import { useControls } from '../../composables/useControls';
 
 const props = withDefaults(defineProps<{
   initialTab?: string;
@@ -131,10 +119,6 @@ function showToast(msg: string) {
   }, 4500);
 }
 
-function handleFuzzerEvaluated(result: SandboxInspectionResult, _req: SandboxRequest) {
-  showToast(`Verdict PEP : ${result.verdict === 'ALLOW' ? '✅ HTTP 200 AUTORISÉ' : result.verdict === 'SINKHOLE' ? '🌐 DNS SINKHOLE' : `❌ HTTP ${result.httpStatus} BLOQUÉ`} (${result.threatType} en ${result.latencyMs} ms)`);
-}
-
 // Composables
 const { isLightMode, toggleTheme } = useAegisTheme();
 const { 
@@ -156,13 +140,12 @@ const {
 
 // Navigation Tabs
 const activeTab = ref(
-  ['audit', 'streams', 'telemetry', 'cve', 'controls', 'roadmap', 'security', 'green', 'compliance', 'fuzzer'].includes(props.initialTab)
+  ['audit', 'streams', 'telemetry', 'cve', 'controls', 'roadmap', 'security', 'green', 'compliance'].includes(props.initialTab)
     ? (props.initialTab === 'security' ? 'streams' : props.initialTab === 'green' ? 'telemetry' : props.initialTab === 'compliance' ? 'controls' : props.initialTab)
     : 'audit'
 );
 
 const headerIcon = computed(() => {
-  if (activeTab.value === 'fuzzer') return '🔬';
   if (activeTab.value === 'audit') return '🔍';
   if (activeTab.value === 'streams') return '📡';
   if (activeTab.value === 'telemetry') return '🌿';
@@ -172,7 +155,6 @@ const headerIcon = computed(() => {
 });
 
 const headerTitle = computed(() => {
-  if (activeTab.value === 'fuzzer') return "Fuzzer Interactif & Laboratoire d'Entropie de Shannon";
   if (activeTab.value === 'audit') return 'Diagnostic Passif (5 Pages), CVE & Homologation DNS';
   if (activeTab.value === 'streams') return 'Flux Ingress ⇄ Egress (Direct & Kanban)';
   if (activeTab.value === 'telemetry') return 'Télémétrie RAPL & Éco-Conception EcoIndex v3';
@@ -182,7 +164,6 @@ const headerTitle = computed(() => {
 });
 
 const headerSubtitle = computed(() => {
-  if (activeTab.value === 'fuzzer') return "Évaluation Zero-Trust en temps réel dans votre navigateur : canonicalisation multi-passes, calcul d'entropie H(X) et décision PEP (< 0.25 ms)";
   if (activeTab.value === 'audit') return "Analyse réelle par Goroutines : versions exposées, alertes CVE, EcoIndex v3 et contrat d'autorisation DNS TXT";
   if (activeTab.value === 'streams') return 'Visibilité complète sur les requêtes entrantes (scans wp-login, .env, exploits) et sortantes (DNS C2 / Sockets)';
   if (activeTab.value === 'telemetry') return 'Mesures en temps réel de puissance matérielle (/sys/class/powercap) et registres CPU Linux';

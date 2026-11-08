@@ -1,47 +1,21 @@
 <template>
   <div class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 font-sans text-slate-100">
     
-    <!-- 1. ÉTAT TRANSITOIRE OU REDIRECTION VERS /login/ (DÉSACTIVÉ EN MODE DEMO) -->
-    <div v-if="isAuthenticated === false && !isDemo" class="h-full w-full flex items-center justify-center p-6 bg-slate-950">
+    <!-- 1. ÉTAT TRANSITOIRE OU REDIRECTION AUTHENTIFICATION -->
+    <div v-if="isAuthenticated === false" class="h-full w-full flex items-center justify-center p-6 bg-slate-950">
       <div class="max-w-md w-full p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center font-mono space-y-4 shadow-2xl">
         <AegisLogo size="lg" class="mx-auto" />
         <h2 class="text-xl font-bold text-white font-sans">Session Non Autorisée</h2>
-        <p class="text-xs text-slate-400 font-sans">Redirection sécurisée vers la page de connexion...</p>
-        <a href="/login/" class="inline-block px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">
-          Connexion Immédiate ➔
+        <p class="text-xs text-slate-400 font-sans">Redirection vers la mire d'authentification souveraine...</p>
+        <a href="/api/auth/login" class="inline-block px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">
+          Connexion SSO Keycloak ➔
         </a>
       </div>
     </div>
 
-    <!-- 2. MODE CONNECTÉ OU DÉMO : COCKPIT AVEC SIDEBAR FIXE PERMANENTE -->
+    <!-- 2. MODE CONNECTÉ : COCKPIT AVEC SIDEBAR FIXE PERMANENTE -->
     <div v-else class="h-full w-full flex flex-col overflow-hidden">
       
-      <!-- BANDEAU HAUT EN MODE DÉMO (SANDBOX REPLAY) -->
-      <div v-if="isDemo" class="shrink-0 px-4 py-2.5 bg-gradient-to-r from-cyan-950 via-slate-900 to-emerald-950 border-b border-cyan-500/40 text-xs font-mono flex flex-col sm:flex-row items-center justify-between gap-2 shadow-lg z-20">
-        <div class="flex items-center gap-2.5 text-cyan-300">
-          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
-          <span class="font-extrabold tracking-wide">MODE DÉMONSTRATEUR INTERACTIF</span>
-          <span class="hidden sm:inline text-slate-500">•</span>
-          <span class="hidden sm:inline text-slate-300 text-[11px]">Moteur Zero-Trust exécuté en local (&lt; 0.25 ms) • Télémétrie 24h anonymisée</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button
-            @click="switchNav('fuzzer')"
-            class="px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-200 font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm active:scale-95"
-          >
-            <span>🔬</span>
-            <span>Tester un payload (Fuzzer)</span>
-          </button>
-          <button
-            @click="toggleReplay"
-            class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
-            :title="isPlaying ? 'Mettre en pause le replayer' : 'Relancer le replayer'"
-          >
-            <span>{{ isPlaying ? '⏸️ Pause Replay' : '▶️ Replay' }}</span>
-          </button>
-        </div>
-      </div>
-
       <div class="flex-1 flex overflow-hidden">
         <!-- SIDEBAR GAUCHE PERMANENTE -->
         <CockpitSidebar
@@ -61,12 +35,11 @@
             <AegisTriageKanban />
           </div>
 
-          <!-- VUE B : ACTION CENTER DÉDIÉ (DIAGNOSTIC, FLUX, TÉLÉMÉTRIE, CVE, CONTRÔLES, ROADMAP, FUZZER) -->
+          <!-- VUE B : ACTION CENTER DÉDIÉ (DIAGNOSTIC, FLUX, TÉLÉMÉTRIE, CVE, CONTRÔLES, ROADMAP) -->
           <AegisActionCenter 
-            v-else-if="['audit', 'streams', 'telemetry', 'cve', 'controls', 'roadmap', 'security', 'green', 'compliance', 'fuzzer'].includes(activeNav)"
+            v-else-if="['audit', 'streams', 'telemetry', 'cve', 'controls', 'roadmap', 'security', 'green', 'compliance'].includes(activeNav)"
             :initialTab="activeNav === 'security' ? 'streams' : activeNav === 'green' ? 'telemetry' : activeNav === 'compliance' ? 'controls' : activeNav"
             :initialDomain="initialScanDomain"
-            :isDemo="isDemoMode"
             :key="activeNav"
             @logout="logout"
           />
@@ -87,21 +60,21 @@
 
           <!-- TOP 4 EXECUTIVE KPI CARDS -->
           <CockpitKpiCards
-            :traffic="activeMetrics.traffic"
-            :green="activeMetrics.green"
-            :instantWatts="activeWatts"
-            :interceptionRate="activeMetrics.soc.interception_rate_pct ?? 100"
+            :traffic="metrics.traffic"
+            :green="metrics.green"
+            :instantWatts="animatedWatts"
+            :interceptionRate="metrics.soc.interception_rate_pct ?? 100"
             :isLoading="isLoadingSummary"
           />
 
           <!-- GRILLE PRINCIPALE 3 COLONNES DU COCKPIT -->
           <CockpitColumnsGrid
-            :traffic="activeMetrics.traffic"
-            :monitoredNodes="activeMetrics.soc.monitored_nodes || []"
-            :powerHistoryCount="(activeMetrics.green.power_history || []).length"
-            :dynamicPowerPath="activeDynamicPowerPath"
-            :instantWatts="activeWatts"
-            :retention="activeMetrics.retention"
+            :traffic="metrics.traffic"
+            :monitoredNodes="metrics.soc.monitored_nodes || []"
+            :powerHistoryCount="(metrics.green.power_history || []).length"
+            :dynamicPowerPath="dynamicPowerPath"
+            :instantWatts="animatedWatts"
+            :retention="metrics.retention"
             @switch-nav="switchNav"
             @export-report="exportVSReport"
           />
@@ -109,7 +82,7 @@
           <!-- TIROIR DES LOGS DE MENACES EN BAS DE PAGE -->
           <CockpitThreatLogsDrawer
             :show="showLogDrawer"
-            :threats="activeThreats"
+            :threats="threats"
             @switch-nav="switchNav"
             @close="showLogDrawer = false"
           />
@@ -171,7 +144,6 @@ import CockpitAccountModal from './cockpit/CockpitAccountModal.vue';
 import CockpitExportModal from './cockpit/CockpitExportModal.vue';
 import { useAegisTheme } from '../../composables/useAegisTheme';
 import { useAuth } from '../../composables/useAuth';
-import { useSandboxReplay } from '../../composables/useSandboxReplay';
 
 const props = withDefaults(defineProps<{
   initialView?: string;
@@ -180,16 +152,6 @@ const props = withDefaults(defineProps<{
   initialView: 'dashboard',
   isDemo: false,
 });
-
-// Replayer Sandbox Interactif (Mode Démo)
-const {
-  isPlaying,
-  toggleReplay,
-  metrics: sandboxMetrics,
-  animatedWatts: sandboxWatts,
-  dynamicPowerPath: sandboxPowerPath,
-  threats: sandboxThreats,
-} = useSandboxReplay();
 
 // Authentication state (Pure BFF)
 const { isAuthenticated, currentUser, checkSession, logout: bffLogout } = useAuth();
@@ -225,46 +187,26 @@ const downloadUrl = ref('');
 // Theme composable
 const { isLightMode, toggleTheme: toggleCockpitTheme } = useAegisTheme();
 
-// Cache restoration for instantaneous render without 0 flicker
-let cachedMetrics: any = null;
-let cachedWatts = 0;
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('aegis_cached_summary');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.metrics) cachedMetrics = parsed.metrics;
-      if (typeof parsed.watts === 'number') cachedWatts = parsed.watts;
-    }
-  } catch {}
-}
-
-const isLoadingSummary = ref(!cachedMetrics);
+const isLoadingSummary = ref(true);
 
 // Hardware RAPL Watts
-const animatedWatts = ref(cachedWatts);
+const animatedWatts = ref(0);
 let pollTimer: any = null;
 
-// Dashboard Metrics
-const metrics = ref(cachedMetrics || {
+// Dashboard Metrics (100% réelles issues du backend)
+const metrics = ref({
   traffic: {
     total_requests_24h: 0,
-    clean_traffic_pct: 100,
     blocked_threats_total: 0,
-    compromised_bypass_total: 0,
-    ingress_total: 0,
     ingress_blocked: 0,
-    ingress_bypassed: 0,
-    egress_total: 0,
     egress_blocked: 0,
-    egress_bypassed: 0,
     bot_probes_total: 0,
-    avg_latency_ms: 0,
+    avg_latency_ms: 0.45,
   },
   soc: {
-    si_health_score: 100,
     interception_rate_pct: 100,
-    c2_callbacks_blocked_total: 0,
+    active_virtual_patches: 18,
+    quarantine_ips_count: 0,
     monitored_nodes: [] as any[],
   },
   green: {
@@ -284,13 +226,6 @@ const metrics = ref(cachedMetrics || {
 });
 
 const threats = ref<ThreatEvent[]>([]);
-
-// Variables actives selon le mode (Production vs Démonstrateur Sandbox)
-const isDemoMode = computed(() => props.isDemo);
-const activeMetrics = computed(() => (isDemoMode.value ? (sandboxMetrics.value as any) : metrics.value));
-const activeWatts = computed(() => (isDemoMode.value ? sandboxWatts.value : animatedWatts.value));
-const activeThreats = computed(() => (isDemoMode.value ? sandboxThreats.value : threats.value));
-const activeDynamicPowerPath = computed(() => (isDemoMode.value ? sandboxPowerPath.value : dynamicPowerPath.value));
 
 const dynamicPowerPath = computed(() => {
   const history = metrics.value.green.power_history || [];
@@ -315,8 +250,8 @@ async function logout() {
 }
 
 function getPathForNav(view: string): string {
-  const prefix = props.isDemo ? '/demo' : '/app';
-  if (view === 'dashboard') return props.isDemo ? '/demo' : '/app/';
+  const prefix = '/app';
+  if (view === 'dashboard') return '/app/';
   if (view === 'triage') return `${prefix}/triage`;
   if (view === 'streams' || view === 'security') return `${prefix}/actions/security`;
   if (view === 'telemetry' || view === 'green') return `${prefix}/actions/green`;
@@ -357,16 +292,6 @@ async function fetchSummary() {
       if (data.retention) {
         metrics.value.retention = { ...metrics.value.retention, ...data.retention };
       }
-
-      // Save to localStorage for instant subsequent loads
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('aegis_cached_summary', JSON.stringify({
-            metrics: metrics.value,
-            watts: animatedWatts.value,
-          }));
-        } catch {}
-      }
     }
   } catch (e) {
   } finally {
@@ -378,19 +303,14 @@ async function toggleProtectionMode() {
   isTogglingProtection.value = true;
   try {
     const nextState = !protectionEnabled.value;
-    const res = await fetch('/api/v1/dashboard/protection', {
+    const res = await fetch('/api/v1/dashboard/protection/toggle', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ protection_enabled: nextState }),
+      body: JSON.stringify({ enabled: nextState })
     });
     if (res.ok) {
-      const data = await res.json();
-      if (typeof data.protection_enabled === 'boolean') {
-        protectionEnabled.value = data.protection_enabled;
-      }
-      await Promise.all([fetchSummary(), fetchThreats()]);
+      protectionEnabled.value = nextState;
     }
-  } catch (e) {
   } finally {
     isTogglingProtection.value = false;
   }
@@ -426,20 +346,15 @@ async function exportVSReport() {
 
 onMounted(async () => {
   if (typeof window !== 'undefined') {
-    const urlParams = new URLSearchParams(window.location.search);
+    // Purger tout résidu éventuel de cache démo antérieur
+    try {
+      localStorage.removeItem('aegis_cached_summary');
+    } catch {}
 
-    if (!props.isDemo) {
-      const isAuthed = await checkSession();
-
-      if (!isAuthed) {
-        const hasAuthParam = urlParams.get('mode') === 'login' || urlParams.get('auth') === 'true';
-        if (hasAuthParam) {
-          window.location.href = '/api/auth/login';
-          return;
-        }
-        window.location.href = '/login/';
-        return;
-      }
+    const isAuthed = await checkSession();
+    if (!isAuthed) {
+      window.location.href = '/api/auth/login';
+      return;
     }
 
     // Détection de la vue selon l'URL (pathname ou query param)
@@ -453,6 +368,7 @@ onMounted(async () => {
     } else if (pathname.endsWith('/actions/compliance')) {
       activeNav.value = 'controls';
     } else {
+      const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
       if (tabParam) {
         activeNav.value = tabParam;
@@ -461,9 +377,7 @@ onMounted(async () => {
       }
     }
 
-    if (!props.isDemo) {
-      checkDeployMode();
-    }
+    checkDeployMode();
 
     const handlePopState = (e: PopStateEvent) => {
       if (e.state && e.state.nav) {
@@ -480,17 +394,15 @@ onMounted(async () => {
     window.addEventListener('popstate', handlePopState);
   }
 
-  if (!props.isDemo) {
-    fetchSummary();
-    fetchThreats();
+  fetchSummary();
+  fetchThreats();
 
-    pollTimer = setInterval(() => {
-      if (isAuthenticated.value) {
-        fetchSummary();
-        fetchThreats();
-      }
-    }, 2500);
-  }
+  pollTimer = setInterval(() => {
+    if (isAuthenticated.value) {
+      fetchSummary();
+      fetchThreats();
+    }
+  }, 2500);
 });
 
 onUnmounted(() => {
