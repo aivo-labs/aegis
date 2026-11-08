@@ -118,3 +118,32 @@ test('authApi handles fetchAuthStatus and logout gracefully in test environment'
   const logoutOk = await triggerLogout();
   assert.equal(typeof logoutOk, 'boolean');
 });
+
+test('useTelemetry in isDemo mode loads rich realistic sandbox dataset', async () => {
+  const { summary, timeseries, workloads, nodes, fetchEnergyTelemetry } = useTelemetry({ isDemo: true });
+  await fetchEnergyTelemetry();
+
+  assert.ok(summary.value.instant_watts > 0);
+  assert.ok(timeseries.value.length >= 12);
+  assert.ok(workloads.value.length >= 3);
+  assert.ok(nodes.value.length >= 1);
+});
+
+test('useCveFeed in isDemo mode loads populated CVE catalog', async () => {
+  const { catalogCves, exposedCves, activeRulesCount, fetchCveFeed } = useCveFeed({ isDemo: true });
+  await fetchCveFeed();
+
+  assert.ok(catalogCves.value.length >= 5);
+  assert.ok(exposedCves.value.length >= 1);
+  assert.ok(activeRulesCount.value >= 6);
+});
+
+test('useLiveStreams in isDemo mode loads populated sandbox streams', async () => {
+  const { ingressStream, egressStream, totalIngress24h, isLoading, fetchLiveStreams } = useLiveStreams({ isDemo: true });
+  await fetchLiveStreams();
+
+  assert.equal(isLoading.value, false);
+  assert.ok(ingressStream.value.length > 0);
+  assert.ok(egressStream.value.length > 0);
+  assert.ok(totalIngress24h.value > 1000);
+});

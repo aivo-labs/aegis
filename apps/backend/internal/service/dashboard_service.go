@@ -129,10 +129,10 @@ func (s *DashboardService) GetSummary() map[string]any {
 
 	// 4. Nœuds & Services
 	nodeRows, _ := s.db.Query(fmt.Sprintf(`
-		SELECT hostname, host(ip_address) AS ip, provider, os_info, scaphandre_agent_version, status, updated_at
+		SELECT DISTINCT ON (hostname) hostname, host(ip_address) AS ip, provider, os_info, scaphandre_agent_version, status, updated_at
 		FROM infrastructure_nodes
 		WHERE tenant_id = %s
-		ORDER BY updated_at DESC
+		ORDER BY hostname, updated_at DESC
 		LIMIT 10;`, database.QuoteLiteral(s.defaultTenantID)))
 
 	monitoredNodes := make([]map[string]any, 0)
@@ -1128,10 +1128,10 @@ func (s *DashboardService) GetEnergyTelemetry(timeRange, fromDate, toDate, month
 	nodesList := make([]map[string]any, 0)
 	if s.db != nil {
 		nodeRows, _ := s.db.Query(fmt.Sprintf(`
-			SELECT id, hostname, host(ip_address) AS ip, provider, os_info, scaphandre_agent_version, status, updated_at
+			SELECT DISTINCT ON (hostname) id, hostname, host(ip_address) AS ip, provider, os_info, scaphandre_agent_version, status, updated_at
 			FROM infrastructure_nodes
 			WHERE tenant_id = %s
-			ORDER BY updated_at DESC;`, database.QuoteLiteral(s.defaultTenantID)))
+			ORDER BY hostname, updated_at DESC;`, database.QuoteLiteral(s.defaultTenantID)))
 		for _, nr := range nodeRows {
 			provider := nr.String("provider")
 			if provider == "" || provider == "scaleway" {

@@ -7,8 +7,11 @@
         <span class="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">PostgreSQL Live</span>
       </div>
       <div class="flex items-baseline gap-1.5 mt-1">
-        <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ formatNumber(traffic.total_requests_24h) }}</span>
-        <span class="text-xs text-slate-400 font-medium">événements</span>
+        <span v-if="isLoading && !traffic.total_requests_24h" class="inline-block h-8 w-28 bg-slate-800 animate-pulse rounded-lg"></span>
+        <template v-else>
+          <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ formatNumber(traffic.total_requests_24h) }}</span>
+          <span class="text-xs text-slate-400 font-medium">événements</span>
+        </template>
       </div>
       <div class="mt-3 flex items-center justify-between text-xs font-mono">
         <span class="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
@@ -26,8 +29,11 @@
         <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Bloqués / Total Attaques</span>
       </div>
       <div class="flex items-baseline gap-1 mt-1">
-        <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ interceptionRate }}</span>
-        <span class="text-xs text-slate-400 font-medium">%</span>
+        <span v-if="isLoading && !traffic.total_requests_24h" class="inline-block h-8 w-20 bg-slate-800 animate-pulse rounded-lg"></span>
+        <template v-else>
+          <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ interceptionRate }}</span>
+          <span class="text-xs text-slate-400 font-medium">%</span>
+        </template>
       </div>
       <div class="mt-3 flex items-center justify-between text-xs font-mono">
         <span class="text-slate-300">Bloqués : <strong class="text-emerald-400">{{ traffic.blocked_threats_total }}</strong></span>
@@ -47,8 +53,11 @@
       <div class="flex items-center justify-between">
         <div>
           <div class="flex items-baseline gap-1 mt-1">
-            <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ instantWatts.toFixed(2) }}</span>
-            <span class="text-xs text-slate-400 font-medium">Watts</span>
+            <span v-if="isLoading && instantWatts === 0" class="inline-block h-8 w-24 bg-slate-800 animate-pulse rounded-lg"></span>
+            <template v-else>
+              <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ instantWatts.toFixed(2) }}</span>
+              <span class="text-xs text-slate-400 font-medium">Watts</span>
+            </template>
           </div>
           <div class="text-[11px] text-slate-400 font-mono mt-2">
             CPU: {{ green.cpu_watts }}W • RAM: {{ green.ram_watts }}W
@@ -69,8 +78,11 @@
         <span class="text-[10px] font-mono text-rose-300 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">Gate + Egress</span>
       </div>
       <div class="flex items-baseline gap-1.5 mt-1">
-        <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ formatNumber(traffic.blocked_threats_total) }}</span>
-        <span class="text-xs text-slate-400 font-medium">neutralisés</span>
+        <span v-if="isLoading && !traffic.blocked_threats_total" class="inline-block h-8 w-28 bg-slate-800 animate-pulse rounded-lg"></span>
+        <template v-else>
+          <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ formatNumber(traffic.blocked_threats_total) }}</span>
+          <span class="text-xs text-slate-400 font-medium">neutralisés</span>
+        </template>
       </div>
       <div class="mt-3 flex items-center justify-between text-[11px] font-mono text-slate-400">
         <span class="text-cyan-400 font-bold">WAF: {{ traffic.ingress_blocked || 0 }}</span>
@@ -82,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
   traffic: {
     total_requests_24h: number;
     clean_traffic_pct: number;
@@ -102,7 +114,10 @@ defineProps<{
   };
   instantWatts: number;
   interceptionRate: number;
-}>();
+  isLoading?: boolean;
+}>(), {
+  isLoading: false,
+});
 
 function formatNumber(n: number) {
   return new Intl.NumberFormat('fr-FR').format(n || 0);

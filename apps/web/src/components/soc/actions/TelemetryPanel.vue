@@ -476,11 +476,15 @@
               <span>Nœuds du Cluster</span>
             </h4>
             <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">
-              {{ nodes.length }} actif
+              {{ nodes.length }} actif{{ nodes.length > 1 ? 's' : '' }}
             </span>
           </div>
 
-          <div class="space-y-3">
+          <div v-if="isLoading && nodes.length === 0" class="py-6 text-center text-slate-500 font-mono text-xs animate-pulse">
+            Découverte des nœuds du cluster...
+          </div>
+
+          <div v-else class="space-y-3">
             <div 
               v-for="node in nodes" 
               :key="node.id"
@@ -550,6 +554,12 @@
 import { computed, onMounted, onUnmounted } from 'vue';
 import { useTelemetry } from '../../../composables/useTelemetry';
 
+const props = withDefaults(defineProps<{
+  isDemo?: boolean;
+}>(), {
+  isDemo: false,
+});
+
 const {
   selectedRange,
   selectedMonth,
@@ -559,6 +569,7 @@ const {
   selectedNode,
   selectedNamespace,
   activeMetric,
+  isLoading,
   isSimulatedHistory,
   summary,
   timeseries,
@@ -573,7 +584,7 @@ const {
   dynamicCpuAreaSvgPath,
   dynamicWaterSvgPath,
   fetchEnergyTelemetry,
-} = useTelemetry();
+} = useTelemetry({ isDemo: props.isDemo });
 
 function setRange(range: string) {
   selectedRange.value = range;
@@ -629,12 +640,14 @@ let pollTimer: any = null;
 onMounted(() => {
   fetchEnergyTelemetry();
 
-  // Polling automatique si en direct (1h ou 24h)
-  pollTimer = setInterval(() => {
-    if (selectedRange.value === '1h' || selectedRange.value === '24h') {
-      fetchEnergyTelemetry();
-    }
-  }, 3500);
+  if (!props.isDemo) {
+    // Polling automatique si en direct (1h ou 24h)
+    pollTimer = setInterval(() => {
+      if (selectedRange.value === '1h' || selectedRange.value === '24h') {
+        fetchEnergyTelemetry();
+      }
+    }, 3500);
+  }
 });
 
 onUnmounted(() => {

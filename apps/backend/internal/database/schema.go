@@ -42,6 +42,8 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 			CONSTRAINT uq_tenant_node UNIQUE (tenant_id, hostname)
 		);`,
 		`UPDATE infrastructure_nodes SET provider = 'ovhcloud' WHERE provider = 'scaleway';`,
+		`DELETE FROM infrastructure_nodes a USING infrastructure_nodes b WHERE a.id < b.id AND a.tenant_id = b.tenant_id AND a.hostname = b.hostname;`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS uq_nodes_tenant_host ON infrastructure_nodes(tenant_id, hostname);`,
 
 		`CREATE TABLE IF NOT EXISTS security_audit_logs (
 			id BIGSERIAL,

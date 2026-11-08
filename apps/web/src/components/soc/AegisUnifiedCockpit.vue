@@ -66,6 +66,7 @@
             v-else-if="['audit', 'streams', 'telemetry', 'cve', 'controls', 'roadmap', 'security', 'green', 'compliance', 'fuzzer'].includes(activeNav)"
             :initialTab="activeNav === 'security' ? 'streams' : activeNav === 'green' ? 'telemetry' : activeNav === 'compliance' ? 'controls' : activeNav"
             :initialDomain="initialScanDomain"
+            :isDemo="isDemoMode"
             :key="activeNav"
             @logout="logout"
           />
@@ -90,6 +91,7 @@
             :green="activeMetrics.green"
             :instantWatts="activeWatts"
             :interceptionRate="activeMetrics.soc.interception_rate_pct ?? 100"
+            :isLoading="isLoadingSummary"
           />
 
           <!-- GRILLE PRINCIPALE 3 COLONNES DU COCKPIT -->
@@ -223,12 +225,28 @@ const downloadUrl = ref('');
 // Theme composable
 const { isLightMode, toggleTheme: toggleCockpitTheme } = useAegisTheme();
 
+// Cache restoration for instantaneous render without 0 flicker
+let cachedMetrics: any = null;
+let cachedWatts = 0;
+if (typeof window !== 'undefined') {
+  try {
+    const raw = localStorage.getItem('aegis_cached_summary');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.metrics) cachedMetrics = parsed.metrics;
+      if (typeof parsed.watts === 'number') cachedWatts = parsed.watts;
+    }
+  } catch {}
+}
+
+const isLoadingSummary = ref(!cachedMetrics);
+
 // Hardware RAPL Watts
-const animatedWatts = ref(0);
+const animatedWatts = ref(cachedWatts);
 let pollTimer: any = null;
 
 // Dashboard Metrics
-const metrics = ref({
+const metrics = ref(cachedMetrics || {
   traffic: {
     total_requests_24h: 0,
     clean_traffic_pct: 100,
@@ -339,8 +357,21 @@ async function fetchSummary() {
       if (data.retention) {
         metrics.value.retention = { ...metrics.value.retention, ...data.retention };
       }
+
+      // Save to localStorage for instant subsequent loads
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('aegis_cached_summary', JSON.stringify({
+            metrics: metrics.value,
+            watts: animatedWatts.value,
+          }));
+        } catch {}
+      }
     }
-  } catch (e) {}
+  } catch (e) {
+  } finally {
+    isLoadingSummary.value = false;
+  }
 }
 
 async function toggleProtectionMode() {
