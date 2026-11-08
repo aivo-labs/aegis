@@ -189,7 +189,11 @@
             </div>
           </div>
 
-          <div v-if="filteredIngressStream.length === 0" class="py-12 text-center text-slate-500 font-mono text-xs">
+          <div v-if="isLoading && filteredIngressStream.length === 0" class="py-12 text-center text-slate-500 font-mono text-xs animate-pulse">
+            Synchronisation du flux Ingress (:8000)...
+          </div>
+
+          <div v-else-if="filteredIngressStream.length === 0" class="py-12 text-center text-slate-500 font-mono text-xs">
             Aucune requête entrante correspondant aux filtres. Cliquez sur « ⚡ Simuler Scans Bots » ou ajustez la sélection.
           </div>
 
@@ -297,7 +301,11 @@
             </div>
           </div>
 
-          <div v-if="egressStream.length === 0" class="py-12 text-center text-slate-500 font-mono text-xs">
+          <div v-if="isLoading && egressStream.length === 0" class="py-12 text-center text-slate-500 font-mono text-xs animate-pulse">
+            Synchronisation du flux Egress (:5053)...
+          </div>
+
+          <div v-else-if="egressStream.length === 0" class="py-12 text-center text-slate-500 font-mono text-xs">
             Aucun flux sortant enregistré. Lancez une batterie de test pour observer le blocage Sinkhole C2 (0.0.0.0).
           </div>
 
@@ -542,6 +550,7 @@ const props = withDefaults(defineProps<{
   searchQuery?: string;
   mapEvents: any[];
   isSimulatingProbes: boolean;
+  isLoading?: boolean;
 }>(), {
   totalIngress24h: 0,
   blockedIngress24h: 0,
@@ -552,6 +561,7 @@ const props = withDefaults(defineProps<{
   selectedHost: 'all',
   selectedDate: '',
   searchQuery: '',
+  isLoading: false,
 });
 
 const emit = defineEmits<{

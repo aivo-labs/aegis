@@ -2,7 +2,7 @@ import { ref, computed } from 'vue';
 import { streamsApi, type IngressEvent, type EgressEvent } from '../services/api/streamsApi';
 import { REPLAY_ATTACK_SEEDS } from '../data/sandboxFixtures';
 
-export function useLiveStreams() {
+export function useLiveStreams(options?: { isDemo?: boolean }) {
   const ingressStream = ref<IngressEvent[]>([]);
   const egressStream = ref<EgressEvent[]>([]);
   const streamFilter = ref<'all' | 'probes' | 'exploits' | 'clean'>('all');
@@ -10,6 +10,7 @@ export function useLiveStreams() {
   const selectedDate = ref<string>('');
   const searchQuery = ref<string>('');
   const isSimulatingProbes = ref(false);
+  const isLoading = ref(true);
 
   // 24h Totals from Backend / Database
   const totalIngress24h = ref<number>(0);
@@ -131,68 +132,85 @@ export function useLiveStreams() {
       }));
   });
 
-  async function fetchLiveStreams(params?: { date?: string; host?: string; limit?: number }) {
-    const reqDate = params?.date !== undefined ? params.date : selectedDate.value;
-    const reqHost = params?.host !== undefined ? params.host : (selectedHost.value === 'all' ? '' : selectedHost.value);
-    const limit = params?.limit ?? 50;
+  function loadSandboxStreams() {
+    ingressStream.value = REPLAY_ATTACK_SEEDS.map((s, idx) => ({
+      id: `seed-ingress-${idx}`,
+      client_ip: s.client_ip,
+      method: s.method,
+      target: s.target,
+      host: s.host,
+      domain: s.host,
+      user_agent: s.user_agent,
+      threat_type: s.threat_type,
+      category: s.category,
+      decision: s.decision === 'SINKHOLE' ? 'BLOCK' : s.decision,
+      status_code: s.status_code,
+      timestamp: new Date(Date.now() - idx * 360000).toISOString(),
+      lat: s.lat,
+      lon: s.lon,
+      country: s.country,
+      entropy: s.entropy,
+      latency_ms: s.latency_ms,
+    }));
 
-    const res = await streamsApi.getLiveStreams({
-      date: reqDate || undefined,
-      host: reqHost || undefined,
-      limit,
-    });
-
-    if (res.ok && res.data) {
-      ingressStream.value = res.data.ingress_stream || [];
-      egressStream.value = res.data.egress_stream || [];
-      totalIngress24h.value = res.data.total_ingress_24h ?? ingressStream.value.length;
-      blockedIngress24h.value = res.data.blocked_ingress_24h ?? ingressStream.value.filter(i => i.decision === 'BLOCK').length;
-      totalEgress24h.value = res.data.total_egress_24h ?? egressStream.value.length;
-      blockedEgress24h.value = res.data.blocked_egress_24h ?? egressStream.value.filter(e => e.decision === 'BLOCK').length;
-    } else if (ingressStream.value.length === 0) {
-      // Fallback gracieux sur les données de démonstration réelles
-      ingressStream.value = REPLAY_ATTACK_SEEDS.map((s, idx) => ({
-        id: `seed-ingress-${idx}`,
-        client_ip: s.client_ip,
-        method: s.method,
+    egressStream.value = REPLAY_ATTACK_SEEDS
+      .filter(s => s.decision === 'SINKHOLE' || s.category.includes('Egress'))
+      .map((s, idx) => ({
+        id: `seed-egress-${idx}`,
+        protocol: 'DNS',
+        domain: s.target.replace('/dns-query?name=', '').replace('&type=A', ''),
         target: s.target,
-        host: s.host,
-        domain: s.host,
-        user_agent: s.user_agent,
+        target_ip: '0.0.0.0',
+        client_ip: s.client_ip,
+        port: 53,
+        decision: 'BLOCK',
         threat_type: s.threat_type,
-        category: s.category,
-        decision: s.decision === 'SINKHOLE' ? 'BLOCK' : s.decision,
-        status_code: s.status_code,
-        timestamp: new Date(Date.now() - idx * 360000).toISOString(),
-        lat: s.lat,
-        lon: s.lon,
-        country: s.country,
         entropy: s.entropy,
+        timestamp: new Date(Date.now() - idx * 120000).toISOString(),
         latency_ms: s.latency_ms,
+        exfil_probability: 0.98,
       }));
 
-      egressStream.value = REPLAY_ATTACK_SEEDS
-        .filter(s => s.decision === 'SINKHOLE' || s.category.includes('Egress'))
-        .map((s, idx) => ({
-          id: `seed-egress-${idx}`,
-          protocol: 'DNS',
-          domain: s.target.replace('/dns-query?name=', '').replace('&type=A', ''),
-          target: s.target,
-          target_ip: '0.0.0.0',
-          client_ip: s.client_ip,
-          port: 53,
-          decision: 'BLOCK',
-          threat_type: s.threat_type,
-          entropy: s.entropy,
-          timestamp: new Date(Date.now() - idx * 120000).toISOString(),
-          latency_ms: s.latency_ms,
-          exfil_probability: 0.98,
-        }));
+    totalIngress24h.value = 13950;
+    blockedIngress24h.value = 13845;
+    totalEgress24h.value = 870;
+    blockedEgress24h.value = 867;
+  }
 
-      totalIngress24h.value = 13950;
-      blockedIngress24h.value = 13845;
-      totalEgress24h.value = 870;
-      blockedEgress24h.value = 867;
+  async function fetchLiveStreams(params?: { date?: string; host?: string; limit?: number }) {
+    if (options?.isDemo) {
+      loadSandboxStreams();
+      isLoading.value = false;
+      return;
+    }
+
+    try {
+      const reqDate = params?.date !== undefined ? params.date : selectedDate.value;
+      const reqHost = params?.host !== undefined ? params.host : (selectedHost.value === 'all' ? '' : selectedHost.value);
+      const limit = params?.limit ?? 50;
+
+      const res = await streamsApi.getLiveStreams({
+        date: reqDate || undefined,
+        host: reqHost || undefined,
+        limit,
+      });
+
+      if (res.ok && res.data) {
+        ingressStream.value = res.data.ingress_stream || [];
+        egressStream.value = res.data.egress_stream || [];
+        totalIngress24h.value = res.data.total_ingress_24h ?? ingressStream.value.length;
+        blockedIngress24h.value = res.data.blocked_ingress_24h ?? ingressStream.value.filter(i => i.decision === 'BLOCK').length;
+        totalEgress24h.value = res.data.total_egress_24h ?? egressStream.value.length;
+        blockedEgress24h.value = res.data.blocked_egress_24h ?? egressStream.value.filter(e => e.decision === 'BLOCK').length;
+      } else if (ingressStream.value.length === 0) {
+        loadSandboxStreams();
+      }
+    } catch (e) {
+      if (ingressStream.value.length === 0) {
+        loadSandboxStreams();
+      }
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -214,6 +232,7 @@ export function useLiveStreams() {
     selectedHost,
     selectedDate,
     searchQuery,
+    isLoading,
     isSimulatingProbes,
     totalIngress24h,
     blockedIngress24h,

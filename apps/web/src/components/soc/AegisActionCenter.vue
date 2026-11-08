@@ -50,6 +50,7 @@
         v-model:searchQuery="searchQuery"
         :mapEvents="mapEvents"
         :isSimulatingProbes="isSimulatingProbes"
+        :isLoading="isLoadingStreams"
         @filter-change="() => fetchLiveStreams()"
         @simulate="handleSimulateProbes"
         @quick-ban="handleQuickBan"
@@ -57,6 +58,7 @@
 
       <TelemetryPanel 
         v-else-if="activeTab === 'telemetry'"
+        :isDemo="props.isDemo"
       />
 
       <CveFeedPanel 
@@ -110,9 +112,11 @@ import { useControls } from '../../composables/useControls';
 const props = withDefaults(defineProps<{
   initialTab?: string;
   initialDomain?: string;
+  isDemo?: boolean;
 }>(), {
   initialTab: 'audit',
   initialDomain: '',
+  isDemo: false,
 });
 
 const emit = defineEmits<{
@@ -138,12 +142,12 @@ const {
   probeEventsCount, exploitEventsCount, cleanEventsCount, 
   totalIngress24h, blockedIngress24h, totalEgress24h, blockedEgress24h,
   availableHosts, selectedHost, selectedDate, searchQuery, streamFilter,
-  mapEvents, isSimulatingProbes, fetchLiveStreams, simulateBotProbes 
-} = useLiveStreams();
+  mapEvents, isSimulatingProbes, isLoading: isLoadingStreams, fetchLiveStreams, simulateBotProbes 
+} = useLiveStreams({ isDemo: props.isDemo });
 
 const { 
   activeRulesCount, blockedByPatchCount, exposedCves, catalogCves, fetchCveFeed 
-} = useCveFeed();
+} = useCveFeed({ isDemo: props.isDemo });
 
 const { 
   bannedIps, maxPayloadBytes, retention, fetchControls, 

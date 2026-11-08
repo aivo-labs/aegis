@@ -8,8 +8,9 @@ import {
   type NodeEnergy,
   type EnergyQueryParams,
 } from '../services/api/telemetryApi';
+import { SANDBOX_TELEMETRY_DATA } from '../data/sandboxFixtures';
 
-export function useTelemetry() {
+export function useTelemetry(options?: { isDemo?: boolean }) {
   // Navigation & Scope
   const selectedRange = ref<string>('24h');
   const selectedMonth = ref<string>('2026-11');
@@ -220,7 +221,22 @@ export function useTelemetry() {
     return `M ${points.join(' L ')}`;
   });
 
+  function loadSandboxData() {
+    summary.value = { ...SANDBOX_TELEMETRY_DATA.summary };
+    timeseries.value = [...SANDBOX_TELEMETRY_DATA.timeseries];
+    workloads.value = [...SANDBOX_TELEMETRY_DATA.workloads];
+    nodes.value = [...SANDBOX_TELEMETRY_DATA.nodes];
+    availableMonths.value = [...SANDBOX_TELEMETRY_DATA.available_months];
+    availableNamespaces.value = [...SANDBOX_TELEMETRY_DATA.available_namespaces];
+    isSimulatedHistory.value = true;
+  }
+
   async function fetchEnergyTelemetry(customParams?: EnergyQueryParams) {
+    if (options?.isDemo) {
+      loadSandboxData();
+      return;
+    }
+
     isLoading.value = true;
     try {
       const params: EnergyQueryParams = {
@@ -244,7 +260,23 @@ export function useTelemetry() {
         if (res.data.summary) summary.value = res.data.summary;
         timeseries.value = res.data.timeseries || [];
         workloads.value = res.data.workloads || [];
-        nodes.value = res.data.nodes || [];
+
+        // Deduplicate nodes by unique identifier/hostname to prevent multiple duplicate rows
+        if (res.data.nodes && Array.isArray(res.data.nodes)) {
+          const seen = new Set<string>();
+          const uniqueNodes: NodeEnergy[] = [];
+          for (const n of res.data.nodes) {
+            const key = n.hostname || n.id;
+            if (!seen.has(key)) {
+              seen.add(key);
+              uniqueNodes.push(n);
+            }
+          }
+          nodes.value = uniqueNodes;
+        } else {
+          nodes.value = [];
+        }
+
         isSimulatedHistory.value = !!res.data.is_simulated_history;
         if (res.data.available_months?.length) {
           availableMonths.value = res.data.available_months;
@@ -252,6 +284,12 @@ export function useTelemetry() {
         if (res.data.available_namespaces?.length) {
           availableNamespaces.value = res.data.available_namespaces;
         }
+      } else if (timeseries.value.length === 0) {
+        loadSandboxData();
+      }
+    } catch (e) {
+      if (timeseries.value.length === 0) {
+        loadSandboxData();
       }
     } finally {
       isLoading.value = false;

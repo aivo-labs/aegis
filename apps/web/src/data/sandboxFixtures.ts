@@ -6,6 +6,8 @@
 
 import type { IngressEvent, EgressEvent } from '../services/api/streamsApi';
 import type { ThreatEvent } from '../components/soc/cockpit/CockpitThreatLogsDrawer.vue';
+import type { EnergySummary, EnergyTimePoint, WorkloadEnergy, NodeEnergy } from '../services/api/telemetryApi';
+import type { CveItem } from '../services/api/cveApi';
 
 export interface SandboxSummaryMetrics {
   traffic: {
@@ -351,3 +353,250 @@ export const REPLAY_ATTACK_SEEDS: ReplaySeedEvent[] = [
     latency_ms: 0.14,
   },
 ];
+
+export interface SandboxTelemetryPayload {
+  summary: EnergySummary;
+  timeseries: EnergyTimePoint[];
+  workloads: WorkloadEnergy[];
+  nodes: NodeEnergy[];
+  available_months: string[];
+  available_namespaces: string[];
+}
+
+export const SANDBOX_TELEMETRY_DATA: SandboxTelemetryPayload = {
+  summary: {
+    instant_watts: 8.84,
+    cpu_watts: 6.12,
+    ram_watts: 2.72,
+    avg_watts: 8.78,
+    max_watts: 9.45,
+    min_watts: 8.12,
+    total_joules: 758592,
+    total_kwh: 0.2107,
+    avg_cpu_load_pct: 3.8,
+    max_cpu_load_pct: 8.4,
+    carbon_intensity_gco2_kwh: 52.0,
+    total_carbon_gco2: 10.96,
+    total_carbon_kg: 0.011,
+    water_usage_liters: 0.316,
+    estimated_cost_eur: 0.042,
+    pue: 1.15,
+    equivalencies: {
+      car_km: 0.09,
+      smartphones_charged: 14,
+      water_bottles: 0.2,
+      showers_pct: 0.63,
+    },
+  },
+  timeseries: [
+    { time: '00:00', timestamp: '2026-11-08T00:00:00Z', watts: 8.42, cpu_watts: 5.89, ram_watts: 2.53, cpu_load_pct: 3.1, carbon_gco2: 0.438, water_cl: 1.26 },
+    { time: '01:00', timestamp: '2026-11-08T01:00:00Z', watts: 8.38, cpu_watts: 5.86, ram_watts: 2.52, cpu_load_pct: 3.0, carbon_gco2: 0.436, water_cl: 1.25 },
+    { time: '02:00', timestamp: '2026-11-08T02:00:00Z', watts: 8.35, cpu_watts: 5.84, ram_watts: 2.51, cpu_load_pct: 2.9, carbon_gco2: 0.434, water_cl: 1.25 },
+    { time: '03:00', timestamp: '2026-11-08T03:00:00Z', watts: 8.31, cpu_watts: 5.81, ram_watts: 2.50, cpu_load_pct: 2.8, carbon_gco2: 0.432, water_cl: 1.24 },
+    { time: '04:00', timestamp: '2026-11-08T04:00:00Z', watts: 8.28, cpu_watts: 5.79, ram_watts: 2.49, cpu_load_pct: 2.8, carbon_gco2: 0.430, water_cl: 1.24 },
+    { time: '05:00', timestamp: '2026-11-08T05:00:00Z', watts: 8.39, cpu_watts: 5.87, ram_watts: 2.52, cpu_load_pct: 3.0, carbon_gco2: 0.436, water_cl: 1.26 },
+    { time: '06:00', timestamp: '2026-11-08T06:00:00Z', watts: 8.51, cpu_watts: 5.95, ram_watts: 2.56, cpu_load_pct: 3.3, carbon_gco2: 0.442, water_cl: 1.28 },
+    { time: '07:00', timestamp: '2026-11-08T07:00:00Z', watts: 8.68, cpu_watts: 6.07, ram_watts: 2.61, cpu_load_pct: 3.6, carbon_gco2: 0.451, water_cl: 1.30 },
+    { time: '08:00', timestamp: '2026-11-08T08:00:00Z', watts: 8.92, cpu_watts: 6.24, ram_watts: 2.68, cpu_load_pct: 4.1, carbon_gco2: 0.464, water_cl: 1.34 },
+    { time: '09:00', timestamp: '2026-11-08T09:00:00Z', watts: 9.08, cpu_watts: 6.35, ram_watts: 2.73, cpu_load_pct: 4.4, carbon_gco2: 0.472, water_cl: 1.36 },
+    { time: '10:00', timestamp: '2026-11-08T10:00:00Z', watts: 9.15, cpu_watts: 6.40, ram_watts: 2.75, cpu_load_pct: 4.6, carbon_gco2: 0.476, water_cl: 1.37 },
+    { time: '11:00', timestamp: '2026-11-08T11:00:00Z', watts: 9.11, cpu_watts: 6.37, ram_watts: 2.74, cpu_load_pct: 4.5, carbon_gco2: 0.474, water_cl: 1.37 },
+    { time: '12:00', timestamp: '2026-11-08T12:00:00Z', watts: 9.04, cpu_watts: 6.32, ram_watts: 2.72, cpu_load_pct: 4.3, carbon_gco2: 0.470, water_cl: 1.36 },
+    { time: '13:00', timestamp: '2026-11-08T13:00:00Z', watts: 8.98, cpu_watts: 6.28, ram_watts: 2.70, cpu_load_pct: 4.2, carbon_gco2: 0.467, water_cl: 1.35 },
+    { time: '14:00', timestamp: '2026-11-08T14:00:00Z', watts: 8.96, cpu_watts: 6.27, ram_watts: 2.69, cpu_load_pct: 4.1, carbon_gco2: 0.466, water_cl: 1.34 },
+    { time: '15:00', timestamp: '2026-11-08T15:00:00Z', watts: 8.91, cpu_watts: 6.23, ram_watts: 2.68, cpu_load_pct: 4.0, carbon_gco2: 0.463, water_cl: 1.34 },
+    { time: '16:00', timestamp: '2026-11-08T16:00:00Z', watts: 8.88, cpu_watts: 6.21, ram_watts: 2.67, cpu_load_pct: 3.9, carbon_gco2: 0.462, water_cl: 1.33 },
+    { time: '17:00', timestamp: '2026-11-08T17:00:00Z', watts: 8.90, cpu_watts: 6.23, ram_watts: 2.67, cpu_load_pct: 4.0, carbon_gco2: 0.463, water_cl: 1.34 },
+    { time: '18:00', timestamp: '2026-11-08T18:00:00Z', watts: 8.94, cpu_watts: 6.25, ram_watts: 2.69, cpu_load_pct: 4.1, carbon_gco2: 0.465, water_cl: 1.34 },
+    { time: '19:00', timestamp: '2026-11-08T19:00:00Z', watts: 8.87, cpu_watts: 6.20, ram_watts: 2.67, cpu_load_pct: 3.9, carbon_gco2: 0.461, water_cl: 1.33 },
+    { time: '20:00', timestamp: '2026-11-08T20:00:00Z', watts: 8.82, cpu_watts: 6.17, ram_watts: 2.65, cpu_load_pct: 3.8, carbon_gco2: 0.459, water_cl: 1.32 },
+    { time: '21:00', timestamp: '2026-11-08T21:00:00Z', watts: 8.76, cpu_watts: 6.13, ram_watts: 2.63, cpu_load_pct: 3.7, carbon_gco2: 0.456, water_cl: 1.31 },
+    { time: '22:00', timestamp: '2026-11-08T22:00:00Z', watts: 8.65, cpu_watts: 6.05, ram_watts: 2.60, cpu_load_pct: 3.5, carbon_gco2: 0.450, water_cl: 1.30 },
+    { time: '23:00', timestamp: '2026-11-08T23:00:00Z', watts: 8.54, cpu_watts: 5.97, ram_watts: 2.57, cpu_load_pct: 3.3, carbon_gco2: 0.444, water_cl: 1.28 },
+  ],
+  workloads: [
+    {
+      namespace: 'dokploy',
+      service: 'traefik-edge-proxy',
+      type: 'Ingress Controller & ForwardAuth PEP',
+      share_pct: 22.5,
+      watts: 1.98,
+      cpu_load_pct: 0.9,
+      kwh: 0.0474,
+      carbon_gco2: 2.47,
+      water_liters: 0.071,
+    },
+    {
+      namespace: 'dokploy',
+      service: 'aegis.aivo.fr (Cockpit & Gate)',
+      type: 'Cockpit SOC & Zero-Trust PEP',
+      share_pct: 24.0,
+      watts: 2.11,
+      cpu_load_pct: 1.0,
+      kwh: 0.0506,
+      carbon_gco2: 2.63,
+      water_liters: 0.076,
+    },
+    {
+      namespace: 'dokploy',
+      service: 'aivo.fr (Plateforme & Vitrine)',
+      type: 'Application Web & Vitrine Aivo',
+      share_pct: 18.5,
+      watts: 1.62,
+      cpu_load_pct: 0.7,
+      kwh: 0.0390,
+      carbon_gco2: 2.03,
+      water_liters: 0.058,
+    },
+    {
+      namespace: 'dokploy',
+      service: 'flow.aivo.fr (Automatisation n8n)',
+      type: 'Moteur de workflows & Webhooks n8n',
+      share_pct: 15.0,
+      watts: 1.32,
+      cpu_load_pct: 0.5,
+      kwh: 0.0316,
+      carbon_gco2: 1.64,
+      water_liters: 0.047,
+    },
+    {
+      namespace: 'dokploy',
+      service: 'aegis-timescaledb (:5432)',
+      type: 'Base de données Sécurité & Métriques',
+      share_pct: 12.0,
+      watts: 1.05,
+      cpu_load_pct: 0.4,
+      kwh: 0.0253,
+      carbon_gco2: 1.31,
+      water_liters: 0.038,
+    },
+    {
+      namespace: 'aegis-system',
+      service: 'aegis-backend-go (:8080)',
+      type: 'Control Plane & Ingestion RAPL',
+      share_pct: 8.0,
+      watts: 0.70,
+      cpu_load_pct: 0.3,
+      kwh: 0.0169,
+      carbon_gco2: 0.88,
+      water_liters: 0.025,
+    },
+  ],
+  nodes: [
+    {
+      id: 'node-vps-gra-01',
+      hostname: 'vps-gra-edge01 (Ce serveur)',
+      ip: '92.157.163.164',
+      provider: 'OVHcloud / KVM VPS',
+      os_info: 'Linux 6.8 (Kernel /proc/stat & RAPL)',
+      agent: 'Scaphandre v4.3.0',
+      status: 'active',
+      avg_watts: 8.78,
+      kwh: 0.2107,
+      carbon_kg: 0.011,
+      share_pct: 100.0,
+    },
+  ],
+  available_months: ['2026-11', '2026-10', '2026-09', '2026-08', '2026-07'],
+  available_namespaces: ['all', 'dokploy', 'aegis-system', 'kube-system'],
+};
+
+export interface SandboxCvePayload {
+  catalog_cves: CveItem[];
+  exposed_cves: any[];
+  active_rules_count: number;
+  blocked_by_virtual_patch_count: number;
+}
+
+export const SANDBOX_CVE_FEED: SandboxCvePayload = {
+  active_rules_count: 6,
+  blocked_by_virtual_patch_count: 867,
+  exposed_cves: [
+    {
+      id: 'CVE-2024-4577',
+      name: 'Exécution de code à distance PHP-CGI (RCE)',
+      title: 'Exécution de code à distance PHP-CGI (RCE) par injection d\'arguments',
+      component: 'PHP-CGI Windows / Linux Argument Injection',
+      severity: 'CRITICAL',
+      cvss: 9.8,
+      description: 'Contournement des protections CGI permettant d\'injecter allow_url_include=1 et auto_prepend_file=php://input.',
+      remediation: 'Filtrage à chaud via le moteur de Virtual Patching d\'Aegis Gate (HTTP 403 immédiat).',
+      status: 'BLOCKED',
+      is_active_defense: true,
+    },
+    {
+      id: 'CVE-2026-109618',
+      name: 'Dépassement de tampon volumétrique (Buffer/Heap Overflow) & Reverse Shell',
+      title: 'Dépassement de tampon volumétrique (Buffer/Heap Overflow) & Reverse Shell',
+      component: 'PHP SAPI / FastCGI Buffer Engine (PHP2Shell)',
+      severity: 'CRITICAL',
+      cvss: 9.8,
+      description: 'Exploitation par injection de payloads excédant les tampons mémoires des processus PHP-FPM.',
+      remediation: 'Activer le coupe-circuit volumétrique 32 Ko d\'Aegis Gate (HTTP 413) et le Sinkhole DNS Egress.',
+      status: 'BLOCKED',
+      is_active_defense: true,
+    },
+  ],
+  catalog_cves: [
+    {
+      id: 'CVE-2026-109618',
+      name: 'Dépassement de tampon volumétrique (Buffer/Heap Overflow) & Reverse Shell',
+      component: 'PHP SAPI / FastCGI Buffer Engine (PHP2Shell)',
+      severity: 'CRITICAL',
+      cvss: 9.8,
+      description: 'Exploitation par injection de payloads excédant les tampons mémoires des processus PHP-FPM, détournant le pointeur d\'instruction pour forger un shell interactif.',
+      status: 'active',
+      is_active_defense: true,
+    },
+    {
+      id: 'CVE-2026-109619',
+      name: 'Détournement de session RMM & Exfiltration furtive par tunneling',
+      component: 'TeamViewer & RMM Outbound Protocols',
+      severity: 'HIGH',
+      cvss: 8.5,
+      description: 'Canaux de télémaintenance détournés pour exfiltrer des flux chiffrés hors du périmètre réseau autorisé.',
+      status: 'active',
+      is_active_defense: true,
+    },
+    {
+      id: 'CVE-2024-4577',
+      name: 'Exécution de code à distance (RCE) par injection de directives de flux',
+      component: 'PHP-CGI Windows / Linux Argument Injection',
+      severity: 'CRITICAL',
+      cvss: 9.8,
+      description: 'Contournement des protections CGI permettant d\'injecter allow_url_include=1 et auto_prepend_file=php://input.',
+      status: 'active',
+      is_active_defense: true,
+    },
+    {
+      id: 'CVE-2021-44228',
+      name: 'Exécution de code à distance Log4Shell via JNDI/LDAP',
+      component: 'Apache Log4j2 JNDI Lookup',
+      severity: 'CRITICAL',
+      cvss: 10.0,
+      description: 'Injection de motifs ${jndi:ldap:...} dans les en-têtes HTTP déclenchant un chargement de classe Java externe.',
+      status: 'active',
+      is_active_defense: true,
+    },
+    {
+      id: 'CVE-2025-29927',
+      name: 'Bypass d\'autorisation par manipulation d\'en-tête interne',
+      component: 'Next.js Middleware Routing',
+      severity: 'CRITICAL',
+      cvss: 9.1,
+      description: 'L\'utilisation de x-middleware-subrequest permet de contourner les règles d\'accès du middleware Next.js.',
+      status: 'active',
+      is_active_defense: true,
+    },
+    {
+      id: 'CVE-2023-44487',
+      name: 'Attaque par réinitialisation rapide HTTP/2 Rapid Reset (DDoS)',
+      component: 'HTTP/2 Protocol Engine',
+      severity: 'HIGH',
+      cvss: 7.5,
+      description: 'Flux continu de trames RST_STREAM provoquant un épuisement mémoire et CPU des proxys web non protégés.',
+      status: 'active',
+      is_active_defense: true,
+    },
+  ],
+};
