@@ -235,9 +235,9 @@ export class BffAuthHandler {
       const isOidcActive = Boolean(this.oidcConfig.issuerUrl && this.oidcConfig.clientId);
 
       const host = req.headers.host || 'aegis.aivo.fr';
-      const postLogoutRedirect = `${isHttps ? 'https' : 'http'}://${host}/login/`;
+      const postLogoutRedirect = `${isHttps ? 'https' : 'http'}://${host}/login/?logout=true`;
 
-      let logoutUrl = '/login/';
+      let logoutUrl = '/login/?logout=true';
       if (isOidcActive) {
         logoutUrl = `${this.oidcConfig.issuerUrl}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirect)}&client_id=${encodeURIComponent(this.oidcConfig.clientId || 'aegis-cockpit')}`;
       }

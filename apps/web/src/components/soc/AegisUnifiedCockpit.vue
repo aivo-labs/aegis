@@ -2,7 +2,7 @@
   <div class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 font-sans text-slate-100">
     
     <!-- 1. ÉTAT TRANSITOIRE OU REDIRECTION VERS /login/ (DÉSACTIVÉ EN MODE DEMO) -->
-    <div v-if="!isAuthenticated && !isDemo" class="h-full w-full flex items-center justify-center p-6 bg-slate-950">
+    <div v-if="isAuthenticated === false && !isDemo" class="h-full w-full flex items-center justify-center p-6 bg-slate-950">
       <div class="max-w-md w-full p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center font-mono space-y-4 shadow-2xl">
         <AegisLogo size="lg" class="mx-auto" />
         <h2 class="text-xl font-bold text-white font-sans">Session Non Autorisée</h2>

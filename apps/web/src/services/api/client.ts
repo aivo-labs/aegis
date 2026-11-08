@@ -20,6 +20,7 @@ export async function apiRequest<T = any>(
 
   try {
     const res = await fetch(endpoint, {
+      credentials: 'include',
       ...options,
       headers: {
         'Accept': 'application/json',
