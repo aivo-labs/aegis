@@ -38,7 +38,7 @@
               <td class="py-2.5 px-3 text-slate-300">{{ threat.client_ip }}</td>
               <td class="py-2.5 px-3 text-white font-semibold max-w-xs truncate" :title="threat.fqdn">{{ threat.fqdn }}</td>
               <td class="py-2.5 px-3">
-                <span :class="['px-2 py-0.5 rounded text-[10px] font-extrabold', threat.action === 'BLOCK' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30']">
+                <span :class="['px-2 py-0.5 rounded text-[10px] font-extrabold', (threat.action && threat.action.includes('BLOCK')) ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30']">
                   {{ threat.action }}
                 </span>
               </td>

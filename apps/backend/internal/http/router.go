@@ -41,6 +41,7 @@ func NewRouter(p RouterParams) *http.ServeMux {
 	// 4. Cockpit & Indicateurs
 	mux.HandleFunc("/api/v1/dashboard/summary", p.DashboardHandler.Summary)
 	mux.HandleFunc("/api/v1/dashboard/live-streams", p.DashboardHandler.LiveStreams)
+	mux.HandleFunc("/api/v1/dashboard/simulate", p.DashboardHandler.Simulate)
 	mux.HandleFunc("/api/v1/dashboard/egress-threats", p.DashboardHandler.ThreatsFeed)
 	mux.HandleFunc("/api/v1/dashboard/triage", p.DashboardHandler.ThreatsFeed)
 	mux.HandleFunc("/api/v1/dashboard/energy/export", p.DashboardHandler.EnergyExport)

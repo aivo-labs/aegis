@@ -62,9 +62,16 @@ export const streamsApi = {
 
   async simulateBotProbes() {
     try {
-      const res = await fetch('/_aegis/simulate', { method: 'POST' });
+      const res = await fetch('/_aegis/simulate', { method: 'POST', credentials: 'include' });
       if (res.ok) {
         return await res.json();
+      }
+    } catch {}
+
+    try {
+      const res2 = await fetch('/api/v1/dashboard/simulate', { method: 'POST', credentials: 'include' });
+      if (res2.ok) {
+        return await res2.json();
       }
     } catch {}
 
@@ -78,7 +85,7 @@ export const streamsApi = {
       '/api/v1/search?q=1+UNION+SELECT+username,password+FROM+users--',
     ];
     for (const p of probes) {
-      await fetch(p, { method: 'GET' }).catch(() => {});
+      await fetch(p, { method: 'GET', credentials: 'include' }).catch(() => {});
     }
   },
 };

@@ -2,21 +2,37 @@ import { ref, computed } from 'vue';
 import { streamsApi, type IngressEvent, type EgressEvent } from '../services/api/streamsApi';
 import { REPLAY_ATTACK_SEEDS } from '../data/sandboxFixtures';
 
+// Module-scoped persistent reactive state across tab navigation & re-renders
+const sharedIngressStream = ref<IngressEvent[]>([]);
+const sharedEgressStream = ref<EgressEvent[]>([]);
+const sharedStreamFilter = ref<'all' | 'probes' | 'exploits' | 'clean'>('all');
+const sharedSelectedHost = ref<string>('all');
+const sharedSelectedDate = ref<string>('');
+const sharedSearchQuery = ref<string>('');
+const sharedIsSimulatingProbes = ref(false);
+const sharedIsLoading = ref(true);
+
+// 24h Totals from Backend / Database
+const sharedTotalIngress24h = ref<number>(0);
+const sharedBlockedIngress24h = ref<number>(0);
+const sharedTotalEgress24h = ref<number>(0);
+const sharedBlockedEgress24h = ref<number>(0);
+
 export function useLiveStreams(options?: { isDemo?: boolean }) {
-  const ingressStream = ref<IngressEvent[]>([]);
-  const egressStream = ref<EgressEvent[]>([]);
-  const streamFilter = ref<'all' | 'probes' | 'exploits' | 'clean'>('all');
-  const selectedHost = ref<string>('all');
-  const selectedDate = ref<string>('');
-  const searchQuery = ref<string>('');
-  const isSimulatingProbes = ref(false);
-  const isLoading = ref(true);
+  const ingressStream = sharedIngressStream;
+  const egressStream = sharedEgressStream;
+  const streamFilter = sharedStreamFilter;
+  const selectedHost = sharedSelectedHost;
+  const selectedDate = sharedSelectedDate;
+  const searchQuery = sharedSearchQuery;
+  const isSimulatingProbes = sharedIsSimulatingProbes;
+  const isLoading = sharedIsLoading;
 
   // 24h Totals from Backend / Database
-  const totalIngress24h = ref<number>(0);
-  const blockedIngress24h = ref<number>(0);
-  const totalEgress24h = ref<number>(0);
-  const blockedEgress24h = ref<number>(0);
+  const totalIngress24h = sharedTotalIngress24h;
+  const blockedIngress24h = sharedBlockedIngress24h;
+  const totalEgress24h = sharedTotalEgress24h;
+  const blockedEgress24h = sharedBlockedEgress24h;
 
   // Classification helpers
   function isClean(item: IngressEvent): boolean {
