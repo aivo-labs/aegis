@@ -42,6 +42,22 @@ export class BffAuthHandler {
   }
 
   /**
+   * Résout l'origine publique du site (ex: https://aegis.aivo.fr)
+   * Priorité : OIDC_REDIRECT_URI (configurée explicitement), puis X-Forwarded-Host, puis Host
+   */
+  public getPublicOrigin(req: IncomingMessage, isHttps: boolean): string {
+    if (this.oidcConfig.redirectUri) {
+      try {
+        return new URL(this.oidcConfig.redirectUri).origin;
+      } catch {}
+    }
+    const rawHost = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'aegis.aivo.fr';
+    const cleanHost = rawHost.split(',')[0].trim().split(':')[0]; // Exclure tout port interne
+    const proto = isHttps ? 'https' : 'http';
+    return `${proto}://${cleanHost}`;
+  }
+
+  /**
    * Intercepte et traite les routes d'authentification /api/auth/*
    * Retourne true si la requête a été consommée et terminée.
    */
@@ -130,7 +146,8 @@ export class BffAuthHandler {
         if (val.createdAt < tenMinutesAgo) this.pendingStates.delete(st);
       }
 
-      const redirectUri = this.oidcConfig.redirectUri || `${isHttps ? 'https' : 'http'}://${req.headers.host}/api/auth/callback`;
+      const publicOrigin = this.getPublicOrigin(req, isHttps);
+      const redirectUri = this.oidcConfig.redirectUri || `${publicOrigin}/api/auth/callback`;
       const authUrl = new URL(`${this.oidcConfig.issuerUrl}/protocol/openid-connect/auth`);
       authUrl.searchParams.append('client_id', this.oidcConfig.clientId || 'aegis-cockpit');
       authUrl.searchParams.append('redirect_uri', redirectUri);
@@ -234,10 +251,10 @@ export class BffAuthHandler {
       const logoutCookie = serializeLogoutCookie(isHttps);
       const isOidcActive = Boolean(this.oidcConfig.issuerUrl && this.oidcConfig.clientId);
 
-      const host = req.headers.host || 'aegis.aivo.fr';
-      const postLogoutRedirect = `${isHttps ? 'https' : 'http'}://${host}/login/?logout=true`;
+      const publicOrigin = this.getPublicOrigin(req, isHttps);
+      const postLogoutRedirect = `${publicOrigin}/api/auth/login`;
 
-      let logoutUrl = '/login/?logout=true';
+      let logoutUrl = '/api/auth/login';
       if (isOidcActive) {
         logoutUrl = `${this.oidcConfig.issuerUrl}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirect)}&client_id=${encodeURIComponent(this.oidcConfig.clientId || 'aegis-cockpit')}`;
       }

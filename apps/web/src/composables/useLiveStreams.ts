@@ -453,14 +453,19 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
     try {
       // 1. Optimistic immediate UI update: Prepend realistic blocked events
       const now = Date.now();
+      const currentHost = (selectedHost.value && selectedHost.value !== 'all') ? selectedHost.value : 'aegis.aivo.fr';
       const freshIngress = SIMULATED_ATTACK_PROBES.map((p, idx) => ({
         ...p,
         id: `sim-in-${now}-${idx}`,
+        host: currentHost,
+        domain: currentHost,
         timestamp: new Date(now - idx * 400).toISOString(),
       }));
       const freshEgress = SIMULATED_EGRESS_PROBES.map((eg, idx) => ({
         ...eg,
         id: `sim-eg-${now}-${idx}`,
+        host: currentHost,
+        domain: currentHost,
         timestamp: new Date(now - idx * 700).toISOString(),
       }));
 
@@ -474,6 +479,9 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
 
       // 2. Fire backend simulation to record in PostgreSQL / Gate Proxy
       await streamsApi.simulateBotProbes();
+      setTimeout(() => {
+        fetchLiveStreams();
+      }, 700);
     } finally {
       isSimulatingProbes.value = false;
     }
