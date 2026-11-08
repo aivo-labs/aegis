@@ -508,6 +508,126 @@ func (s *DashboardService) GetLiveStreamsFiltered(dateFilter, hostFilter string,
 	}, nil
 }
 
+func (s *DashboardService) SimulatePentestProbes(customHost string) (map[string]any, error) {
+	if s.db == nil {
+		return map[string]any{"status": "success", "simulated_ingress_count": 6, "simulated_egress_count": 4}, nil
+	}
+	host := customHost
+	if host == "" {
+		host = "aegis.aivo.fr"
+	}
+
+	protectionEnabled := s.protectionService.IsProtectionEnabled()
+	decision := "BLOCK"
+	statusCode := 403
+	if !protectionEnabled {
+		decision = "BYPASS"
+		statusCode = 200
+	}
+
+	probes := []struct {
+		URI      string
+		Method   string
+		Threat   string
+		Severity string
+		Entropy  float64
+		UA       string
+	}{
+		{"/wp-login.php", "POST", "SONDE BOTNET CMS / PHP", "HIGH", 3.45, "Mozilla/5.0 sqlmap/1.5.11"},
+		{"/wp-content/plugins/revslider/temp/update_extract/revslider/db.php", "GET", "EXPLOIT REVSLIDER RCE", "CRITICAL", 4.12, "nikto/2.1.6"},
+		{"/xmlrpc.php", "POST", "XML-RPC AMPLIFICATION & BRUTEFORCE", "HIGH", 3.88, "python-requests/2.31.0"},
+		{"/.env", "GET", "EXTRACTION SECRETS (.ENV)", "CRITICAL", 2.91, "gobuster/3.5"},
+		{"/phpmyadmin/index.php", "GET", "SONDE PHPMYADMIN EXP", "MEDIUM", 3.10, "zgrab/0.x"},
+		{"/api/v1/search?q=1+UNION+SELECT+username,password+FROM+users--", "GET", "INJECTION SQL (UNION SELECT)", "CRITICAL", 4.75, "sqlmap"},
+	}
+
+	simulatedIP := "198.51.100.77"
+	for _, p := range probes {
+		meta := map[string]any{
+			"simulated":   true,
+			"threat_type": p.Threat,
+			"severity":    p.Severity,
+			"entropy":     p.Entropy,
+			"host":        host,
+			"domain":      host,
+			"engine":      "Aegis Gate PEP (:8000)",
+		}
+		metaJSON, _ := json.Marshal(meta)
+		insertSQL := fmt.Sprintf(`
+			INSERT INTO security_audit_logs (
+				tenant_id, client_ip, user_agent, http_method, request_uri, decision, http_status_returned, latency_ms, metadata, timestamp
+			) VALUES (
+				%s, %s, %s, %s, %s, %s, %d, 0.45, %s::jsonb, CURRENT_TIMESTAMP
+			);`,
+			database.QuoteLiteral(s.defaultTenantID),
+			database.QuoteLiteral(simulatedIP),
+			database.QuoteLiteral(p.UA),
+			database.QuoteLiteral(p.Method),
+			database.QuoteLiteral(p.URI),
+			database.QuoteLiteral(decision),
+			statusCode,
+			database.QuoteLiteral(string(metaJSON)),
+		)
+		_ = s.db.Exec(insertSQL)
+	}
+
+	egressProbes := []struct {
+		FQDN       string
+		Threat     string
+		Entropy    float64
+		Confidence float64
+		IsMal      bool
+	}{
+		{"c2-beacon.random-domain.top", "KNOWN_C2_INFRASTRUCTURE", 4.85, 0.98, true},
+		{"revshell.xmrig-pool.xyz", "REVERSE_SHELL_C2", 4.62, 0.95, true},
+		{"data-tunnel.exfil-dns-payload.io", "DNS_TUNNEL_EXFIL", 4.92, 0.99, true},
+		{"api.github.com", "CLEAN_EGRESS", 2.15, 0.05, false},
+	}
+
+	for _, eg := range egressProbes {
+		egAction := "ALLOW"
+		if eg.IsMal {
+			if protectionEnabled {
+				egAction = "BLOCK"
+			} else {
+				egAction = "BYPASS"
+			}
+		}
+		egMeta := map[string]any{
+			"simulated": true,
+			"host":      host,
+			"engine":    "Aegis System One DNS Sinkhole (:5053)",
+		}
+		if egAction == "BLOCK" {
+			egMeta["sinkhole_ip"] = "0.0.0.0"
+		}
+		egMetaJSON, _ := json.Marshal(egMeta)
+		insertEgSQL := fmt.Sprintf(`
+			INSERT INTO egress_security_logs (
+				tenant_id, client_ip, fqdn, domain_entropy, action, threat_type, confidence, latency_ms, metadata, timestamp
+			) VALUES (
+				%s, %s, %s, %f, %s, %s, %f, 0.85, %s::jsonb, CURRENT_TIMESTAMP
+			);`,
+			database.QuoteLiteral(s.defaultTenantID),
+			database.QuoteLiteral(simulatedIP),
+			database.QuoteLiteral(eg.FQDN),
+			eg.Entropy,
+			database.QuoteLiteral(egAction),
+			database.QuoteLiteral(eg.Threat),
+			eg.Confidence,
+			database.QuoteLiteral(string(egMetaJSON)),
+		)
+		_ = s.db.Exec(insertEgSQL)
+	}
+
+	return map[string]any{
+		"status":                  "success",
+		"simulated_ingress_count": len(probes),
+		"simulated_egress_count":  len(egressProbes),
+		"protection_enabled":      protectionEnabled,
+	}, nil
+}
+
 func (s *DashboardService) GetThreatsFeed(includeCompliant bool) ([]map[string]any, error) {
 	events := make([]map[string]any, 0)
 	if s.db == nil {

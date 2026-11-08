@@ -50,6 +50,23 @@ func (h *DashboardHandler) LiveStreams(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, streams)
 }
 
+func (h *DashboardHandler) Simulate(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		httputil.WriteJSON(w, http.StatusNoContent, nil)
+		return
+	}
+	host := r.URL.Query().Get("host")
+	if host == "" {
+		host = r.Host
+	}
+	res, err := h.dashboardService.SimulatePentestProbes(host)
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, res)
+}
+
 func (h *DashboardHandler) ThreatsFeed(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		httputil.WriteJSON(w, http.StatusNoContent, nil)

@@ -79,12 +79,17 @@ export function createGateServer(
         { path: '/api/v1/search?q=1+UNION+SELECT+username,password+FROM+users--', method: 'GET', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) sqlmap', threat: 'SQLI' }
       ];
 
+      const hostHeader = ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0];
       const ingressResults: any[] = [];
       for (const p of simulatedProbes) {
-        const headers = { 'user-agent': p.ua, host: req.headers.host || 'aegis.aivo.fr' };
+        const headers = { 'user-agent': p.ua, host: hostHeader };
         const inspection = inspector.inspect(p.path, p.method, headers, '', 0, simulatedIp);
         const decision = state.protectionEnabled ? (inspection.decision || 'BLOCK') : 'BYPASS';
         const statusCode = decision === 'BLOCK' ? 403 : 200;
+        const threatType = inspection.threat_type || p.threat;
+        const severity = inspection.severity || 'CRITICAL';
+        const entropy = inspection.entropy || 3.5;
+        const riskScore = inspection.risk_score || 95;
 
         telemetry.send({
           tenant_id: config.tenantId,
@@ -95,14 +100,21 @@ export function createGateServer(
           decision,
           http_status_returned: statusCode,
           latency_ms: 0.8,
-          threat_type: inspection.threat_type || p.threat,
-          severity: inspection.severity,
-          risk_score: inspection.risk_score,
-          entropy: inspection.entropy,
+          threat_type: threatType,
+          severity,
+          risk_score: riskScore,
+          entropy,
           matched_pattern: inspection.pattern,
           metadata: {
             simulated: true,
-            pattern: inspection.pattern
+            pattern: inspection.pattern,
+            threat_type: threatType,
+            severity,
+            risk_score: riskScore,
+            entropy,
+            host: hostHeader,
+            domain: hostHeader,
+            engine: 'Aegis Gate PEP (:8000)'
           }
         });
 
@@ -111,7 +123,7 @@ export function createGateServer(
           method: p.method,
           decision,
           status_code: statusCode,
-          threat_type: inspection.threat_type || p.threat
+          threat_type: threatType
         });
       }
 
@@ -143,7 +155,9 @@ export function createGateServer(
             sinkhole_ip: action === 'BLOCK' ? '0.0.0.0' : undefined,
             engine: eg.isMalicious
               ? (state.protectionEnabled ? 'Aegis System One DNS Sinkhole (:5053)' : '⚠️ Egress Désactivé (Fuite C2 Active)')
-              : 'DNS Direct'
+              : 'DNS Direct',
+            host: hostHeader,
+            domain: hostHeader
           }
         };
 
