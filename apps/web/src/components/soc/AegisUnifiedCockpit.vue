@@ -155,19 +155,6 @@ const props = withDefaults(defineProps<{
 
 // Authentication state (Pure BFF)
 const { isAuthenticated, currentUser, checkSession, logout: bffLogout } = useAuth();
-const isPublicMode = ref(false);
-
-async function checkDeployMode() {
-  try {
-    const res = await fetch('/api/v1/config/mode');
-    if (res.ok) {
-      const data = await res.json();
-      isPublicMode.value = data.mode === 'public';
-    }
-  } catch (e) {
-    isPublicMode.value = false;
-  }
-}
 
 // Sidebar state
 const isSidebarExpanded = ref(true);
@@ -197,16 +184,24 @@ let pollTimer: any = null;
 const metrics = ref({
   traffic: {
     total_requests_24h: 0,
+    clean_traffic_pct: 100,
     blocked_threats_total: 0,
+    compromised_bypass_total: 0,
+    ingress_total: 0,
     ingress_blocked: 0,
+    ingress_bypassed: 0,
+    egress_total: 0,
     egress_blocked: 0,
+    egress_bypassed: 0,
     bot_probes_total: 0,
     avg_latency_ms: 0.45,
   },
   soc: {
+    si_health_score: 100,
     interception_rate_pct: 100,
     active_virtual_patches: 18,
     quarantine_ips_count: 0,
+    c2_callbacks_blocked_total: 0,
     monitored_nodes: [] as any[],
   },
   green: {
@@ -276,14 +271,26 @@ function handleNodeConnected() {
 
 async function fetchSummary() {
   try {
-    const res = await fetch('/api/v1/dashboard/summary');
+    const res = await fetch('/api/v1/dashboard/summary', { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       if (typeof data.protection_enabled === 'boolean') {
         protectionEnabled.value = data.protection_enabled;
       }
-      if (data.traffic) metrics.value.traffic = { ...metrics.value.traffic, ...data.traffic };
-      if (data.soc) metrics.value.soc = { ...metrics.value.soc, ...data.soc };
+      if (data.traffic) {
+        metrics.value.traffic = {
+          ...metrics.value.traffic,
+          ...data.traffic,
+          clean_traffic_pct: data.traffic.clean_traffic_pct ?? metrics.value.traffic.clean_traffic_pct ?? 100,
+        };
+      }
+      if (data.soc) {
+        metrics.value.soc = {
+          ...metrics.value.soc,
+          ...data.soc,
+          interception_rate_pct: data.soc.interception_rate_pct ?? metrics.value.soc.interception_rate_pct ?? 100,
+        };
+      }
       if (data.green) {
         metrics.value.green = { ...metrics.value.green, ...data.green };
         const realWatts = Number(data.green.instant_power_watts) || 0;
@@ -318,7 +325,7 @@ async function toggleProtectionMode() {
 
 async function fetchThreats() {
   try {
-    const res = await fetch('/api/v1/dashboard/egress-threats');
+    const res = await fetch('/api/v1/dashboard/egress-threats', { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       threats.value = Array.isArray(data.threats) ? data.threats : [];
@@ -376,8 +383,6 @@ onMounted(async () => {
         activeNav.value = props.initialView;
       }
     }
-
-    checkDeployMode();
 
     const handlePopState = (e: PopStateEvent) => {
       if (e.state && e.state.nav) {

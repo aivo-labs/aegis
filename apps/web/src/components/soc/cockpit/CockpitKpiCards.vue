@@ -7,18 +7,15 @@
         <span class="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">PostgreSQL Live</span>
       </div>
       <div class="flex items-baseline gap-1.5 mt-1">
-        <span v-if="isLoading && !traffic.total_requests_24h" class="inline-block h-8 w-28 bg-slate-800 animate-pulse rounded-lg"></span>
-        <template v-else>
-          <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ formatNumber(traffic.total_requests_24h) }}</span>
-          <span class="text-xs text-slate-400 font-medium">événements</span>
-        </template>
+        <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ formatNumber(traffic.total_requests_24h) }}</span>
+        <span class="text-xs text-slate-400 font-medium">événements</span>
       </div>
       <div class="mt-3 flex items-center justify-between text-xs font-mono">
         <span class="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-          {{ traffic.clean_traffic_pct }}% Sain
+          {{ traffic.clean_traffic_pct ?? 100 }}% Sain
         </span>
         <span class="text-slate-400">In: {{ traffic.ingress_total || 0 }} • Out: {{ traffic.egress_total || 0 }}</span>
-        <span class="text-slate-500">{{ traffic.avg_latency_ms }}ms</span>
+        <span class="text-slate-500">{{ traffic.avg_latency_ms || 0 }}ms</span>
       </div>
     </div>
 
@@ -29,15 +26,12 @@
         <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Bloqués / Total Attaques</span>
       </div>
       <div class="flex items-baseline gap-1 mt-1">
-        <span v-if="isLoading && !traffic.total_requests_24h" class="inline-block h-8 w-20 bg-slate-800 animate-pulse rounded-lg"></span>
-        <template v-else>
-          <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ interceptionRate }}</span>
-          <span class="text-xs text-slate-400 font-medium">%</span>
-        </template>
+        <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ interceptionRate }}</span>
+        <span class="text-xs text-slate-400 font-medium">%</span>
       </div>
       <div class="mt-3 flex items-center justify-between text-xs font-mono">
-        <span class="text-slate-300">Bloqués : <strong class="text-emerald-400">{{ traffic.blocked_threats_total }}</strong></span>
-        <span :class="traffic.compromised_bypass_total > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'">
+        <span class="text-slate-300">Bloqués : <strong class="text-emerald-400">{{ traffic.blocked_threats_total || 0 }}</strong></span>
+        <span :class="(traffic.compromised_bypass_total || 0) > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'">
           Passés : {{ traffic.compromised_bypass_total || 0 }}
         </span>
       </div>
@@ -53,19 +47,16 @@
       <div class="flex items-center justify-between">
         <div>
           <div class="flex items-baseline gap-1 mt-1">
-            <span v-if="isLoading && instantWatts === 0" class="inline-block h-8 w-24 bg-slate-800 animate-pulse rounded-lg"></span>
-            <template v-else>
-              <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ instantWatts.toFixed(2) }}</span>
-              <span class="text-xs text-slate-400 font-medium">Watts</span>
-            </template>
+            <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ (instantWatts || 0).toFixed(2) }}</span>
+            <span class="text-xs text-slate-400 font-medium">Watts</span>
           </div>
           <div class="text-[11px] text-slate-400 font-mono mt-2">
-            CPU: {{ green.cpu_watts }}W • RAM: {{ green.ram_watts }}W
+            CPU: {{ green.cpu_watts || 0 }}W • RAM: {{ green.ram_watts || 0 }}W
           </div>
         </div>
 
         <div class="text-right font-mono">
-          <div class="text-xs font-bold text-emerald-400">{{ green.carbon_intensity_gco2_h }} gCO2/h</div>
+          <div class="text-xs font-bold text-emerald-400">{{ green.carbon_intensity_gco2_h || 0 }} gCO2/h</div>
           <div class="text-[10px] text-slate-500 mt-0.5">Mix FR (52g/kWh)</div>
         </div>
       </div>
@@ -78,11 +69,8 @@
         <span class="text-[10px] font-mono text-rose-300 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">Gate + Egress</span>
       </div>
       <div class="flex items-baseline gap-1.5 mt-1">
-        <span v-if="isLoading && !traffic.blocked_threats_total" class="inline-block h-8 w-28 bg-slate-800 animate-pulse rounded-lg"></span>
-        <template v-else>
-          <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ formatNumber(traffic.blocked_threats_total) }}</span>
-          <span class="text-xs text-slate-400 font-medium">neutralisés</span>
-        </template>
+        <span class="text-3xl font-extrabold text-white tracking-tight font-mono">{{ formatNumber(traffic.blocked_threats_total) }}</span>
+        <span class="text-xs text-slate-400 font-medium">neutralisés</span>
       </div>
       <div class="mt-3 flex items-center justify-between text-[11px] font-mono text-slate-400">
         <span class="text-cyan-400 font-bold">WAF: {{ traffic.ingress_blocked || 0 }}</span>

@@ -97,6 +97,11 @@ import CveFeedPanel from './actions/CveFeedPanel.vue';
 import ControlsPanel from './actions/ControlsPanel.vue';
 import RoadmapPanel from './actions/RoadmapPanel.vue';
 
+import { useAegisTheme } from '../../composables/useAegisTheme';
+import { useLiveStreams } from '../../composables/useLiveStreams';
+import { useCveFeed } from '../../composables/useCveFeed';
+import { useControls } from '../../composables/useControls';
+
 const props = withDefaults(defineProps<{
   initialTab?: string;
   initialDomain?: string;
