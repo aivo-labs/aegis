@@ -191,21 +191,8 @@ const headerSubtitle = computed(() => {
   return 'État transparent des fonctionnalités en production (v1.5) et des chantiers communautaires (v2.0)';
 });
 
-const emitLogout = async () => {
+const emitLogout = () => {
   emit('logout');
-  if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (data && data.logout_url) {
-          window.location.href = data.logout_url;
-          return;
-        }
-      }
-    } catch {}
-    window.location.href = '/login/';
-  }
 };
 
 async function handleSimulateProbes() {

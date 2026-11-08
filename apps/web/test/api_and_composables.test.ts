@@ -115,8 +115,9 @@ test('authApi handles fetchAuthStatus and logout gracefully in test environment'
   const status = await fetchAuthStatus();
   assert.equal(status.authenticated, false);
 
-  const logoutOk = await triggerLogout();
-  assert.equal(typeof logoutOk, 'boolean');
+  const logoutRes = await triggerLogout();
+  assert.equal(typeof logoutRes.success, 'boolean');
+  assert.ok(logoutRes.redirectUrl.includes('/login/'));
 });
 
 test('useTelemetry in isDemo mode loads rich realistic sandbox dataset', async () => {

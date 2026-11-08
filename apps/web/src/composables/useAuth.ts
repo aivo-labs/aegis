@@ -40,14 +40,17 @@ export function useAuth() {
   }
 
   async function logout(): Promise<void> {
-    await triggerLogout();
     isAuthenticated.value = false;
     currentUser.value = null;
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('aegis_auth');
+        localStorage.removeItem('aegis_cached_summary');
       } catch {}
-      window.location.href = '/login/';
+    }
+    const { redirectUrl } = await triggerLogout();
+    if (typeof window !== 'undefined') {
+      window.location.href = redirectUrl || '/login/?logout=true';
     }
   }
 

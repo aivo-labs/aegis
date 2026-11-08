@@ -144,8 +144,18 @@ import AegisLogo from '../components/AegisLogo.astro';
 </Layout>
 
 <script is:inline>
-  // 1. Session check via Pure BFF and auto-redirect to Keycloak if OIDC is active
+  // 1. Session check via Pure BFF and auto-redirect handling
   (async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isLogout = urlParams.get('logout') === 'true' || urlParams.get('logged_out') === 'true';
+
+    if (isLogout) {
+      localStorage.removeItem('aegis_auth');
+      localStorage.removeItem('aegis_cached_summary');
+      sessionStorage.clear();
+      return;
+    }
+
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
       if (res.ok) {
@@ -159,17 +169,19 @@ import AegisLogo from '../components/AegisLogo.astro';
       }
     } catch (e) {}
 
-    // Check if Keycloak SSO is active: if yes, redirect directly to Keycloak!
-    try {
-      const cfgRes = await fetch('/api/auth/config');
-      if (cfgRes.ok) {
-        const cfg = await cfgRes.json();
-        if (cfg && cfg.oidc_active) {
-          window.location.replace('/api/auth/login');
-          return;
+    // Only auto-redirect to Keycloak SSO if explicitly requested via ?mode=login
+    if (urlParams.get('mode') === 'login') {
+      try {
+        const cfgRes = await fetch('/api/auth/config');
+        if (cfgRes.ok) {
+          const cfg = await cfgRes.json();
+          if (cfg && cfg.oidc_active) {
+            window.location.replace('/api/auth/login');
+            return;
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
 
     try {
       const saved = localStorage.getItem('aegis_auth');

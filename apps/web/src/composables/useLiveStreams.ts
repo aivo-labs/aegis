@@ -177,6 +177,233 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
     blockedEgress24h.value = 867;
   }
 
+  function mergeStreams<T extends { id: string; timestamp: string }>(currentList: T[], incomingList: T[]): T[] {
+    const map = new Map<string, T>();
+    currentList.forEach(item => map.set(item.id, item));
+    incomingList.forEach(item => map.set(item.id, item));
+    return Array.from(map.values()).sort((a, b) => {
+      const tb = new Date(b.timestamp).getTime();
+      const ta = new Date(a.timestamp).getTime();
+      return tb - ta;
+    });
+  }
+
+  const SIMULATED_ATTACK_PROBES: IngressEvent[] = [
+    {
+      id: 'sim-in-1',
+      client_ip: '198.51.100.77',
+      method: 'GET',
+      target: '/wp-login.php',
+      host: 'aegis.aivo.fr',
+      domain: 'aegis.aivo.fr',
+      user_agent: 'Mozilla/5.0 sqlmap/1.5.11 (Automated Botnet Probe)',
+      threat_type: 'SONDE BOTNET CMS / PHP',
+      category: 'SONDE BOTNET CMS / PHP',
+      decision: 'BLOCK',
+      status_code: 403,
+      timestamp: new Date().toISOString(),
+      lat: 48.8566,
+      lon: 2.3522,
+      country: 'FR',
+      entropy: 3.45,
+      latency_ms: 0.35,
+      metadata: {
+        engine: 'Aegis Gate PEP (:8000)',
+        pattern: 'CMS Admin Login Brute Force Signature',
+        simulated: true,
+        risk_score: 96,
+      },
+    },
+    {
+      id: 'sim-in-2',
+      client_ip: '198.51.100.77',
+      method: 'GET',
+      target: '/wp-content/plugins/revslider/temp/update_extract/revslider/db.php',
+      host: 'aegis.aivo.fr',
+      domain: 'aegis.aivo.fr',
+      user_agent: 'nikto/2.1.6 (Vulnerability Scanner)',
+      threat_type: 'EXPLOIT REVSLIDER RCE',
+      category: 'EXPLOITS CRITIQUES',
+      decision: 'BLOCK',
+      status_code: 403,
+      timestamp: new Date(Date.now() - 600).toISOString(),
+      lat: 52.52,
+      lon: 13.405,
+      country: 'DE',
+      entropy: 4.12,
+      latency_ms: 0.42,
+      metadata: {
+        engine: 'Aegis Gate PEP (Virtual Patching)',
+        pattern: 'CVE-2014-9734 Arbitrary File Retrieval',
+        simulated: true,
+        risk_score: 99,
+      },
+    },
+    {
+      id: 'sim-in-3',
+      client_ip: '198.51.100.77',
+      method: 'POST',
+      target: '/xmlrpc.php',
+      host: 'aegis.aivo.fr',
+      domain: 'aegis.aivo.fr',
+      user_agent: 'python-requests/2.31.0',
+      threat_type: 'XML-RPC AMPLIFICATION & BRUTEFORCE',
+      category: 'SONDE BOTNET CMS / PHP',
+      decision: 'BLOCK',
+      status_code: 403,
+      timestamp: new Date(Date.now() - 1200).toISOString(),
+      lat: 37.7749,
+      lon: -122.4194,
+      country: 'US',
+      entropy: 3.88,
+      latency_ms: 0.28,
+      metadata: {
+        engine: 'Aegis Gate PEP (:8000)',
+        pattern: 'system.multicall amplification probe',
+        simulated: true,
+        risk_score: 92,
+      },
+    },
+    {
+      id: 'sim-in-4',
+      client_ip: '198.51.100.77',
+      method: 'GET',
+      target: '/.env',
+      host: 'aegis.aivo.fr',
+      domain: 'aegis.aivo.fr',
+      user_agent: 'gobuster/3.5 (Dir Brute)',
+      threat_type: 'EXTRACTION SECRETS (.ENV)',
+      category: 'SONDE FICHIER SENSIBLE',
+      decision: 'BLOCK',
+      status_code: 403,
+      timestamp: new Date(Date.now() - 1800).toISOString(),
+      lat: 55.7558,
+      lon: 37.6173,
+      country: 'RU',
+      entropy: 2.91,
+      latency_ms: 0.22,
+      metadata: {
+        engine: 'Aegis Gate PEP (Virtual Patching)',
+        pattern: 'DotEnv Sensitive Credential Scanner',
+        simulated: true,
+        risk_score: 98,
+      },
+    },
+    {
+      id: 'sim-in-5',
+      client_ip: '198.51.100.77',
+      method: 'GET',
+      target: '/phpmyadmin/index.php',
+      host: 'aegis.aivo.fr',
+      domain: 'aegis.aivo.fr',
+      user_agent: 'zgrab/0.x',
+      threat_type: 'SONDE PHPMYADMIN EXP',
+      category: 'SONDE FICHIER SENSIBLE',
+      decision: 'BLOCK',
+      status_code: 403,
+      timestamp: new Date(Date.now() - 2400).toISOString(),
+      lat: 51.5074,
+      lon: -0.1278,
+      country: 'GB',
+      entropy: 3.1,
+      latency_ms: 0.31,
+      metadata: {
+        engine: 'Aegis Gate PEP (:8000)',
+        pattern: 'Database Management Exposure Probe',
+        simulated: true,
+        risk_score: 90,
+      },
+    },
+    {
+      id: 'sim-in-6',
+      client_ip: '198.51.100.77',
+      method: 'GET',
+      target: '/api/v1/search?q=1+UNION+SELECT+username,password+FROM+users--',
+      host: 'aegis.aivo.fr',
+      domain: 'aegis.aivo.fr',
+      user_agent: 'Mozilla/5.0 sqlmap/1.5.11',
+      threat_type: 'INJECTION SQL (UNION SELECT)',
+      category: 'EXPLOITS CRITIQUES',
+      decision: 'BLOCK',
+      status_code: 403,
+      timestamp: new Date(Date.now() - 3000).toISOString(),
+      lat: 1.3521,
+      lon: 103.8198,
+      country: 'SG',
+      entropy: 4.75,
+      latency_ms: 0.38,
+      metadata: {
+        engine: 'Aegis Gate PEP (OWASP CRS SQLLD)',
+        pattern: 'SQL injection union select token detected',
+        simulated: true,
+        risk_score: 100,
+      },
+    },
+  ];
+
+  const SIMULATED_EGRESS_PROBES: EgressEvent[] = [
+    {
+      id: 'sim-eg-1',
+      protocol: 'DNS',
+      domain: 'c2-beacon.random-domain.top',
+      target: 'c2-beacon.random-domain.top',
+      target_ip: '0.0.0.0',
+      client_ip: '198.51.100.77',
+      port: 53,
+      decision: 'BLOCK',
+      threat_type: 'KNOWN_C2_INFRASTRUCTURE',
+      entropy: 4.85,
+      timestamp: new Date().toISOString(),
+      latency_ms: 0.95,
+      exfil_probability: 0.98,
+      metadata: {
+        engine: 'Aegis System One Sinkhole (:5053)',
+        action: 'SINKHOLE_REDIRECT_0.0.0.0',
+        simulated: true,
+      },
+    },
+    {
+      id: 'sim-eg-2',
+      protocol: 'TCP',
+      domain: 'revshell.xmrig-pool.xyz',
+      target: 'revshell.xmrig-pool.xyz',
+      target_ip: '0.0.0.0',
+      client_ip: '198.51.100.77',
+      port: 4444,
+      decision: 'BLOCK',
+      threat_type: 'REVERSE_SHELL_C2',
+      entropy: 4.62,
+      timestamp: new Date(Date.now() - 800).toISOString(),
+      latency_ms: 1.1,
+      exfil_probability: 0.95,
+      metadata: {
+        engine: 'Aegis Egress Gateway PEP',
+        action: 'SOCKET_DROP_IMMEDIATE',
+        simulated: true,
+      },
+    },
+    {
+      id: 'sim-eg-3',
+      protocol: 'DNS',
+      domain: 'data-tunnel.exfil-dns-payload.io',
+      target: 'data-tunnel.exfil-dns-payload.io',
+      target_ip: '0.0.0.0',
+      client_ip: '198.51.100.77',
+      port: 53,
+      decision: 'BLOCK',
+      threat_type: 'DNS_TUNNEL_EXFIL',
+      entropy: 4.92,
+      timestamp: new Date(Date.now() - 1600).toISOString(),
+      latency_ms: 0.85,
+      exfil_probability: 0.99,
+      metadata: {
+        engine: 'Aegis System One Shannon Entropy Filter',
+        action: 'SINKHOLE_BLOCK',
+        simulated: true,
+      },
+    },
+  ];
+
   async function fetchLiveStreams(params?: { date?: string; host?: string; limit?: number }) {
     if (options?.isDemo) {
       loadSandboxStreams();
@@ -196,19 +423,25 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
       });
 
       if (res.ok && res.data) {
-        ingressStream.value = res.data.ingress_stream || [];
-        egressStream.value = res.data.egress_stream || [];
-        totalIngress24h.value = res.data.total_ingress_24h ?? ingressStream.value.length;
-        blockedIngress24h.value = res.data.blocked_ingress_24h ?? ingressStream.value.filter(i => i.decision === 'BLOCK').length;
-        totalEgress24h.value = res.data.total_egress_24h ?? egressStream.value.length;
-        blockedEgress24h.value = res.data.blocked_egress_24h ?? egressStream.value.filter(e => e.decision === 'BLOCK').length;
-      } else if (ingressStream.value.length === 0) {
-        loadSandboxStreams();
+        const incomingIn = res.data.ingress_stream || [];
+        const incomingEg = res.data.egress_stream || [];
+
+        ingressStream.value = mergeStreams(ingressStream.value, incomingIn);
+        egressStream.value = mergeStreams(egressStream.value, incomingEg);
+
+        totalIngress24h.value = Math.max(res.data.total_ingress_24h ?? 0, ingressStream.value.length);
+        blockedIngress24h.value = Math.max(
+          res.data.blocked_ingress_24h ?? 0,
+          ingressStream.value.filter(i => i.decision === 'BLOCK').length
+        );
+        totalEgress24h.value = Math.max(res.data.total_egress_24h ?? 0, egressStream.value.length);
+        blockedEgress24h.value = Math.max(
+          res.data.blocked_egress_24h ?? 0,
+          egressStream.value.filter(e => e.decision === 'BLOCK').length
+        );
       }
     } catch (e) {
-      if (ingressStream.value.length === 0) {
-        loadSandboxStreams();
-      }
+      // Tolérance réseau en arrière-plan : ne jamais vider les flux existants
     } finally {
       isLoading.value = false;
     }
@@ -218,8 +451,29 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
     if (isSimulatingProbes.value) return;
     isSimulatingProbes.value = true;
     try {
+      // 1. Optimistic immediate UI update: Prepend realistic blocked events
+      const now = Date.now();
+      const freshIngress = SIMULATED_ATTACK_PROBES.map((p, idx) => ({
+        ...p,
+        id: `sim-in-${now}-${idx}`,
+        timestamp: new Date(now - idx * 400).toISOString(),
+      }));
+      const freshEgress = SIMULATED_EGRESS_PROBES.map((eg, idx) => ({
+        ...eg,
+        id: `sim-eg-${now}-${idx}`,
+        timestamp: new Date(now - idx * 700).toISOString(),
+      }));
+
+      ingressStream.value = mergeStreams(ingressStream.value, freshIngress);
+      egressStream.value = mergeStreams(egressStream.value, freshEgress);
+
+      totalIngress24h.value += freshIngress.length;
+      blockedIngress24h.value += freshIngress.length;
+      totalEgress24h.value += freshEgress.length;
+      blockedEgress24h.value += freshEgress.length;
+
+      // 2. Fire backend simulation to record in PostgreSQL / Gate Proxy
       await streamsApi.simulateBotProbes();
-      await fetchLiveStreams();
     } finally {
       isSimulatingProbes.value = false;
     }

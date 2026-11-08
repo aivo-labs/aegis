@@ -12,7 +12,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "typeRoots": [
-      "../../apps/web/node_modules/@types",
+      "../../node_modules/.pnpm/node_modules/@types",
+      "../web/node_modules/@types",
       "./node_modules/@types"
     ]
   },

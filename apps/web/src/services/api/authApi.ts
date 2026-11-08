@@ -47,11 +47,13 @@ export async function fetchAuthStatus(): Promise<AuthStatusResponse> {
   }
 }
 
-export async function triggerLogout(): Promise<boolean> {
+export async function triggerLogout(): Promise<{ success: boolean; redirectUrl: string }> {
+  const fallbackUrl = '/login/?logout=true';
   try {
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('aegis_auth');
+        localStorage.removeItem('aegis_cached_summary');
         sessionStorage.clear();
       } catch {}
     }
@@ -64,13 +66,11 @@ export async function triggerLogout(): Promise<boolean> {
     });
     if (res.ok) {
       const data = await res.json().catch(() => ({}));
-      if (typeof window !== 'undefined' && data && data.logout_url) {
-        window.location.href = data.logout_url;
-      }
-      return true;
+      const logoutUrl = data && data.logout_url ? data.logout_url : fallbackUrl;
+      return { success: true, redirectUrl: logoutUrl };
     }
-    return false;
+    return { success: false, redirectUrl: fallbackUrl };
   } catch {
-    return false;
+    return { success: false, redirectUrl: fallbackUrl };
   }
 }

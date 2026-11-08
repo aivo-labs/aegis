@@ -240,8 +240,16 @@
 
                   <span class="text-slate-400">IP: <strong class="text-slate-200">{{ item.client_ip }}</strong></span>
                   
+                  <span v-if="item.country" class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 text-[10px]" :title="`Pays: ${item.country}`">
+                    {{ item.country === 'FR' ? '🇫🇷' : item.country === 'DE' ? '🇩🇪' : item.country === 'US' ? '🇺🇸' : item.country === 'GB' ? '🇬🇧' : item.country === 'SG' ? '🇸🇬' : item.country === 'RU' ? '🇷🇺' : '🌐' }} {{ item.country }}
+                  </span>
+
                   <span class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300 text-[10px]">
                     {{ item.category || 'TRAFFIC' }}
+                  </span>
+
+                  <span v-if="item.metadata?.engine" class="hidden md:inline-flex px-1.5 py-0.5 rounded bg-cyan-950/40 border border-cyan-800/40 text-cyan-300 text-[10px]">
+                    🛡️ {{ item.metadata.engine }}
                   </span>
                 </div>
 
@@ -254,6 +262,8 @@
                   >
                     Prob. Scan : {{ (item as any).hack_probability ?? (item.decision === 'ALLOW' ? 5 : 95) }}%
                   </span>
+
+                  <span class="text-slate-500 text-[10px]">{{ (item as any).latency_ms ?? 0.3 }} ms</span>
 
                   <button 
                     @click.stop="openInspect(item, 'INGRESS')"
@@ -347,9 +357,13 @@
                     <span>{{ eg.host || eg.domain }}</span>
                   </span>
 
+                  <span class="text-slate-400">IP: <strong class="text-slate-200">{{ eg.client_ip || '127.0.0.1' }}</strong></span>
                   <span class="text-slate-400">Entropie : <strong class="text-cyan-300">H = {{ eg.entropy || 0 }}</strong></span>
                   <span class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-amber-300 text-[10px]">
                     {{ eg.threat_type || 'NORMAL' }}
+                  </span>
+                  <span v-if="eg.metadata?.engine" class="hidden md:inline-flex px-1.5 py-0.5 rounded bg-amber-950/40 border border-amber-800/40 text-amber-300 text-[10px]">
+                    🛡️ {{ eg.metadata.engine }}
                   </span>
                 </div>
 

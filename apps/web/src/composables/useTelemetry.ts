@@ -284,13 +284,9 @@ export function useTelemetry(options?: { isDemo?: boolean }) {
         if (res.data.available_namespaces?.length) {
           availableNamespaces.value = res.data.available_namespaces;
         }
-      } else if (timeseries.value.length === 0) {
-        loadSandboxData();
       }
     } catch (e) {
-      if (timeseries.value.length === 0) {
-        loadSandboxData();
-      }
+      // Tolérance réseau en arrière-plan
     } finally {
       isLoading.value = false;
     }
