@@ -1,0 +1,161 @@
+# =============================================================================
+# AEGIS BY AIVO — COMPOSITION DOKPLOY (ENVIRONNEMENT DE STAGING / PRÉ-PRODUCTION)
+# Déployé sur la branche 'develop' ➔ https://aegis.baud.dev
+# Isolation totale des conteneurs, volumes et base de données vis-à-vis de la production
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # 1. BASE DE DONNÉES TIMESCALEDB STAGING (ISOLÉE DE LA PRODUCTION)
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: aegis_staging_timescaledb
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aegis_staging_db}
+      POSTGRES_USER: ${POSTGRES_USER:-aegis_staging_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aegis_staging_password}
+    networks:
+      - aegis-staging-internal
+    volumes:
+      - aegis_staging_pgdata:/var/lib/postgresql/data
+      - ./apps/backend/migrations/schema-database-postgresql-aegis.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aegis_staging_user} -d ${POSTGRES_DB:-aegis_staging_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. BACKEND API CONTROL PLANE STAGING
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: aegis_staging_backend
+    restart: always
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-aegis_staging_user}:${POSTGRES_PASSWORD:-aegis_staging_password}@timescaledb:5432/${POSTGRES_DB:-aegis_staging_db}?serverVersion=16&charset=utf8"
+      APP_ENV: staging
+      APP_SECRET: ${APP_SECRET:-staging_secret_key_aegis_32b_hex_1234}
+    networks:
+      - aegis-staging-internal
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  # 3. PASSERELLE SORTANTE EGRESS STAGING
+  egress-gateway:
+    build:
+      context: ./apps/egress-gateway
+      dockerfile: Dockerfile
+    container_name: aegis_staging_egress_gateway
+    restart: always
+    environment:
+      AEGIS_TENANT_ID: "${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/egress"
+      SYSTEMONE_API_URL: "http://ollama-nimble:11434/v1/systemone"
+      SYSTEMONE_MODEL_NAME: "nimble"
+      EGRESS_LISTEN_PORT: 5053
+    ports:
+      - "5054:5053/udp"
+      - "5054:5053/tcp"
+    networks:
+      - aegis-staging-internal
+      - dokploy-network
+    depends_on:
+      - backend
+
+  # 4. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE RUST STAGING
+  telemetry-agent:
+    build:
+      context: ./apps/telemetry-agent
+      dockerfile: Dockerfile
+    container_name: aegis_staging_telemetry_agent
+    restart: always
+    pid: "host"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    hostname: "aegis-sovereign-node"
+    environment:
+      AEGIS_TENANT_ID: "${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+      AEGIS_SERVER_ID: "aegis-sovereign-node"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/energy"
+      POLL_INTERVAL_SECS: "5"
+    networks:
+      - aegis-staging-internal
+    depends_on:
+      - backend
+
+  # 5. MOTEUR IA SYSTEM ONE STAGING
+  ollama-nimble:
+    image: ollama/ollama:latest
+    container_name: aegis_staging_ollama_nimble
+    restart: always
+    networks:
+      - aegis-staging-internal
+    volumes:
+      - aegis_staging_ollama_data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && (ollama pull nimble || true) && wait"]
+
+  # 6. APPLICATION WEB & COCKPIT SOC STAGING
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: aegis_staging_web
+    restart: always
+    networks:
+      - aegis-staging-internal
+    depends_on:
+      - backend
+
+  # 7. PASSERELLE INGRESS PEP & WAF STAGING (aegis.baud.dev)
+  gate-proxy:
+    build:
+      context: ./apps/gate-proxy
+      dockerfile: Dockerfile
+    container_name: aegis_staging_gate_proxy
+    restart: always
+    environment:
+      GATE_PORT: 8000
+      BACKEND_URL: "http://backend:80"
+      WEB_URL: "http://web:80"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/ingress"
+      AEGIS_TENANT_ID: "${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+      BFF_SESSION_SECRET: "${BFF_SESSION_SECRET:-aegis_staging_session_secret_32b_key!}"
+      OIDC_ISSUER_URL: "${OIDC_ISSUER_URL:-https://auth.aivo.fr/realms/aegis}"
+      OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-aegis-staging}"
+      OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:-}"
+      OIDC_REDIRECT_URI: "${OIDC_REDIRECT_URI:-https://aegis.baud.dev/api/auth/callback}"
+      APP_URL: "https://aegis.baud.dev"
+    ports:
+      - "8001:8000"
+    networks:
+      - aegis-staging-internal
+      - dokploy-network
+    depends_on:
+      - backend
+      - web
+
+  # 8. DOCUMENTATION STAGING
+  docs:
+    build:
+      context: ./apps/docs
+      dockerfile: Dockerfile
+    container_name: aegis_staging_docs
+    restart: always
+    networks:
+      - aegis-staging-internal
+      - dokploy-network
+
+volumes:
+  aegis_staging_pgdata:
+  aegis_staging_ollama_data:
+
+networks:
+  aegis-staging-internal:
+    driver: bridge
+  dokploy-network:
+    external: true
