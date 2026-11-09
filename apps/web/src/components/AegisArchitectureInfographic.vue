@@ -38,9 +38,9 @@
             </div>
           </div>
 
-          <!-- SVG du Dôme Transparent & Flux Animés -->
-          <div class="w-full overflow-x-auto">
-            <svg viewBox="0 0 960 430" class="w-full min-w-[680px] h-auto overflow-visible select-none">
+          <!-- SVG du Dôme Transparent & Flux Animés (Responsive & Sans Débordement Mobile) -->
+          <div class="w-full overflow-hidden flex items-center justify-center">
+            <svg viewBox="0 0 960 430" class="w-full max-w-full h-auto select-none block overflow-hidden" preserveAspectRatio="xMidYMid meet">
               <defs>
                 <!-- Dégradé du Dôme Transparent -->
                 <linearGradient id="domeGlass" x1="480" y1="20" x2="480" y2="390" gradientUnits="userSpaceOnUse">
@@ -194,27 +194,74 @@
       <!-- SÉLECTEUR D'INTERCALAIRES & FICHE EXPLICATIVE FUSIONNÉE -->
       <div class="relative w-full max-w-5xl mx-auto pt-4">
         
-        <!-- SÉLECTEUR : LES 3 ONGLETS / INTERCALAIRES RELIÉS À LA CARTE EN DESSOUS -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3 items-end">
+        <!-- Version Mobile : Sélecteur segmenté horizontal ergonomique à portée de pouce -->
+        <div class="flex md:hidden p-1.5 rounded-2xl bg-slate-950/90 border border-slate-800 gap-1.5 mb-3 shadow-xl">
+          <button
+            type="button"
+            @click="activeModule = 'gate'"
+            :class="[
+              'flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all cursor-pointer font-mono text-center',
+              activeModule === 'gate'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold shadow-md'
+                : 'text-slate-400 hover:text-slate-200 border border-transparent'
+            ]"
+          >
+            <span class="text-base">🛡️</span>
+            <span class="text-xs font-bold mt-0.5">Gate</span>
+            <span class="text-[10px] opacity-75">&lt; 1.5 ms</span>
+          </button>
+
+          <button
+            type="button"
+            @click="activeModule = 'egress'"
+            :class="[
+              'flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all cursor-pointer font-mono text-center',
+              activeModule === 'egress'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold shadow-md'
+                : 'text-slate-400 hover:text-slate-200 border border-transparent'
+            ]"
+          >
+            <span class="text-base">🦅</span>
+            <span class="text-xs font-bold mt-0.5">Egress</span>
+            <span class="text-[10px] opacity-75">Sinkhole</span>
+          </button>
+
+          <button
+            type="button"
+            @click="activeModule = 'green'"
+            :class="[
+              'flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all cursor-pointer font-mono text-center',
+              activeModule === 'green'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold shadow-md'
+                : 'text-slate-400 hover:text-slate-200 border border-transparent'
+            ]"
+          >
+            <span class="text-base">🌿</span>
+            <span class="text-xs font-bold mt-0.5">Green</span>
+            <span class="text-[10px] opacity-75">RAPL</span>
+          </button>
+        </div>
+
+        <!-- SÉLECTEUR ORDINATEUR : LES 3 ONGLETS AVEC HAUTEUR STRICTEMENT ÉGALE ET TITRE SUR 2 LIGNES CENTRÉ -->
+        <div class="hidden md:grid md:grid-cols-3 gap-2 md:gap-3 items-stretch">
           
           <!-- Intercalaire 1 : Aegis Gate -->
           <button
             type="button"
             @click="activeModule = 'gate'"
             :class="[
-              'w-full text-left p-4 sm:p-5 rounded-t-2xl transition-all cursor-pointer relative',
+              'w-full text-center p-4 sm:p-5 rounded-t-2xl transition-all cursor-pointer relative h-28 flex flex-col justify-between',
               activeModule === 'gate'
-                ? 'bg-slate-900 border-t-2 border-x border-cyan-400 text-white z-20 shadow-[0_-8px_20px_-5px_rgba(6,182,212,0.25)] md:pb-6'
+                ? 'bg-slate-900 border-t-2 border-x border-cyan-400 text-white z-20 shadow-[0_-8px_20px_-5px_rgba(6,182,212,0.25)]'
                 : 'bg-slate-950/70 hover:bg-slate-900/60 border-t border-x border-slate-800/80 text-slate-400 hover:text-slate-200 z-0 opacity-80 hover:opacity-100 rounded-b-xl md:rounded-b-none'
             ]"
           >
-            <!-- Ligne lumineuse active pour l'onglet actif -->
             <div 
               v-if="activeModule === 'gate'"
               class="absolute -top-[2px] inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent"
             ></div>
 
-            <div class="flex items-center justify-between font-mono text-xs mb-2">
+            <div class="flex items-center justify-between font-mono text-xs w-full">
               <span :class="['font-bold tracking-wider', activeModule === 'gate' ? 'text-cyan-400' : 'text-slate-400']">
                 MODULE 01 • INGRESS
               </span>
@@ -222,12 +269,15 @@
                 &lt; 1.5 ms
               </span>
             </div>
-            <div class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-              <span class="text-lg">🛡️</span>
-              <span>Aegis Gate (WAF &amp; Virtual Patching)</span>
-            </div>
-            <div class="text-[11px] text-slate-400 mt-1">
-              {{ isFr ? 'Inspection in-line, OWASP Top 10, anti-scans < 25 Mo RAM' : 'In-line inspection, OWASP Top 10, anti-scanners < 25 MB RAM' }}
+
+            <div class="flex flex-col items-center justify-center text-center my-auto">
+              <div class="text-base sm:text-lg font-extrabold text-white flex items-center justify-center gap-1.5">
+                <span>🛡️</span>
+                <span>Aegis Gate</span>
+              </div>
+              <div class="text-xs sm:text-sm font-semibold text-slate-300 mt-0.5">
+                WAF &amp; Virtual Patching
+              </div>
             </div>
           </button>
 
@@ -236,32 +286,34 @@
             type="button"
             @click="activeModule = 'egress'"
             :class="[
-              'w-full text-left p-4 sm:p-5 rounded-t-2xl transition-all cursor-pointer relative',
+              'w-full text-center p-4 sm:p-5 rounded-t-2xl transition-all cursor-pointer relative h-28 flex flex-col justify-between',
               activeModule === 'egress'
-                ? 'bg-slate-900 border-t-2 border-x border-amber-400 text-white z-20 shadow-[0_-8px_20px_-5px_rgba(245,158,11,0.25)] md:pb-6'
+                ? 'bg-slate-900 border-t-2 border-x border-amber-400 text-white z-20 shadow-[0_-8px_20px_-5px_rgba(245,158,11,0.25)]'
                 : 'bg-slate-950/70 hover:bg-slate-900/60 border-t border-x border-slate-800/80 text-slate-400 hover:text-slate-200 z-0 opacity-80 hover:opacity-100 rounded-b-xl md:rounded-b-none'
             ]"
           >
-            <!-- Ligne lumineuse active pour l'onglet actif -->
             <div 
               v-if="activeModule === 'egress'"
               class="absolute -top-[2px] inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent"
             ></div>
 
-            <div class="flex items-center justify-between font-mono text-xs mb-2">
+            <div class="flex items-center justify-between font-mono text-xs w-full">
               <span :class="['font-bold tracking-wider', activeModule === 'egress' ? 'text-amber-400' : 'text-slate-400']">
                 MODULE 02 • EGRESS
               </span>
               <span :class="['px-2 py-0.5 rounded text-[11px] font-semibold border', activeModule === 'egress' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-800/80 text-slate-400 border-slate-700/60']">
-                Zero-Exfiltration
+                Zero-Exfil
               </span>
             </div>
-            <div class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-              <span class="text-lg">🦅</span>
-              <span>{{ isFr ? 'Aegis Egress (Sinkhole & IA Locale)' : 'Aegis Egress (Sinkhole & Local AI)' }}</span>
-            </div>
-            <div class="text-[11px] text-slate-400 mt-1">
-              {{ isFr ? 'CoreDNS durci, sinkhole 0.0.0.0 & modèle SLM Nimble 9B' : 'Hardened CoreDNS, 0.0.0.0 sinkhole & Nimble 9B SLM' }}
+
+            <div class="flex flex-col items-center justify-center text-center my-auto">
+              <div class="text-base sm:text-lg font-extrabold text-white flex items-center justify-center gap-1.5">
+                <span>🦅</span>
+                <span>Aegis Egress</span>
+              </div>
+              <div class="text-xs sm:text-sm font-semibold text-slate-300 mt-0.5">
+                {{ isFr ? 'Sinkhole & IA Locale' : 'Sinkhole & Local AI' }}
+              </div>
             </div>
           </button>
 
@@ -270,32 +322,34 @@
             type="button"
             @click="activeModule = 'green'"
             :class="[
-              'w-full text-left p-4 sm:p-5 rounded-t-2xl transition-all cursor-pointer relative',
+              'w-full text-center p-4 sm:p-5 rounded-t-2xl transition-all cursor-pointer relative h-28 flex flex-col justify-between',
               activeModule === 'green'
-                ? 'bg-slate-900 border-t-2 border-x border-emerald-400 text-white z-20 shadow-[0_-8px_20px_-5px_rgba(16,185,129,0.25)] md:pb-6'
+                ? 'bg-slate-900 border-t-2 border-x border-emerald-400 text-white z-20 shadow-[0_-8px_20px_-5px_rgba(16,185,129,0.25)]'
                 : 'bg-slate-950/70 hover:bg-slate-900/60 border-t border-x border-slate-800/80 text-slate-400 hover:text-slate-200 z-0 opacity-80 hover:opacity-100 rounded-b-xl md:rounded-b-none'
             ]"
           >
-            <!-- Ligne lumineuse active pour l'onglet actif -->
             <div 
               v-if="activeModule === 'green'"
               class="absolute -top-[2px] inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent"
             ></div>
 
-            <div class="flex items-center justify-between font-mono text-xs mb-2">
+            <div class="flex items-center justify-between font-mono text-xs w-full">
               <span :class="['font-bold tracking-wider', activeModule === 'green' ? 'text-emerald-400' : 'text-slate-400']">
                 MODULE 03 • GREEN IT
               </span>
               <span :class="['px-2 py-0.5 rounded text-[11px] font-semibold border', activeModule === 'green' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-800/80 text-slate-400 border-slate-700/60']">
-                RAPL &amp; EcoIndex v3
+                RAPL
               </span>
             </div>
-            <div class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-              <span class="text-lg">🌿</span>
-              <span>{{ isFr ? 'Aegis Green (Télémétrie Matérielle)' : 'Aegis Green (Hardware Telemetry)' }}</span>
-            </div>
-            <div class="text-[11px] text-slate-400 mt-1">
-              {{ isFr ? 'Watts/Joules réels /sys, PUE datacenters & Norme VS EFRAG' : 'Real /sys Watts/Joules, datacenter PUE & EFRAG VS standard' }}
+
+            <div class="flex flex-col items-center justify-center text-center my-auto">
+              <div class="text-base sm:text-lg font-extrabold text-white flex items-center justify-center gap-1.5">
+                <span>🌿</span>
+                <span>Aegis Green</span>
+              </div>
+              <div class="text-xs sm:text-sm font-semibold text-slate-300 mt-0.5">
+                {{ isFr ? 'Télémétrie Matérielle' : 'Hardware Telemetry' }}
+              </div>
             </div>
           </button>
 
@@ -315,7 +369,7 @@
           <div class="p-6 sm:p-8 border-b border-slate-800/80 bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950/60">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div class="space-y-2">
-                <div class="flex items-center gap-2.5">
+                <div class="flex flex-wrap items-center gap-2.5">
                   <span class="text-2xl">{{ currentModuleData.icon }}</span>
                   <h3 class="text-xl sm:text-2xl font-extrabold text-white">
                     {{ currentModuleData.title }}
@@ -324,7 +378,14 @@
                     {{ currentModuleData.tag }}
                   </span>
                 </div>
-                <p class="text-sm text-slate-300 leading-relaxed max-w-3xl">
+
+                <!-- Sous-titre en petite police italique juste en dessous du titre -->
+                <p class="text-xs sm:text-sm text-emerald-400/90 italic font-sans font-medium">
+                  {{ currentModuleData.subtitle }}
+                </p>
+
+                <!-- Description détaillée -->
+                <p class="text-sm text-slate-300 leading-relaxed max-w-3xl pt-1">
                   {{ currentModuleData.detailedDescription }}
                 </p>
               </div>
@@ -341,75 +402,37 @@
             </div>
           </div>
 
-          <!-- 2. Grille des 3 caractéristiques techniques approfondies -->
-          <div class="p-6 sm:p-8 bg-slate-900/60 grid grid-cols-1 md:grid-cols-3 gap-6 text-xs border-b border-slate-800/80">
+          <!-- 2. ZONE SCHÉMA ASCII (CENTRÉ JUSTE EN DESSOUS DE LA DESCRIPTION ET AU-DESSUS DES 3 BLOCS) -->
+          <div class="p-6 sm:p-8 bg-slate-950/70 border-b border-slate-800/80 flex flex-col items-center text-center space-y-5">
             
-            <div class="space-y-2.5 p-4 rounded-xl bg-slate-950/60 border border-slate-800/70">
-              <div class="font-bold text-white flex items-center gap-2 font-mono text-xs">
-                <span :class="currentModuleData.stepColor">01.</span>
-                <span>{{ isFr ? 'Interception & Décision' : 'Interception & Decision' }}</span>
-              </div>
-              <p class="text-slate-300 leading-relaxed">
-                {{ currentCardSpecs.interception }}
-              </p>
-            </div>
+            <!-- Bouton Centré pour afficher/masquer le schéma ASCII -->
+            <button
+              type="button"
+              @click="showAscii = !showAscii"
+              class="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 hover:border-slate-600 transition-all cursor-pointer font-semibold shadow-md text-xs font-mono"
+            >
+              <span>{{ showAscii 
+                ? (isFr ? '▼ Masquer le schéma technique (ASCII)' : '▼ Hide technical diagram (ASCII)') 
+                : (isFr ? '▶ Afficher le schéma technique détaillé (ASCII)' : '▶ Show detailed technical diagram (ASCII)') }}</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                {{ showAscii ? (isFr ? 'Replier' : 'Collapse') : (isFr ? 'Interactif' : 'Interactive') }}
+              </span>
+            </button>
 
-            <div class="space-y-2.5 p-4 rounded-xl bg-slate-950/60 border border-slate-800/70">
-              <div class="font-bold text-white flex items-center gap-2 font-mono text-xs">
-                <span :class="currentModuleData.stepColor">02.</span>
-                <span>{{ isFr ? 'Conformité & Métriques' : 'Compliance & Metrics' }}</span>
-              </div>
-              <p class="text-slate-300 leading-relaxed">
-                {{ currentCardSpecs.compliance }}
-              </p>
-            </div>
-
-            <div class="space-y-2.5 p-4 rounded-xl bg-slate-950/60 border border-slate-800/70 flex flex-col justify-between">
-              <div>
-                <div class="font-bold text-white flex items-center gap-2 font-mono text-xs mb-2">
-                  <span :class="currentModuleData.stepColor">03.</span>
-                  <span>{{ isFr ? 'Déploiement Express' : 'Quick Deployment' }}</span>
-                </div>
-                <div class="font-mono bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-slate-200 text-[11px] select-all break-all">
-                  {{ currentCardSpecs.command }}
-                </div>
-              </div>
-              <div class="mt-2 text-[10px] text-slate-400 font-mono">
-                {{ isFr ? 'Sans agent lourd • Conteneur OCI frugal' : 'No heavy agent • Frugal OCI container' }}
-              </div>
-            </div>
-
-          </div>
-
-          <!-- 3. ZONE SCHÉMA ASCII SUR DEMANDE & DIMENSIONNEMENT D'INFRASTRUCTURE -->
-          <div class="p-6 sm:p-8 bg-slate-950/90 space-y-5">
-            
-            <!-- Barre de contrôle : Bouton afficher/masquer schéma ASCII + Sélecteur de Dimensionnement -->
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono">
-              
-              <!-- Bouton d'affichage du schéma ASCII à la demande -->
-              <button
-                type="button"
-                @click="showAscii = !showAscii"
-                class="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 transition-all cursor-pointer font-semibold shadow-sm w-full sm:w-auto justify-center"
-              >
-                <span>{{ showAscii 
-                  ? (isFr ? '▼ Masquer le schéma technique (ASCII)' : '▼ Hide technical diagram (ASCII)') 
-                  : (isFr ? '▶ Afficher le schéma technique détaillé (ASCII)' : '▶ Show detailed technical diagram (ASCII)') }}</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  {{ showAscii ? (isFr ? 'Replier' : 'Collapse') : (isFr ? 'Interactif' : 'Interactive') }}
-                </span>
-              </button>
-
-              <!-- Sélecteur de Dimensionnement d'Infrastructure -->
-              <div class="flex flex-col sm:flex-row items-center gap-2">
-                <span class="text-slate-400 text-xs shrink-0">{{ isFr ? 'Dimensionnement :' : 'Sizing:' }}</span>
-                <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800 w-full sm:w-auto">
+            <!-- CONTENU DÉPLIÉ DU SCHÉMA AVEC SÉLECTEUR DE DIMENSIONNEMENT CENTRÉ AU-DESSUS DU DIAGRAMME -->
+            <div 
+              v-if="showAscii"
+              class="w-full space-y-4 text-left animate-fadeIn pt-2"
+            >
+              <!-- Dimensionnement d'infrastructure CENTRÉ au-dessus du diagramme -->
+              <div class="flex flex-col sm:flex-row items-center justify-center gap-2.5 pb-2 text-xs font-mono">
+                <span class="text-slate-400 font-semibold">{{ isFr ? 'Dimensionnement :' : 'Sizing:' }}</span>
+                <div class="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
                   <button
                     type="button"
                     @click="companySize = 'vps'"
                     :class="[
-                      'px-3 py-1.5 rounded transition-all cursor-pointer flex-1 sm:flex-initial text-center text-xs',
+                      'px-3 py-1.5 rounded-lg transition-all cursor-pointer text-xs font-mono',
                       companySize === 'vps'
                         ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold'
                         : 'text-slate-400 hover:text-slate-200 border border-transparent'
@@ -422,7 +445,7 @@
                     type="button"
                     @click="companySize = 'baremetal'"
                     :class="[
-                      'px-3 py-1.5 rounded transition-all cursor-pointer flex-1 sm:flex-initial text-center text-xs',
+                      'px-3 py-1.5 rounded-lg transition-all cursor-pointer text-xs font-mono',
                       companySize === 'baremetal'
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold'
                         : 'text-slate-400 hover:text-slate-200 border border-transparent'
@@ -435,7 +458,7 @@
                     type="button"
                     @click="companySize = 'k8s'"
                     :class="[
-                      'px-3 py-1.5 rounded transition-all cursor-pointer flex-1 sm:flex-initial text-center text-xs',
+                      'px-3 py-1.5 rounded-lg transition-all cursor-pointer text-xs font-mono',
                       companySize === 'k8s'
                         ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold'
                         : 'text-slate-400 hover:text-slate-200 border border-transparent'
@@ -446,33 +469,69 @@
                 </div>
               </div>
 
-            </div>
-
-            <!-- BLOC ASCII DÉPLIABLE -->
-            <div 
-              v-if="showAscii"
-              class="border border-slate-800 rounded-xl overflow-hidden shadow-2xl transition-all animate-fadeIn"
-            >
-              <!-- Barre d'état du terminal ASCII -->
-              <div class="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs font-mono">
-                <div class="flex items-center gap-2">
-                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-                  <span class="text-white font-bold">{{ currentSchemaTitle }}</span>
-                </div>
-                <div class="flex items-center gap-2 text-slate-400">
+              <!-- Bloc Terminal ASCII -->
+              <div class="border border-slate-800 rounded-2xl overflow-hidden shadow-2xl bg-slate-950">
+                <div class="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs font-mono">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-white font-bold">{{ currentSchemaTitle }}</span>
+                  </div>
                   <button 
                     type="button" 
                     @click="copyAscii" 
-                    class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 transition-all cursor-pointer text-[11px]"
+                    class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 transition-all cursor-pointer text-[11px] flex items-center gap-1"
                   >
-                    {{ copied ? (isFr ? 'Copié !' : 'Copied!') : (isFr ? 'Copier ASCII' : 'Copy ASCII') }}
+                    <span>{{ copied ? '✓' : '📋' }}</span>
+                    <span>{{ copied ? (isFr ? 'Copié !' : 'Copied!') : (isFr ? 'Copier ASCII' : 'Copy ASCII') }}</span>
                   </button>
                 </div>
-              </div>
 
-              <!-- Contenu ASCII -->
-              <div class="p-5 bg-[#090d16] font-mono text-xs overflow-x-auto text-slate-300 leading-relaxed">
-                <pre class="text-cyan-300/90 whitespace-pre font-mono select-all">{{ currentAsciiDiagram }}</pre>
+                <div class="p-4 sm:p-5 bg-[#090d16] font-mono text-xs overflow-x-auto text-slate-300 leading-relaxed">
+                  <pre class="text-cyan-300/90 whitespace-pre font-mono select-all">{{ currentAsciiDiagram }}</pre>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 3. GRILLE DES 3 BLOCS TECHNIQUES (INTERCEPTION, CONFORMITÉ, FRUGALITÉ) -->
+          <div class="p-6 sm:p-8 bg-slate-900/60 grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+            
+            <!-- Bloc 1 : Interception & Décision -->
+            <div class="space-y-2.5 p-4 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <div class="font-bold text-white flex items-center gap-2 font-mono text-xs">
+                <span :class="currentModuleData.stepColor">01.</span>
+                <span>{{ isFr ? 'Interception & Décision' : 'Interception & Decision' }}</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                {{ currentCardSpecs.interception }}
+              </p>
+            </div>
+
+            <!-- Bloc 2 : Conformité & Métriques -->
+            <div class="space-y-2.5 p-4 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <div class="font-bold text-white flex items-center gap-2 font-mono text-xs">
+                <span :class="currentModuleData.stepColor">02.</span>
+                <span>{{ isFr ? 'Conformité & Métriques' : 'Compliance & Metrics' }}</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                {{ currentCardSpecs.compliance }}
+              </p>
+            </div>
+
+            <!-- Bloc 3 : Frugalité & Empreinte Réelle (Remplace Déploiement Express) -->
+            <div class="space-y-2.5 p-4 rounded-xl bg-slate-950/60 border border-slate-800/70 flex flex-col justify-between">
+              <div>
+                <div class="font-bold text-white flex items-center gap-2 font-mono text-xs mb-2">
+                  <span :class="currentModuleData.stepColor">03.</span>
+                  <span>{{ currentCardSpecs.frugalityTitle }}</span>
+                </div>
+                <p class="text-slate-300 leading-relaxed">
+                  {{ currentCardSpecs.frugality }}
+                </p>
+              </div>
+              <div class="mt-2 text-[10px] text-emerald-400/90 font-mono">
+                {{ currentCardSpecs.frugalitySub }}
               </div>
             </div>
 
@@ -528,6 +587,7 @@ const modulesInfo = computed(() => {
       gate: {
         icon: '🛡️',
         title: 'Aegis Gate (WAF & Virtual Patching)',
+        subtitle: 'Inspection in-line, OWASP Top 10, anti-scans & latence < 1.5 ms',
         tag: 'INGRESS PEP',
         badgeClass: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
         stepColor: 'text-cyan-400 font-bold',
@@ -536,6 +596,7 @@ const modulesInfo = computed(() => {
       egress: {
         icon: '🦅',
         title: 'Aegis Egress (Sinkhole & IA Locale)',
+        subtitle: 'CoreDNS durci, sinkhole 0.0.0.0 & modèle SLM Nimble 9B local',
         tag: 'EGRESS & SINKHOLE',
         badgeClass: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
         stepColor: 'text-amber-400 font-bold',
@@ -544,6 +605,7 @@ const modulesInfo = computed(() => {
       green: {
         icon: '🌿',
         title: 'Aegis Green (Télémétrie Matérielle)',
+        subtitle: 'Watts/Joules réels /sys, PUE datacenters & Norme VS EFRAG',
         tag: 'GREEN IT & RAPL',
         badgeClass: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
         stepColor: 'text-emerald-400 font-bold',
@@ -555,6 +617,7 @@ const modulesInfo = computed(() => {
     gate: {
       icon: '🛡️',
       title: 'Aegis Gate (WAF & Virtual Patching)',
+      subtitle: 'In-line inspection, OWASP Top 10, anti-scanners & latency < 1.5 ms',
       tag: 'INGRESS PEP',
       badgeClass: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
       stepColor: 'text-cyan-400 font-bold',
@@ -563,6 +626,7 @@ const modulesInfo = computed(() => {
     egress: {
       icon: '🦅',
       title: 'Aegis Egress (Sinkhole & Local AI)',
+      subtitle: 'Hardened CoreDNS, 0.0.0.0 sinkhole & local Nimble 9B SLM',
       tag: 'EGRESS & SINKHOLE',
       badgeClass: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
       stepColor: 'text-amber-400 font-bold',
@@ -571,6 +635,7 @@ const modulesInfo = computed(() => {
     green: {
       icon: '🌿',
       title: 'Aegis Green (Hardware Telemetry)',
+      subtitle: 'Real /sys Watts/Joules, datacenter PUE & EFRAG VS standard',
       tag: 'GREEN IT & RAPL',
       badgeClass: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
       stepColor: 'text-emerald-400 font-bold',
@@ -759,25 +824,33 @@ const currentAsciiDiagram = computed(() => {
 });
 
 const currentCardSpecs = computed(() => {
+  const frugalityTitle = isFr.value ? 'Frugalité & Empreinte Réelle' : 'Frugality & Physical Footprint';
+
   if (isFr.value) {
     if (activeModule.value === 'gate') {
       return {
         interception: 'Détection par expressions régulières compilées en mémoire et vérification d\'en-têtes. Bloque instantanément scanners automatisés (Nikto, Nuclei, sqlmap), injections SQL et traversées de répertoires.',
         compliance: 'Conforme aux recommandations de durcissement ANSSI et au guide OWASP Top 10. Taux de faux positifs mesuré inférieur à 3%.',
-        command: 'docker compose up -d gate-proxy'
+        frugalityTitle,
+        frugality: 'Conteneur ultra-léger (< 25 Mo de RAM), écrit en Go et TypeScript compilé. Zéro runtime lourd Java ou Python, évaluation des règles d\'entropie et WAF sous 1.5 ms avec moins de 1% d\'utilisation CPU.',
+        frugalitySub: '• Sobriété Numérique RGESN 4.15 • CPU < 1%'
       };
     }
     if (activeModule.value === 'egress') {
       return {
         interception: 'Filtrage sortant DNS couplé à un cache CTI et au modèle SLM Nimble 9B. Détecte les domaines à haute entropie générés par malware (DGA) et les canaux de commande & contrôle (C2).',
         compliance: 'Zero-Log sur la vie privée des employés. 0 token transmis à des tiers américains (protection totale contre le Cloud Act).',
-        command: 'docker compose up -d egress-gateway'
+        frugalityTitle,
+        frugality: 'CoreDNS durci ultra-rapide (< 4.2 ms) couplé au SLM Nimble 9B local quantifié en 4-bit. Zéro fuite de télémétrie vers des API cloud tierces, consommation maîtrisée sous 35 Mo (ou 5.8 Go VRAM avec IA locale).',
+        frugalitySub: '• 100% Hors-Ligne • Protection Cloud Act'
       };
     }
     return {
       interception: 'Sonde matérielle en Rust prélevant les Joules bruts via RAPL (Running Average Power Limit) ou Kepler eBPF sous Linux. Aucun ralentissement de vos applications.',
       compliance: 'Conforme à la norme européenne VS (EFRAG) pour l\'ESG et au RGESN 2024 pour l\'éco-conception logicielle.',
-      command: companySize.value === 'k8s' ? 'helm install aegis ./deploy/kubernetes/helm/aegis' : 'docker compose up -d telemetry-agent'
+      frugalityTitle,
+      frugality: 'Agent Rust compilé statiquement (< 15 Mo de RAM). Lecture directe des registres matériels Intel/AMD RAPL (/sys/class/powercap) sans aucune surcharge (0.05% CPU). Données physiques réelles opposables aux auditeurs RSE.',
+      frugalitySub: '• Registres Physiques RAPL • Zéro ratio théorique'
     };
   }
 
@@ -786,20 +859,26 @@ const currentCardSpecs = computed(() => {
     return {
       interception: 'In-memory compiled regex pattern matching and header sanitization. Instantly blocks automated scanning tools (Nikto, Nuclei, sqlmap), SQL injections, and directory traversals.',
       compliance: 'Compliant with ANSSI hardening standards and OWASP Top 10 guidelines. Empirically measured false-positive rate under 3%.',
-      command: 'docker compose up -d gate-proxy'
+      frugalityTitle,
+      frugality: 'Ultra-frugal container (< 25 MB RAM), engineered with Go and compiled TypeScript. Zero heavy Java or Python runtimes, evaluating entropy and WAF rules in under 1.5 ms with sub-1% CPU load.',
+      frugalitySub: '• RGESN 4.15 Eco-Design • CPU < 1%'
     };
   }
   if (activeModule.value === 'egress') {
     return {
       interception: 'Outbound DNS filtering backed by local CTI cache and Nimble 9B SLM. Detects algorithmic high-entropy domains (DGA) and Command & Control (C2) callbacks.',
       compliance: 'Zero-Log employee privacy design. 0 tokens sent to third-party US cloud providers (strict isolation against US Cloud Act).',
-      command: 'docker compose up -d egress-gateway'
+      frugalityTitle,
+      frugality: 'Hardened sub-millisecond CoreDNS (< 4.2 ms) coupled with local 4-bit quantized Nimble 9B SLM. Zero telemetry sent to external cloud APIs, memory strictly contained under 35 MB (or 5.8 GB VRAM with local AI).',
+      frugalitySub: '• 100% Offline • Cloud Act Immunity'
     };
   }
   return {
     interception: 'Lightweight Rust hardware daemon polling raw Joules via RAPL (Running Average Power Limit) or Linux Kepler eBPF. Zero runtime overhead on running applications.',
     compliance: 'Fully aligned with European EFRAG VS standards for ESG reporting and RGESN guidelines for software eco-design.',
-    command: companySize.value === 'k8s' ? 'helm install aegis ./deploy/kubernetes/helm/aegis' : 'docker compose up -d telemetry-agent'
+    frugalityTitle,
+    frugality: 'Statically-compiled Rust agent (< 15 MB RAM). Direct hardware sampling from Intel/AMD RAPL registers (/sys/class/powercap) with near-zero overhead (0.05% CPU). Physical, audit-grade Joules for CSRD reports.',
+    frugalitySub: '• Physical RAPL MSRs • Zero statistical guesses'
   };
 });
 
