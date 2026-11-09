@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/aivo-labs/aegis/backend/internal/domain"
 	"github.com/aivo-labs/aegis/backend/internal/httputil"
@@ -23,9 +24,12 @@ func (h *TelemetryHandler) IngestEnergy(w http.ResponseWriter, r *http.Request) 
 	}
 	body := httputil.ReadJSONBody(r)
 
-	hostname := httputil.AsString(body, "hostname", "")
+	hostname := strings.TrimSpace(httputil.AsString(body, "hostname", ""))
 	if hostname == "" {
-		hostname = httputil.AsString(body, "server_id", "vps-main-01")
+		hostname = strings.TrimSpace(httputil.AsString(body, "server_id", "aegis-sovereign-node"))
+	}
+	if isHexContainerID(hostname) || hostname == "vps-main-01" {
+		hostname = "aegis-sovereign-node"
 	}
 
 	provider := httputil.AsString(body, "provider", "ovhcloud")
@@ -123,4 +127,16 @@ func (h *TelemetryHandler) IngestEgress(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	httputil.WriteJSON(w, http.StatusCreated, map[string]any{"status": "ingested", "type": "egress"})
+}
+
+func isHexContainerID(s string) bool {
+	if len(s) != 12 {
+		return false
+	}
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
 }

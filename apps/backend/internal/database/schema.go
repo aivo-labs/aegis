@@ -159,6 +159,18 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 		}
 	}
 	_ = db.Exec("DELETE FROM ip_ban_list WHERE ip_address IN ('92.157.163.164', '127.0.0.1');")
+
+	// Consolidation automatique des métriques orphelines (ex: conteneurs Docker de télémétrie) vers le nœud souverain unique
+	_ = db.Exec(`
+		UPDATE telemetry_energy_metrics 
+		SET node_id = '00000000-0000-0000-0000-000000000002' 
+		WHERE node_id IN (
+			SELECT id FROM infrastructure_nodes 
+			WHERE hostname != 'aegis-sovereign-node' AND (ip_address = '127.0.0.1' OR LENGTH(hostname) = 12)
+		);
+		DELETE FROM infrastructure_nodes 
+		WHERE hostname != 'aegis-sovereign-node' AND (ip_address = '127.0.0.1' OR LENGTH(hostname) = 12);
+	`)
 	log.Println("✅ [Aegis Go Control Plane] Schéma PostgreSQL & tables d'audit initialisés.")
 
 	// Initialisation automatique d'un socle d'événements si la base est vierge (évite le démarrage à 0 / clignotement)

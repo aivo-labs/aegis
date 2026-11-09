@@ -78,8 +78,10 @@ services:
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
+    hostname: "aegis-sovereign-node"
     environment:
       AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+      AEGIS_SERVER_ID: "aegis-sovereign-node"
       AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/energy"
       POLL_INTERVAL_SECS: "5"
     depends_on:

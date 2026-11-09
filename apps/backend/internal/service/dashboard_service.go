@@ -138,6 +138,9 @@ func (s *DashboardService) GetSummary() map[string]any {
 	monitoredNodes := make([]map[string]any, 0)
 	for _, n := range nodeRows {
 		h := strings.TrimSpace(n.String("hostname"))
+		if isHexContainerID(h) {
+			continue
+		}
 		if h == "" {
 			h = "aegis-sovereign-node"
 		}
@@ -862,6 +865,41 @@ func roundFloat(val float64, precision int) float64 {
 	return float64(int(val*p+0.5)) / p
 }
 
+func parsePgTimestamp(ts string) (time.Time, error) {
+	ts = strings.TrimSpace(ts)
+	if ts == "" {
+		return time.Time{}, fmt.Errorf("empty timestamp")
+	}
+	layouts := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999-07:00",
+		"2006-01-02 15:04:05-07:00",
+		"2006-01-02 15:04:05.999999999-07",
+		"2006-01-02 15:04:05.999999-07",
+		"2006-01-02 15:04:05-07",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05.999999",
+		"2006-01-02 15:04:05",
+	}
+	for _, l := range layouts {
+		if t, err := time.Parse(l, ts); err == nil {
+			return t, nil
+		}
+	}
+	if strings.Contains(ts, " ") {
+		normalized := strings.Replace(ts, " ", "T", 1)
+		if t, err := time.Parse(time.RFC3339Nano, normalized); err == nil {
+			return t, nil
+		}
+		if t, err := time.Parse(time.RFC3339, normalized); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unable to parse timestamp: %s", ts)
+}
+
 func (s *DashboardService) GetEnergyTelemetry(timeRange, fromDate, toDate, month, year, nodeID, namespace string) (map[string]any, error) {
 	now := time.Now().UTC()
 	start := now.Add(-24 * time.Hour)
@@ -1017,41 +1055,102 @@ func (s *DashboardService) GetEnergyTelemetry(timeRange, fromDate, toDate, month
 	timeseries := make([]EnergyTimePoint, 0)
 
 	if !isSimulated && s.db != nil {
-		rows, _ := s.db.Query(fmt.Sprintf(`
-			SELECT timestamp,
-			       ROUND((cpu_power_watts + ram_power_watts)::numeric, 2) AS watts,
-			       ROUND(cpu_power_watts::numeric, 2) AS cpu_w,
-			       ROUND(ram_power_watts::numeric, 2) AS ram_w,
-			       ROUND(cpu_utilization_pct::numeric, 1) AS cpu_pct
+		bucketInterval := "15 minutes"
+		switch preset {
+		case "1h":
+			bucketInterval = "1 minute"
+		case "24h":
+			bucketInterval = "15 minutes"
+		case "7d":
+			bucketInterval = "1 hour"
+		case "30d", "month":
+			bucketInterval = "4 hours"
+		case "year":
+			bucketInterval = "1 day"
+		}
+
+		query := fmt.Sprintf(`
+			SELECT time_bucket('%s', timestamp) AS ts_bucket,
+			       ROUND(AVG(cpu_power_watts + ram_power_watts)::numeric, 2) AS watts,
+			       ROUND(AVG(cpu_power_watts)::numeric, 2) AS cpu_w,
+			       ROUND(AVG(ram_power_watts)::numeric, 2) AS ram_w,
+			       ROUND(AVG(cpu_utilization_pct)::numeric, 1) AS cpu_pct
 			FROM telemetry_energy_metrics
 			%s
-			ORDER BY timestamp ASC
-			LIMIT 150;`, whereClause))
+			GROUP BY ts_bucket
+			ORDER BY ts_bucket ASC
+			LIMIT 300;`, bucketInterval, whereClause)
+
+		rows, err := s.db.Query(query)
+		if err != nil || len(rows) == 0 {
+			fallbackQuery := fmt.Sprintf(`
+				SELECT date_bin(INTERVAL '%s', timestamp, TIMESTAMP '2000-01-01') AS ts_bucket,
+				       ROUND(AVG(cpu_power_watts + ram_power_watts)::numeric, 2) AS watts,
+				       ROUND(AVG(cpu_power_watts)::numeric, 2) AS cpu_w,
+				       ROUND(AVG(ram_power_watts)::numeric, 2) AS ram_w,
+				       ROUND(AVG(cpu_utilization_pct)::numeric, 1) AS cpu_pct
+				FROM telemetry_energy_metrics
+				%s
+				GROUP BY ts_bucket
+				ORDER BY ts_bucket ASC
+				LIMIT 300;`, bucketInterval, whereClause)
+			rows, err = s.db.Query(fallbackQuery)
+		}
+		if err != nil || len(rows) == 0 {
+			fallbackQuery2 := fmt.Sprintf(`
+				SELECT timestamp AS ts_bucket,
+				       ROUND((cpu_power_watts + ram_power_watts)::numeric, 2) AS watts,
+				       ROUND(cpu_power_watts::numeric, 2) AS cpu_w,
+				       ROUND(ram_power_watts::numeric, 2) AS ram_w,
+				       ROUND(cpu_utilization_pct::numeric, 1) AS cpu_pct
+				FROM telemetry_energy_metrics
+				%s
+				ORDER BY timestamp DESC
+				LIMIT 150;`, whereClause)
+			rawRows, _ := s.db.Query(fallbackQuery2)
+			for i, j := 0, len(rawRows)-1; i < j; i, j = i+1, j-1 {
+				rawRows[i], rawRows[j] = rawRows[j], rawRows[i]
+			}
+			rows = rawRows
+		}
+
 		for _, r := range rows {
 			w := r.Float("watts")
 			cpuW := r.Float("cpu_w")
 			ramW := r.Float("ram_w")
 			cpuP := r.Float("cpu_pct")
 			if cpuP <= 0.1 {
-				// Reconstitute CPU load from watts or realistic baseline
-				cpuP = roundFloat(3.8 + (w-8.0)*1.3, 1)
+				cpuP = roundFloat(3.8+(w-8.0)*1.3, 1)
 				if cpuP < 2.0 {
 					cpuP = 4.2
 				}
 			}
-			ts := r.String("timestamp")
-			tFmt := ts
-			if pt, err := time.Parse(time.RFC3339, ts); err == nil {
-				tFmt = pt.Format("15:04")
-				if preset == "7d" || preset == "30d" || preset == "month" {
-					tFmt = pt.Format("02/01 15h")
-				} else if preset == "year" {
+			rawTs := r.String("ts_bucket")
+			if rawTs == "" {
+				rawTs = r.String("timestamp")
+			}
+			tFmt := rawTs
+			isoTs := rawTs
+			if pt, err := parsePgTimestamp(rawTs); err == nil {
+				isoTs = pt.Format(time.RFC3339)
+				switch preset {
+				case "1h":
+					tFmt = pt.Format("15:04")
+				case "24h":
+					tFmt = pt.Format("15:04")
+				case "7d":
+					tFmt = pt.Format("02/01 15:04")
+				case "30d", "month":
+					tFmt = pt.Format("02/01")
+				case "year":
 					tFmt = pt.Format("01/2006")
+				default:
+					tFmt = pt.Format("02/01 15:04")
 				}
 			}
 			timeseries = append(timeseries, EnergyTimePoint{
 				Time:       tFmt,
-				Timestamp:  ts,
+				Timestamp:  isoTs,
 				Watts:      w,
 				CpuWatts:   cpuW,
 				RamWatts:   ramW,
@@ -1257,13 +1356,17 @@ func (s *DashboardService) GetEnergyTelemetry(timeRange, fromDate, toDate, month
 			WHERE tenant_id = %s
 			ORDER BY hostname, updated_at DESC;`, database.QuoteLiteral(s.defaultTenantID)))
 		for _, nr := range nodeRows {
+			h := strings.TrimSpace(nr.String("hostname"))
+			if isHexContainerID(h) {
+				continue
+			}
 			provider := nr.String("provider")
 			if provider == "" || provider == "scaleway" {
 				provider = "OVHcloud / KVM VPS"
 			}
 			nodesList = append(nodesList, map[string]any{
 				"id":         nr.String("id"),
-				"hostname":   nr.String("hostname"),
+				"hostname":   h,
 				"ip":         nr.String("ip"),
 				"provider":   provider,
 				"os_info":    "Linux 6.8 (Kernel /proc/stat & RAPL)",
@@ -1332,5 +1435,17 @@ func (s *DashboardService) GetEnergyTelemetry(timeRange, fromDate, toDate, month
 		"available_months":     []string{"2026-11", "2026-10", "2026-09", "2026-08", "2026-07"},
 		"available_namespaces": []string{"all", "dokploy", "aegis-system", "kube-system"},
 	}, nil
+}
+
+func isHexContainerID(s string) bool {
+	if len(s) != 12 {
+		return false
+	}
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
 

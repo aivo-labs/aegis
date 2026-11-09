@@ -144,6 +144,22 @@ export function useTelemetry(options?: { isDemo?: boolean }) {
     return Math.min(100, Math.max(10, Math.ceil(maxVal / 5) * 5));
   });
 
+  const maxYWater = computed(() => {
+    const maxVal = Math.max(
+      ...timeseries.value.map(t => t.water_cl || 0),
+      2.0
+    );
+    return roundFloat(Math.max(2.0, maxVal * 1.15), 1);
+  });
+
+  const maxYCarbon = computed(() => {
+    const maxVal = Math.max(
+      ...timeseries.value.map(t => t.carbon_gco2 || 0),
+      1.0
+    );
+    return roundFloat(Math.max(1.0, maxVal * 1.15), 2);
+  });
+
   // SVG Paths with 40 -> 480 scale (baseline y=140 / 150)
   const dynamicSvgPath = computed(() => {
     const history = powerHistory.value;
@@ -211,14 +227,56 @@ export function useTelemetry(options?: { isDemo?: boolean }) {
     const pts = timeseries.value;
     if (pts.length < 2) return 'M 40,140 L 480,140';
     const stepX = 440 / (pts.length - 1);
-    const maxVal = Math.max(...pts.map(p => p.water_cl), 1);
+    const maxVal = maxYWater.value;
     const points = pts.map((pt, idx) => {
       const x = Math.round(40 + idx * stepX);
       const val = Number(pt.water_cl) || 0;
-      const y = Math.max(20, Math.min(145, Math.round(150 - ((val / maxVal) * 110))));
+      const y = Math.max(20, Math.min(148, Math.round(150 - ((val / maxVal) * 128))));
       return `${x},${y}`;
     });
     return `M ${points.join(' L ')}`;
+  });
+
+  const dynamicWaterAreaSvgPath = computed(() => {
+    const pts = timeseries.value;
+    if (pts.length < 2) return '';
+    const maxVal = maxYWater.value;
+    const stepX = 440 / (pts.length - 1);
+    const points = pts.map((pt, idx) => {
+      const x = Math.round(40 + idx * stepX);
+      const val = Number(pt.water_cl) || 0;
+      const y = Math.max(20, Math.min(148, Math.round(150 - ((val / maxVal) * 128))));
+      return `${x},${y}`;
+    });
+    return `M ${points.join(' L ')} L 480,150 L 40,150 Z`;
+  });
+
+  const dynamicCarbonSvgPath = computed(() => {
+    const pts = timeseries.value;
+    if (pts.length < 2) return 'M 40,140 L 480,140';
+    const stepX = 440 / (pts.length - 1);
+    const maxVal = maxYCarbon.value;
+    const points = pts.map((pt, idx) => {
+      const x = Math.round(40 + idx * stepX);
+      const val = Number(pt.carbon_gco2) || 0;
+      const y = Math.max(20, Math.min(148, Math.round(150 - ((val / maxVal) * 128))));
+      return `${x},${y}`;
+    });
+    return `M ${points.join(' L ')}`;
+  });
+
+  const dynamicCarbonAreaSvgPath = computed(() => {
+    const pts = timeseries.value;
+    if (pts.length < 2) return '';
+    const maxVal = maxYCarbon.value;
+    const stepX = 440 / (pts.length - 1);
+    const points = pts.map((pt, idx) => {
+      const x = Math.round(40 + idx * stepX);
+      const val = Number(pt.carbon_gco2) || 0;
+      const y = Math.max(20, Math.min(148, Math.round(150 - ((val / maxVal) * 128))));
+      return `${x},${y}`;
+    });
+    return `M ${points.join(' L ')} L 480,150 L 40,150 Z`;
   });
 
   function loadSandboxData() {
@@ -329,11 +387,16 @@ export function useTelemetry(options?: { isDemo?: boolean }) {
     powerHistory,
     maxYWatts,
     maxYCpu,
+    maxYWater,
+    maxYCarbon,
     dynamicSvgPath,
     dynamicAreaSvgPath,
     dynamicCpuLoadSvgPath,
     dynamicCpuAreaSvgPath,
     dynamicWaterSvgPath,
+    dynamicWaterAreaSvgPath,
+    dynamicCarbonSvgPath,
+    dynamicCarbonAreaSvgPath,
     fetchEnergyTelemetry,
     fetchTelemetry,
   };

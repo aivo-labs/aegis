@@ -294,11 +294,16 @@
         </div>
       </div>
 
-      <!-- Zone de Rendu SVG Multi-Courbes -->
-      <div class="w-full h-56 relative bg-slate-950/90 rounded-xl p-4 border border-slate-800 flex flex-col justify-between">
+      <!-- Zone de Rendu SVG Multi-Courbes Agrandie & Interactive -->
+      <div class="w-full h-80 sm:h-96 min-h-[360px] relative bg-slate-950/90 rounded-xl p-4 border border-slate-800 flex flex-col justify-between select-none">
         
-        <svg viewBox="0 0 540 180" class="w-full h-full overflow-visible">
-          <!-- Dégradé sous la courbe Watts -->
+        <svg 
+          viewBox="0 0 540 180" 
+          class="w-full h-full overflow-visible cursor-crosshair"
+          @mousemove="onChartMouseMove"
+          @mouseleave="onChartMouseLeave"
+        >
+          <!-- Dégradés sous les courbes -->
           <defs>
             <linearGradient id="wattsGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.35" />
@@ -313,6 +318,11 @@
             <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.35" />
               <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0.0" />
+            </linearGradient>
+
+            <linearGradient id="carbonGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#10b981" stop-opacity="0.35" />
+              <stop offset="100%" stop-color="#10b981" stop-opacity="0.0" />
             </linearGradient>
           </defs>
 
@@ -340,12 +350,28 @@
             <text x="4" y="153">0%</text>
           </g>
 
-          <g v-else fill="#64748b" font-size="9" font-family="monospace">
-            <text x="4" y="24">Max</text>
-            <text x="4" y="56">75%</text>
-            <text x="4" y="89">50%</text>
-            <text x="4" y="121">25%</text>
-            <text x="4" y="153">0</text>
+          <g v-else fill="#64748b" font-size="8" font-family="monospace">
+            <text x="2" y="24">
+              <tspan fill="#38bdf8">{{ maxYWater }}cl</tspan>
+              <tspan fill="#64748b">/</tspan>
+              <tspan fill="#34d399">{{ maxYCarbon }}g</tspan>
+            </text>
+            <text x="2" y="56">
+              <tspan fill="#38bdf8">{{ (maxYWater * 0.75).toFixed(1) }}cl</tspan>
+              <tspan fill="#64748b">/</tspan>
+              <tspan fill="#34d399">{{ (maxYCarbon * 0.75).toFixed(2) }}g</tspan>
+            </text>
+            <text x="2" y="89">
+              <tspan fill="#38bdf8">{{ (maxYWater * 0.5).toFixed(1) }}cl</tspan>
+              <tspan fill="#64748b">/</tspan>
+              <tspan fill="#34d399">{{ (maxYCarbon * 0.5).toFixed(2) }}g</tspan>
+            </text>
+            <text x="2" y="121">
+              <tspan fill="#38bdf8">{{ (maxYWater * 0.25).toFixed(1) }}cl</tspan>
+              <tspan fill="#64748b">/</tspan>
+              <tspan fill="#34d399">{{ (maxYCarbon * 0.25).toFixed(2) }}g</tspan>
+            </text>
+            <text x="2" y="153">0</text>
           </g>
 
           <!-- 1. VUE WATTS (Courbe + Surface Dégradée) -->
@@ -360,36 +386,149 @@
             <path :d="dynamicCpuLoadSvgPath" fill="none" stroke="#38bdf8" stroke-width="2.5" />
           </g>
 
-          <!-- 3. VUE EAU & CARBONE -->
+          <!-- 3. VUE EAU & CARBONE (2 COURBES : BLEU EAU + VERT CARBONE) -->
           <g v-else>
+            <path :d="dynamicWaterAreaSvgPath" fill="url(#waterGradient)" />
             <path :d="dynamicWaterSvgPath" fill="none" stroke="#0ea5e9" stroke-width="2.5" />
+            <path :d="dynamicCarbonAreaSvgPath" fill="url(#carbonGradient)" />
+            <path :d="dynamicCarbonSvgPath" fill="none" stroke="#10b981" stroke-width="2.5" />
+          </g>
+
+          <!-- Repère vertical dynamique et points de contact au survol -->
+          <g v-if="hoveredIndex !== null" class="pointer-events-none">
+            <line 
+              :x1="getPointX(hoveredIndex)" 
+              y1="20" 
+              :x2="getPointX(hoveredIndex)" 
+              y2="150" 
+              stroke="#94a3b8" 
+              stroke-width="1.5" 
+              stroke-dasharray="3,3" 
+            />
+            <!-- Marqueur sur courbe Watts -->
+            <circle 
+              v-if="activeMetric === 'watts' && hoveredPoint" 
+              :cx="getPointX(hoveredIndex)" 
+              :cy="getPointYWatts(hoveredPoint.watts)" 
+              r="5" 
+              fill="#06b6d4" 
+              stroke="#ffffff" 
+              stroke-width="2" 
+            />
+            <!-- Marqueur sur courbe CPU -->
+            <circle 
+              v-else-if="activeMetric === 'cpu' && hoveredPoint" 
+              :cx="getPointX(hoveredIndex)" 
+              :cy="getPointYCpu(hoveredPoint.cpu_load_pct)" 
+              r="5" 
+              fill="#38bdf8" 
+              stroke="#ffffff" 
+              stroke-width="2" 
+            />
+            <!-- Marqueurs sur courbes Eau & Carbone -->
+            <template v-else-if="hoveredPoint">
+              <circle 
+                :cx="getPointX(hoveredIndex)" 
+                :cy="getPointYWater(hoveredPoint.water_cl)" 
+                r="5" 
+                fill="#0ea5e9" 
+                stroke="#ffffff" 
+                stroke-width="2" 
+              />
+              <circle 
+                :cx="getPointX(hoveredIndex)" 
+                :cy="getPointYCarbon(hoveredPoint.carbon_gco2)" 
+                r="5" 
+                fill="#10b981" 
+                stroke="#ffffff" 
+                stroke-width="2" 
+              />
+            </template>
           </g>
 
           <!-- Repères temporels horizontaux (Axe X) -->
           <g v-if="timeseries.length >= 2" fill="#64748b" font-size="9" font-family="monospace">
-            <text x="35" y="168">{{ timeseries[0].time }}</text>
+            <text x="40" y="168">{{ timeseries[0].time }}</text>
             <text x="260" y="168" text-anchor="middle">{{ timeseries[Math.floor(timeseries.length / 2)].time }}</text>
-            <text x="535" y="168" text-anchor="end">{{ timeseries[timeseries.length - 1].time }}</text>
+            <text x="480" y="168" text-anchor="end">{{ timeseries[timeseries.length - 1].time }}</text>
           </g>
         </svg>
+
+        <!-- Infobulle interactive au survol -->
+        <div 
+          v-if="hoveredPoint && hoveredIndex !== null"
+          class="absolute z-30 pointer-events-none bg-slate-950/95 backdrop-blur-md border border-slate-700/80 shadow-2xl rounded-xl p-3 text-xs font-mono transition-all duration-75"
+          :style="{
+            left: `${Math.min(75, Math.max(5, (getPointX(hoveredIndex) / 540) * 100))}%`,
+            top: '16px',
+            transform: getPointX(hoveredIndex) > 300 ? 'translateX(-100%)' : 'translateX(0)'
+          }"
+        >
+          <div class="flex items-center justify-between gap-3 pb-1.5 mb-2 border-b border-slate-800 text-[11px]">
+            <span class="text-slate-300 font-bold">📅 {{ formatHoverDate(hoveredPoint) }}</span>
+            <span class="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 font-bold text-[10px]">{{ hoveredPoint.time }}</span>
+          </div>
+          <div class="space-y-1.5 text-[11px]">
+            <div class="flex items-center justify-between gap-4">
+              <span class="text-amber-400 font-semibold flex items-center gap-1">⚡ Puissance Totale :</span>
+              <strong class="text-white">{{ hoveredPoint.watts.toFixed(2) }} W</strong>
+            </div>
+            <div class="flex items-center justify-between gap-4 text-slate-400 text-[10px] pl-3">
+              <span>CPU / RAM :</span>
+              <span class="text-slate-300">{{ hoveredPoint.cpu_watts.toFixed(2) }}W • {{ hoveredPoint.ram_watts.toFixed(2) }}W</span>
+            </div>
+            <div class="flex items-center justify-between gap-4">
+              <span class="text-cyan-300 font-semibold flex items-center gap-1">📈 Charge CPU :</span>
+              <strong class="text-cyan-200">{{ hoveredPoint.cpu_load_pct.toFixed(1) }} %</strong>
+            </div>
+            <div class="flex items-center justify-between gap-4">
+              <span class="text-sky-300 font-semibold flex items-center gap-1">💧 Empreinte Eau :</span>
+              <strong class="text-sky-200">{{ hoveredPoint.water_cl.toFixed(2) }} cl</strong>
+            </div>
+            <div class="flex items-center justify-between gap-4">
+              <span class="text-emerald-400 font-semibold flex items-center gap-1">🌱 Émission Carbone :</span>
+              <strong class="text-emerald-300">{{ hoveredPoint.carbon_gco2.toFixed(3) }} gCO₂eq</strong>
+            </div>
+          </div>
+        </div>
 
       </div>
 
       <!-- Légende et Synthèse sous le Graphique -->
       <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-slate-400 text-[11px]">
         <div class="flex items-center gap-4">
-          <span class="flex items-center gap-1.5 text-cyan-300 font-bold">
-            <span class="w-3 h-1 bg-cyan-400 rounded-full inline-block"></span>
-            <span>Courbe : {{ activeMetric === 'watts' ? 'Puissance Globale RAPL' : activeMetric === 'cpu' ? 'Charge CPU Totale' : 'Empreinte Hydrique (cl H₂O)' }}</span>
-          </span>
-          <span class="text-slate-500">•</span>
-          <span>Moyenne période : <strong class="text-white">{{ activeMetric === 'watts' ? summary.avg_watts.toFixed(2) + ' W' : activeMetric === 'cpu' ? summary.avg_cpu_load_pct.toFixed(1) + ' %' : (summary.water_usage_liters / Math.max(1, timeseries.length)).toFixed(2) + ' L/pt' }}</strong></span>
-          <span class="text-slate-500">•</span>
-          <span>Pic max : <strong class="text-amber-300">{{ activeMetric === 'watts' ? summary.max_watts.toFixed(2) + ' W' : summary.max_cpu_load_pct.toFixed(1) + ' %' }}</strong></span>
+          <template v-if="activeMetric === 'water_carbon'">
+            <span class="flex items-center gap-1.5 text-sky-400 font-bold">
+              <span class="w-3 h-1 bg-sky-400 rounded-full inline-block"></span>
+              <span>Empreinte Eau (cl H₂O)</span>
+            </span>
+            <span class="text-slate-500">•</span>
+            <span class="flex items-center gap-1.5 text-emerald-400 font-bold">
+              <span class="w-3 h-1 bg-emerald-400 rounded-full inline-block"></span>
+              <span>Émissions Carbone (gCO₂eq)</span>
+            </span>
+            <span class="text-slate-500">•</span>
+            <span>Eau totale : <strong class="text-white">{{ summary.water_usage_liters.toFixed(2) }} L</strong></span>
+            <span class="text-slate-500">•</span>
+            <span>Carbone : <strong class="text-emerald-300">{{ summary.total_carbon_gco2.toFixed(1) }} gCO₂eq</strong></span>
+          </template>
+          <template v-else>
+            <span class="flex items-center gap-1.5 text-cyan-300 font-bold">
+              <span class="w-3 h-1 bg-cyan-400 rounded-full inline-block"></span>
+              <span>Courbe : {{ activeMetric === 'watts' ? 'Puissance Globale RAPL' : 'Charge CPU Totale' }}</span>
+            </span>
+            <span class="text-slate-500">•</span>
+            <span>Moyenne période : <strong class="text-white">{{ activeMetric === 'watts' ? summary.avg_watts.toFixed(2) + ' W' : summary.avg_cpu_load_pct.toFixed(1) + ' %' }}</strong></span>
+            <span class="text-slate-500">•</span>
+            <span>Pic max : <strong class="text-amber-300">{{ activeMetric === 'watts' ? summary.max_watts.toFixed(2) + ' W' : summary.max_cpu_load_pct.toFixed(1) + ' %' }}</strong></span>
+          </template>
         </div>
 
-        <div class="text-slate-500">
-          {{ timeseries.length }} points d'échantillonnage temporels
+        <div class="flex items-center gap-3 text-slate-500">
+          <span v-if="hoveredPoint" class="text-cyan-400 animate-pulse font-semibold">
+            🔍 Survol actif : {{ hoveredPoint.time }}
+          </span>
+          <span>{{ timeseries.length }} points temporels</span>
         </div>
       </div>
 
@@ -551,7 +690,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useTelemetry } from '../../../composables/useTelemetry';
 
 const props = withDefaults(defineProps<{
@@ -578,13 +717,93 @@ const {
   availableMonths,
   maxYWatts,
   maxYCpu,
+  maxYWater,
+  maxYCarbon,
   dynamicSvgPath,
   dynamicAreaSvgPath,
   dynamicCpuLoadSvgPath,
   dynamicCpuAreaSvgPath,
   dynamicWaterSvgPath,
+  dynamicWaterAreaSvgPath,
+  dynamicCarbonSvgPath,
+  dynamicCarbonAreaSvgPath,
   fetchEnergyTelemetry,
 } = useTelemetry({ isDemo: props.isDemo });
+
+// État d'interaction au survol du graphique
+const hoveredIndex = ref<number | null>(null);
+
+const hoveredPoint = computed(() => {
+  if (hoveredIndex.value === null || !timeseries.value || !timeseries.value[hoveredIndex.value]) {
+    return null;
+  }
+  return timeseries.value[hoveredIndex.value];
+});
+
+const chartStepX = computed(() => {
+  if (timeseries.value.length < 2) return 440;
+  return 440 / (timeseries.value.length - 1);
+});
+
+function getPointX(idx: number): number {
+  if (timeseries.value.length < 2) return 40;
+  return Math.round(40 + idx * chartStepX.value);
+}
+
+function getPointYWatts(w: number): number {
+  const maxW = maxYWatts.value || 20;
+  return Math.max(20, Math.min(148, Math.round(150 - ((w / maxW) * 128))));
+}
+
+function getPointYCpu(cpu: number): number {
+  const maxCpu = maxYCpu.value || 10;
+  return Math.max(20, Math.min(148, Math.round(150 - ((cpu / maxCpu) * 128))));
+}
+
+function getPointYWater(water: number): number {
+  const maxWater = maxYWater.value || 2.0;
+  return Math.max(20, Math.min(148, Math.round(150 - ((water / maxWater) * 128))));
+}
+
+function getPointYCarbon(carbon: number): number {
+  const maxCarbon = maxYCarbon.value || 1.0;
+  return Math.max(20, Math.min(148, Math.round(150 - ((carbon / maxCarbon) * 128))));
+}
+
+function formatHoverDate(pt: any): string {
+  if (!pt) return '';
+  if (pt.timestamp) {
+    try {
+      const d = new Date(pt.timestamp);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      }
+    } catch (e) {}
+  }
+  return pt.time || '';
+}
+
+function onChartMouseMove(e: MouseEvent) {
+  if (!timeseries.value || timeseries.value.length < 2) return;
+  const target = e.currentTarget as SVGElement;
+  const rect = target.getBoundingClientRect();
+  const clientX = e.clientX - rect.left;
+  const svgX = (clientX / rect.width) * 540;
+  const clampedX = Math.max(40, Math.min(480, svgX));
+  const ratio = (clampedX - 40) / 440;
+  const idx = Math.round(ratio * (timeseries.value.length - 1));
+  hoveredIndex.value = Math.max(0, Math.min(timeseries.value.length - 1, idx));
+}
+
+function onChartMouseLeave() {
+  hoveredIndex.value = null;
+}
 
 function setRange(range: string) {
   selectedRange.value = range;
