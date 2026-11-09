@@ -101,6 +101,9 @@ import { useAegisTheme } from '../../composables/useAegisTheme';
 import { useLiveStreams } from '../../composables/useLiveStreams';
 import { useCveFeed } from '../../composables/useCveFeed';
 import { useControls } from '../../composables/useControls';
+import { useI18n } from '../../composables/useI18n';
+
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<{
   initialTab?: string;
@@ -160,21 +163,21 @@ const headerIcon = computed(() => {
 });
 
 const headerTitle = computed(() => {
-  if (activeTab.value === 'audit') return 'Diagnostic Passif (5 Pages), CVE & Homologation DNS';
-  if (activeTab.value === 'streams') return 'Flux Ingress ⇄ Egress (Direct & Kanban)';
-  if (activeTab.value === 'telemetry') return 'Télémétrie RAPL & Éco-Conception EcoIndex v3';
-  if (activeTab.value === 'cve') return 'Intelligence Vulnérabilités & CVE Feed';
-  if (activeTab.value === 'controls') return 'Contrôles Edge, Ban IP & Rétention ANSSI / RGPD';
-  return 'Roadmap Publique & Architecture Open-Core';
+  if (activeTab.value === 'audit') return t.value.cockpit.actionHeaders.auditTitle;
+  if (activeTab.value === 'streams') return t.value.cockpit.actionHeaders.streamsTitle;
+  if (activeTab.value === 'telemetry') return t.value.cockpit.actionHeaders.telemetryTitle;
+  if (activeTab.value === 'cve') return t.value.cockpit.actionHeaders.cveTitle;
+  if (activeTab.value === 'controls') return t.value.cockpit.actionHeaders.controlsTitle;
+  return t.value.cockpit.actionHeaders.roadmapTitle;
 });
 
 const headerSubtitle = computed(() => {
-  if (activeTab.value === 'audit') return "Analyse réelle par Goroutines : versions exposées, alertes CVE, EcoIndex v3 et contrat d'autorisation DNS TXT";
-  if (activeTab.value === 'streams') return 'Visibilité complète sur les requêtes entrantes (scans wp-login, .env, exploits) et sortantes (DNS C2 / Sockets)';
-  if (activeTab.value === 'telemetry') return 'Mesures en temps réel de puissance matérielle (/sys/class/powercap) et registres CPU Linux';
-  if (activeTab.value === 'cve') return 'Surveillance continue des failles exposées sur votre périmètre et des règles actives en production';
-  if (activeTab.value === 'controls') return 'Actions réelles synchronisées avec Aegis Gate Proxy (:8000) et PostgreSQL / TimescaleDB';
-  return 'État transparent des fonctionnalités en production (v1.5) et des chantiers communautaires (v2.0)';
+  if (activeTab.value === 'audit') return t.value.cockpit.actionHeaders.auditSubtitle;
+  if (activeTab.value === 'streams') return t.value.cockpit.actionHeaders.streamsSubtitle;
+  if (activeTab.value === 'telemetry') return t.value.cockpit.actionHeaders.telemetrySubtitle;
+  if (activeTab.value === 'cve') return t.value.cockpit.actionHeaders.cveSubtitle;
+  if (activeTab.value === 'controls') return t.value.cockpit.actionHeaders.controlsSubtitle;
+  return t.value.cockpit.actionHeaders.roadmapSubtitle;
 });
 
 const emitLogout = () => {

@@ -8,12 +8,12 @@
     <!-- 1. Haut de Sidebar : Logo + Toggle Rétraction -->
     <div class="shrink-0">
       <div class="flex items-center justify-between pb-4 mb-3 border-b border-slate-800/80">
-        <a href="/" class="flex items-center gap-3 group overflow-hidden" title="Retour au site public">
+        <a href="/" class="flex items-center gap-3 group overflow-hidden" :title="t.cockpit.sidebar.backToSite">
           <AegisLogo size="sm" class="group-hover:scale-105 transition-transform shrink-0" />
           <div v-if="isSidebarExpanded" class="flex flex-col min-w-0">
             <span class="text-base font-extrabold text-white tracking-tight leading-none truncate">Aegis</span>
             <span class="text-[9px] text-emerald-400 font-mono tracking-wider uppercase font-semibold mt-0.5 truncate">
-              Cockpit SOC
+              {{ t.cockpit.sidebar.title }}
             </span>
           </div>
         </a>
@@ -22,7 +22,7 @@
         <button 
           @click="$emit('toggle-expand')"
           class="w-7 h-7 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-400 hover:text-white flex items-center justify-center font-mono text-xs cursor-pointer transition-colors shrink-0"
-          :title="isSidebarExpanded ? 'Réduire la barre latérale' : 'Déplier la barre latérale'"
+          :title="isSidebarExpanded ? t.cockpit.sidebar.collapse : t.cockpit.sidebar.expand"
         >
           <span>{{ isSidebarExpanded ? '◀' : '▶' }}</span>
         </button>
@@ -41,13 +41,11 @@
             ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
         ]"
-        title="Vue d'ensemble du Cockpit (Métriques réelles)"
+        :title="t.cockpit.sidebar.overviewDesc"
       >
         <span class="text-base shrink-0">📊</span>
-        <span v-if="isSidebarExpanded" class="truncate">Vue d'ensemble</span>
+        <span v-if="isSidebarExpanded" class="truncate">{{ t.cockpit.sidebar.overview }}</span>
       </button>
-
-
 
       <!-- Item 2 : Diagnostic (5 Pages) -->
       <button 
@@ -59,10 +57,10 @@
             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
         ]"
-        title="Diagnostic Passif (5 Pages), CVE & Homologation DNS"
+        :title="t.cockpit.sidebar.diagnosticsDesc"
       >
         <span class="text-base shrink-0">🔍</span>
-        <span v-if="isSidebarExpanded" class="truncate">Diagnostic</span>
+        <span v-if="isSidebarExpanded" class="truncate">{{ t.cockpit.sidebar.diagnostics }}</span>
       </button>
 
       <!-- Item 3 : Flux Ingress / Egress -->
@@ -75,10 +73,10 @@
             ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
         ]"
-        title="Flux Ingress / Egress (Double Flux & Triage Kanban)"
+        :title="t.cockpit.sidebar.streamsDesc"
       >
         <span class="text-base shrink-0">📡</span>
-        <span v-if="isSidebarExpanded" class="truncate">Flux Ingress / Egress</span>
+        <span v-if="isSidebarExpanded" class="truncate">{{ t.cockpit.sidebar.streams }}</span>
         <span v-if="!isSidebarExpanded" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
       </button>
 
@@ -92,10 +90,10 @@
             ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-sm'
             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
         ]"
-        title="Télémétrie Temps Réel RAPL & EcoIndex v3"
+        :title="t.cockpit.sidebar.telemetryDesc"
       >
         <span class="text-base shrink-0">🌿</span>
-        <span v-if="isSidebarExpanded" class="truncate">Télémétrie RAPL</span>
+        <span v-if="isSidebarExpanded" class="truncate">{{ t.cockpit.sidebar.telemetry }}</span>
       </button>
 
       <!-- Item 5 : Intelligence Vulnérabilités & CVE Feed -->
@@ -108,10 +106,10 @@
             ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
         ]"
-        title="Intelligence Vulnérabilités & CVE Feed"
+        :title="t.cockpit.sidebar.cveDesc"
       >
         <span class="text-base shrink-0">🛡️</span>
-        <span v-if="isSidebarExpanded" class="truncate">CVE Feed</span>
+        <span v-if="isSidebarExpanded" class="truncate">{{ t.cockpit.sidebar.cve }}</span>
       </button>
 
       <!-- Item 6 : Configuration & Contrôles Rapides -->
@@ -124,10 +122,10 @@
             ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80 border border-transparent'
         ]"
-        title="Contrôle Edge & Rétention ANSSI/RGPD"
+        :title="t.cockpit.sidebar.controlsDesc"
       >
         <span class="text-base shrink-0">⚙️</span>
-        <span v-if="isSidebarExpanded" class="truncate">Contrôles &amp; Rétention</span>
+        <span v-if="isSidebarExpanded" class="truncate">{{ t.cockpit.sidebar.controls }}</span>
       </button>
     </nav>
 
@@ -139,12 +137,12 @@
           'w-full flex items-center rounded-xl transition-all cursor-pointer text-slate-300 hover:text-white hover:bg-slate-900',
           isSidebarExpanded ? 'px-3 py-2 gap-3' : 'w-11 h-11 justify-center mx-auto'
         ]"
-        title="Mon Compte &amp; Paramètres"
+        :title="t.cockpit.sidebar.myAccount"
       >
         <span class="text-base shrink-0">👤</span>
         <div v-if="isSidebarExpanded" class="flex flex-col text-left min-w-0">
-          <span class="font-bold truncate">Mon Compte</span>
-          <span class="text-[10px] text-slate-500 truncate">Admin SOC Souverain</span>
+          <span class="font-bold truncate">{{ t.cockpit.sidebar.myAccount }}</span>
+          <span class="text-[10px] text-slate-500 truncate">{{ t.cockpit.sidebar.accountRole }}</span>
         </div>
       </button>
 
@@ -154,10 +152,10 @@
           'w-full flex items-center rounded-xl transition-all cursor-pointer text-slate-400 hover:text-rose-400 hover:bg-rose-500/10',
           isSidebarExpanded ? 'px-3 py-2 gap-3' : 'w-11 h-11 justify-center mx-auto'
         ]"
-        title="Se déconnecter"
+        :title="t.cockpit.sidebar.logout"
       >
         <span class="text-base shrink-0">🚪</span>
-        <span v-if="isSidebarExpanded" class="font-bold truncate">Déconnexion</span>
+        <span v-if="isSidebarExpanded" class="font-bold truncate">{{ t.cockpit.sidebar.logout }}</span>
       </button>
     </div>
   </aside>
@@ -165,6 +163,9 @@
 
 <script setup lang="ts">
 import AegisLogo from '../AegisLogo.vue';
+import { useI18n } from '../../../composables/useI18n';
+
+const { t } = useI18n();
 
 defineProps<{
   isSidebarExpanded: boolean;

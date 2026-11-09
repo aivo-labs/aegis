@@ -9,8 +9,8 @@
             ⚡
           </div>
           <div>
-            <h3 class="text-lg font-bold text-white">Connecter un Serveur VPS à Aegis</h3>
-            <p class="text-xs text-slate-400 font-mono">Enrôlement 1-clic pour télémétrie énergétique & défense Zero-Trust</p>
+            <h3 class="text-lg font-bold text-white">{{ t.cockpit.enrollModal.title }}</h3>
+            <p class="text-xs text-slate-400 font-mono">{{ t.cockpit.enrollModal.subtitle }}</p>
           </div>
         </div>
         <button 
@@ -28,7 +28,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-mono text-slate-300 mb-1.5 font-semibold">
-              Identifiant du Serveur (Hostname)
+              {{ t.cockpit.enrollModal.serverNameLabel }}
             </label>
             <input 
               v-model="serverId" 
@@ -41,13 +41,13 @@
           <div>
             <div class="flex items-center justify-between mb-1.5">
               <label class="block text-xs font-mono text-slate-300 font-semibold">
-                Jeton Temporaire d'Enrôlement
+                {{ t.cockpit.enrollModal.tokenLabel }}
               </label>
               <button 
                 @click="generateNewToken" 
                 class="text-[11px] text-cyan-400 hover:text-cyan-300 font-mono cursor-pointer"
               >
-                ↻ Régénérer
+                {{ t.cockpit.enrollModal.regenerate }}
               </button>
             </div>
             <input 
@@ -89,11 +89,11 @@
               @click="copyCommand" 
               class="absolute right-3 top-3 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-200 hover:text-white transition-all shadow flex items-center gap-1.5 cursor-pointer"
             >
-              <span>{{ copied ? '✓ Copié !' : '📋 Copier' }}</span>
+              <span>{{ copied ? '✓ ' + t.cockpit.enrollModal.copied : '📋 ' + t.cockpit.enrollModal.copy }}</span>
             </button>
           </div>
           <p class="text-[11px] text-slate-400 font-mono mt-1.5">
-            💡 Cette commande installe un démon ultra-léger (< 15 Mo RAM, 0% CPU au repos) configuré pour remonter les Watts et auditer les flux sans impacter vos services.
+            💡 Cette commande installe un démon ultra-léger (&lt; 15 Mo RAM, 0% CPU au repos) configuré pour remonter les Watts et auditer les flux sans impacter vos services.
           </p>
         </div>
 
@@ -149,7 +149,7 @@
           @click="$emit('close')" 
           class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold transition-colors cursor-pointer"
         >
-          Fermer
+          {{ t.cockpit.enrollModal.close }}
         </button>
       </div>
 
@@ -159,6 +159,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useI18n } from '../../composables/useI18n';
+
+const { t } = useI18n();
 
 const emit = defineEmits(['close', 'node-connected']);
 

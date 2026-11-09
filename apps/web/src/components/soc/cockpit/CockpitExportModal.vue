@@ -7,8 +7,8 @@
             ✓
           </div>
           <div>
-            <h4 class="text-base font-bold text-white">Rapport Technique Réel Généré</h4>
-            <p class="text-xs text-slate-400 font-mono">Données réelles extraites de PostgreSQL &amp; RAPL</p>
+            <h4 class="text-base font-bold text-white">{{ t.cockpit.exportModal.title }}</h4>
+            <p class="text-xs text-slate-400 font-mono">{{ t.cockpit.exportModal.subtitle }}</p>
           </div>
         </div>
 
@@ -17,7 +17,7 @@
             @click="$emit('close')"
             class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
           >
-            Fermer
+            {{ t.cockpit.exportModal.closeBtn }}
           </button>
           <a 
             :href="downloadUrl" 
@@ -25,7 +25,7 @@
             @click="$emit('close')"
             class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-bold shadow-lg flex items-center gap-1.5 cursor-pointer"
           >
-            <span>📥 Télécharger (.JSON)</span>
+            <span>{{ t.cockpit.exportModal.downloadBtn }}</span>
           </a>
         </div>
       </div>
@@ -34,6 +34,10 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from '../../../composables/useI18n';
+
+const { t } = useI18n();
+
 defineProps<{
   show: boolean;
   downloadUrl: string;

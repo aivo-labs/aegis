@@ -5,10 +5,10 @@
     <div v-if="isAuthenticated === false" class="h-full w-full flex items-center justify-center p-6 bg-slate-950">
       <div class="max-w-md w-full p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center font-mono space-y-4 shadow-2xl">
         <AegisLogo size="lg" class="mx-auto" />
-        <h2 class="text-xl font-bold text-white font-sans">Session Non Autorisée</h2>
-        <p class="text-xs text-slate-400 font-sans">Redirection vers la mire d'authentification souveraine...</p>
+        <h2 class="text-xl font-bold text-white font-sans">{{ t.cockpit.unauthorized.title }}</h2>
+        <p class="text-xs text-slate-400 font-sans">{{ t.cockpit.unauthorized.desc }}</p>
         <a href="/api/auth/login" class="inline-block px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs">
-          Connexion SSO Keycloak ➔
+          {{ t.cockpit.unauthorized.loginBtn }}
         </a>
       </div>
     </div>
@@ -90,12 +90,12 @@
           <!-- COCKPIT FOOTER -->
           <footer class="mt-7 pt-4 border-t border-slate-800/80 text-[11px] font-mono text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="flex items-center gap-2">
-              <span>Aegis Unified Cockpit v5.3 • Go Control Plane &amp; Open-Core Éthique (AGPLv3)</span>
+              <span>{{ t.cockpit.footer.version }}</span>
             </div>
             <div class="flex items-center gap-4 text-slate-400">
-              <span>🇫🇷 Zéro Donnée Fictive</span>
+              <span>{{ t.cockpit.footer.zeroFake }}</span>
               <span>•</span>
-              <span>PostgreSQL &amp; Sonde Linux RAPL Temps Réel</span>
+              <span>{{ t.cockpit.footer.realtime }}</span>
             </div>
           </footer>
 
@@ -144,6 +144,9 @@ import CockpitAccountModal from './cockpit/CockpitAccountModal.vue';
 import CockpitExportModal from './cockpit/CockpitExportModal.vue';
 import { useAegisTheme } from '../../composables/useAegisTheme';
 import { useAuth } from '../../composables/useAuth';
+import { useI18n } from '../../composables/useI18n';
+
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<{
   initialView?: string;
