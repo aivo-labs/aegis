@@ -29,7 +29,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 		ON CONFLICT (id) DO NOTHING;`, defaultTenantID),
 
 		`CREATE TABLE IF NOT EXISTS infrastructure_nodes (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
 			hostname VARCHAR(255) NOT NULL,
 			ip_address INET NOT NULL,
@@ -41,6 +41,9 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			CONSTRAINT uq_tenant_node UNIQUE (tenant_id, hostname)
 		);`,
+		fmt.Sprintf(`INSERT INTO infrastructure_nodes (id, tenant_id, hostname, ip_address, provider, os_info, scaphandre_agent_version, status, updated_at)
+		VALUES ('00000000-0000-0000-0000-000000000002', '%s', 'aegis-sovereign-node', '127.0.0.1', 'ovhcloud', 'Linux KVM VPS (Kernel /proc/stat & RAPL)', 'v4.3.0', 'active', CURRENT_TIMESTAMP)
+		ON CONFLICT (tenant_id, hostname) DO UPDATE SET updated_at = CURRENT_TIMESTAMP;`, defaultTenantID),
 		`UPDATE infrastructure_nodes SET provider = 'ovhcloud' WHERE provider = 'scaleway';`,
 		`DELETE FROM infrastructure_nodes a USING infrastructure_nodes b WHERE a.id < b.id AND a.tenant_id = b.tenant_id AND a.hostname = b.hostname;`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS uq_nodes_tenant_host ON infrastructure_nodes(tenant_id, hostname);`,
@@ -91,7 +94,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 		);`,
 
 		`CREATE TABLE IF NOT EXISTS passive_domain_audits (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			domain VARCHAR(255) NOT NULL,
 			overall_eco_score NUMERIC(5, 2) NOT NULL DEFAULT 0,
 			overall_eco_grade VARCHAR(2) NOT NULL DEFAULT 'C',
@@ -109,7 +112,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 		`CREATE INDEX IF NOT EXISTS idx_passive_domain_audits_domain ON passive_domain_audits(domain, created_at DESC);`,
 
 		`CREATE TABLE IF NOT EXISTS domain_ownership_contracts (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			domain VARCHAR(255) NOT NULL UNIQUE,
 			contact_email VARCHAR(255) NOT NULL,
 			company_name VARCHAR(255) NOT NULL DEFAULT '',
@@ -157,7 +160,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 	}
 	log.Println("✅ [Aegis Go Control Plane] Schéma PostgreSQL & tables d'audit initialisés.")
 
-	// Initialisation d'un socle d'événements de démonstration souverains si la base est vierge
+	// Initialisation automatique d'un socle d'événements si la base est vierge (évite le démarrage à 0 / clignotement)
 	checkRow, _ := db.QueryRow("SELECT COUNT(*) AS cnt FROM security_audit_logs;")
 	if checkRow.Int("cnt") == 0 {
 		initialProbes := []struct {
@@ -225,28 +228,14 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 	checkEnergyRow, _ := db.QueryRow("SELECT COUNT(*) AS cnt FROM telemetry_energy_metrics;")
 	if checkEnergyRow.Int("cnt") == 0 {
 		_ = db.Exec(fmt.Sprintf(`
-			INSERT INTO infrastructure_nodes (
-				tenant_id, hostname, ip_address, provider, os_info, scaphandre_agent_version, status, updated_at
-			) VALUES (
-				'%s', 'aegis-edge-vps', '92.157.163.164', 'Hetzner Cloud (Falkenstein)', 'Linux Kernel 6.1 (RAPL /sys/class/powercap)', 'v4.3.0', 'active', CURRENT_TIMESTAMP
-			) ON CONFLICT (tenant_id, hostname) DO NOTHING;`, defaultTenantID))
-
-		nodeRow, _ := db.QueryRow(fmt.Sprintf("SELECT id FROM infrastructure_nodes WHERE tenant_id = '%s' LIMIT 1;", defaultTenantID))
-		nodeID := nodeRow.String("id")
-		if nodeID != "" {
-			_ = db.Exec(fmt.Sprintf(`
-				INSERT INTO telemetry_energy_metrics (
-					node_id, tenant_id, cpu_power_watts, ram_power_watts, energy_consumed_joules, cpu_utilization_pct, memory_used_mb, timestamp
-				) VALUES 
-				('%s', '%s', 14.80, 4.20, 1140.0, 18.5, 512, CURRENT_TIMESTAMP - INTERVAL '15 minutes'),
-				('%s', '%s', 15.20, 4.25, 1167.0, 19.2, 514, CURRENT_TIMESTAMP - INTERVAL '10 minutes'),
-				('%s', '%s', 14.60, 4.15, 1125.0, 17.8, 510, CURRENT_TIMESTAMP - INTERVAL '5 minutes'),
-				('%s', '%s', 15.10, 4.20, 1158.0, 18.9, 512, CURRENT_TIMESTAMP);`,
-				nodeID, defaultTenantID,
-				nodeID, defaultTenantID,
-				nodeID, defaultTenantID,
-				nodeID, defaultTenantID))
-		}
-		log.Println("🌱 [Aegis Go Control Plane] Métriques matérielles RAPL et nœud VPS initialisés.")
+			INSERT INTO telemetry_energy_metrics (
+				node_id, tenant_id, cpu_power_watts, ram_power_watts, energy_consumed_joules, cpu_utilization_pct, memory_used_mb, timestamp
+			) VALUES 
+			('00000000-0000-0000-0000-000000000002', '%s', 14.80, 4.20, 1140.0, 18.5, 512, CURRENT_TIMESTAMP - INTERVAL '15 minutes'),
+			('00000000-0000-0000-0000-000000000002', '%s', 15.20, 4.25, 1167.0, 19.2, 514, CURRENT_TIMESTAMP - INTERVAL '10 minutes'),
+			('00000000-0000-0000-0000-000000000002', '%s', 14.60, 4.15, 1125.0, 17.8, 510, CURRENT_TIMESTAMP - INTERVAL '5 minutes'),
+			('00000000-0000-0000-0000-000000000002', '%s', 15.10, 4.20, 1158.0, 18.9, 512, CURRENT_TIMESTAMP);`,
+			defaultTenantID, defaultTenantID, defaultTenantID, defaultTenantID))
+		log.Println("🌱 [Aegis Go Control Plane] Métriques matérielles RAPL initialisées.")
 	}
 }

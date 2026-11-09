@@ -63,11 +63,11 @@
             >
               <div class="flex items-center gap-2 min-w-0">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                <span class="text-slate-200 text-[11px] font-semibold truncate">{{ node.service_name }}</span>
+                <span class="text-slate-200 text-[11px] font-semibold truncate">{{ node.service_name || node.hostname || node.service || node.name || 'Service Aegis' }}</span>
               </div>
               <div class="flex items-center gap-2 shrink-0">
-                <span class="text-amber-300 text-[11px] font-bold">{{ Number(node.watts).toFixed(2) }} W</span>
-                <span class="text-emerald-400 text-[10px]">{{ node.status }}</span>
+                <span class="text-amber-300 text-[11px] font-bold">{{ Number(node.watts || node.avg_watts || 0).toFixed(2) }} W</span>
+                <span class="text-emerald-400 text-[10px]">{{ node.status || 'RAPL Live' }}</span>
               </div>
             </div>
           </div>
