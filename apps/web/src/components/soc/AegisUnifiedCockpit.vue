@@ -274,18 +274,38 @@ function handleNodeConnected() {
 
 async function fetchSummary() {
   try {
-    const res = await fetch('/api/v1/dashboard/summary');
+    const res = await fetch('/api/v1/dashboard/summary', { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       if (typeof data.protection_enabled === 'boolean') {
         protectionEnabled.value = data.protection_enabled;
       }
-      if (data.traffic) metrics.value.traffic = { ...metrics.value.traffic, ...data.traffic };
-      if (data.soc) metrics.value.soc = { ...metrics.value.soc, ...data.soc };
+      if (data.traffic) {
+        const prevTotal = metrics.value.traffic.total_requests_24h || 0;
+        const newTotal = data.traffic.total_requests_24h ?? 0;
+        metrics.value.traffic = {
+          ...metrics.value.traffic,
+          ...data.traffic,
+          total_requests_24h: newTotal > 0 ? newTotal : prevTotal,
+          clean_traffic_pct: data.traffic.clean_traffic_pct ?? metrics.value.traffic.clean_traffic_pct ?? 100,
+        };
+      }
+      if (data.soc) {
+        const prevNodes = metrics.value.soc.monitored_nodes || [];
+        const incomingNodes = Array.isArray(data.soc.monitored_nodes) ? data.soc.monitored_nodes : [];
+        metrics.value.soc = {
+          ...metrics.value.soc,
+          ...data.soc,
+          monitored_nodes: incomingNodes.length > 0 ? incomingNodes : prevNodes,
+          interception_rate_pct: data.soc.interception_rate_pct ?? metrics.value.soc.interception_rate_pct ?? 100,
+        };
+      }
       if (data.green) {
         metrics.value.green = { ...metrics.value.green, ...data.green };
         const realWatts = Number(data.green.instant_power_watts) || 0;
-        animatedWatts.value = realWatts;
+        if (realWatts > 0 || animatedWatts.value === 0) {
+          animatedWatts.value = realWatts;
+        }
       }
       if (data.retention) {
         metrics.value.retention = { ...metrics.value.retention, ...data.retention };

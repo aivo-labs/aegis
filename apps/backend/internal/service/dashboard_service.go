@@ -137,9 +137,13 @@ func (s *DashboardService) GetSummary() map[string]any {
 
 	monitoredNodes := make([]map[string]any, 0)
 	for _, n := range nodeRows {
+		h := strings.TrimSpace(n.String("hostname"))
+		if h == "" {
+			h = "aegis-sovereign-node"
+		}
 		monitoredNodes = append(monitoredNodes, map[string]any{
-			"hostname":     n.String("hostname"),
-			"service_name": n.String("hostname"),
+			"hostname":     h,
+			"service_name": h,
 			"ip":           n.String("ip"),
 			"provider":     n.String("provider"),
 			"os_info":      n.String("os_info"),
