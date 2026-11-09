@@ -164,14 +164,15 @@ func (s *TelemetryService) IngestIngress(t domain.IngressTelemetry) error {
 		return err
 	}
 
-	// Auto-ban si seuil d'attaques dépassé (les simulations ne déclenchent jamais d'auto-ban)
+	// Auto-ban si seuil d'attaques dépassé (les simulations et flux auth ne déclenchent jamais d'auto-ban)
 	isSimulated := false
 	if t.Metadata != nil {
 		if sim, ok := t.Metadata["simulated"].(bool); ok && sim {
 			isSimulated = true
 		}
 	}
-	if !isSimulated && t.Decision == "BLOCK" && clientIP != "127.0.0.1" && clientIP != "" {
+	isAuthRoute := strings.HasPrefix(t.RequestURI, "/api/auth/")
+	if !isSimulated && !isAuthRoute && t.Decision == "BLOCK" && clientIP != "127.0.0.1" && clientIP != "" {
 		s.checkAutoBan(clientIP, t.ThreatType)
 	}
 
@@ -217,7 +218,7 @@ func (s *TelemetryService) IngestEgress(t domain.EgressTelemetry) error {
 }
 
 func isPrivateOrLoopbackIP(ip string) bool {
-	if ip == "" || ip == "127.0.0.1" || ip == "::1" || ip == "localhost" {
+	if ip == "" || ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || ip == "92.157.163.164" {
 		return true
 	}
 	if strings.HasPrefix(ip, "172.17.") || strings.HasPrefix(ip, "172.18.") || strings.HasPrefix(ip, "172.19.") || strings.HasPrefix(ip, "172.20.") || strings.HasPrefix(ip, "10.") || strings.HasPrefix(ip, "192.168.") {

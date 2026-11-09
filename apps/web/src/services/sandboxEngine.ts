@@ -230,7 +230,7 @@ export const RULES_DEFINITIONS = {
   SQLI: {
     id: 'SQLI',
     name: 'SQL Injection (OWASP Top 10)',
-    regex: /(?:(?:\bunion\b\s+(?:all\s+)?\bselect\b)|\bselect\b\s+.*\s+\bfrom\b|'\s*(?:or|and)\s*'?\d+'?\s*=\s*'?\d+|;\s*waitfor\s+delay|sleep\s*\(\s*\d+\s*\)|benchmark\s*\(|information_schema|pg_sleep\s*\(|--\s*|\/\*.*\*\/)/i,
+    regex: /(?:(?:\bunion\b\s+(?:all\s+)?\bselect\b)|\bselect\b\s+.*\s+\bfrom\b|'\s*(?:or|and)\s*'?\d+'?\s*=\s*'?\d+|;\s*waitfor\s+delay|sleep\s*\(\s*\d+\s*\)|benchmark\s*\(|information_schema|pg_sleep\s*\(|(?:'|"|;|\))\s*--|\s+--(?:\s+|$)|--\s+|\/\*.*\*\/)/i,
     severity: 'CRITICAL' as ThreatSeverity,
     riskScore: 98,
     threatType: 'SQL_INJECTION',

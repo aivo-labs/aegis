@@ -217,9 +217,21 @@ export function createGateServer(
       const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || getClientIp(req);
       const userAgent = (req.headers['user-agent'] as string) || 'unknown';
 
-      // Immunité d'accès pour l'administrateur SOC
+      // Immunité totale pour les flux d'authentification BFF OIDC (/api/auth/*)
+      if (targetUri.startsWith('/api/auth/')) {
+        res.writeHead(200, {
+          'X-Aegis-Verified': 'auth-flow',
+          'X-Aegis-Engine': 'Aegis Gate PEP',
+          'X-Aegis-Client-IP': clientIp
+        });
+        res.end();
+        return;
+      }
+
+      // Immunité d'accès pour l'administrateur SOC & IP VPS
       const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret);
       const isAdminSession = session?.role === 'admin' || session?.role === 'secops';
+      const isImmuneIp = clientIp === '92.157.163.164' || clientIp === '127.0.0.1';
 
       const verdict = inspector.inspect(
         targetUri,
@@ -230,10 +242,10 @@ export function createGateServer(
         clientIp
       );
 
-      if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && isAdminSession) {
+      if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && (isAdminSession || isImmuneIp)) {
         ipReputation.unban(clientIp);
         fetch(`${config.backendUrl}/api/v1/dashboard/bans?ip=${encodeURIComponent(clientIp)}`, { method: 'DELETE' }).catch(() => {});
-      } else if (verdict.blocked && state.protectionEnabled) {
+      } else if (verdict.blocked && state.protectionEnabled && !isImmuneIp) {
         const statusCode = verdict.http_status || 403;
         const eventId = `aegis-fwd-${crypto.randomBytes(6).toString('hex')}`;
 
@@ -398,12 +410,13 @@ export function createGateServer(
       // Immunité d'accès pour l'Administrateur SOC Authentifié (Zero-Trust Identity > IP Heuristic)
       const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret);
       const isAdminSession = session?.role === 'admin' || session?.role === 'secops';
+      const isImmuneIp = clientIp === '92.157.163.164' || clientIp === '127.0.0.1';
 
-      if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && isAdminSession) {
+      if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && (isAdminSession || isImmuneIp)) {
         ipReputation.unban(clientIp);
         // Débannissement automatique dans PostgreSQL / TimescaleDB
         fetch(`${config.backendUrl}/api/v1/dashboard/bans?ip=${encodeURIComponent(clientIp)}`, { method: 'DELETE' }).catch(() => {});
-      } else if (verdict.blocked && state.protectionEnabled) {
+      } else if (verdict.blocked && state.protectionEnabled && !isImmuneIp) {
         const statusCode = verdict.http_status || 403;
         const eventId = `aegis-blk-${crypto.randomBytes(6).toString('hex')}`;
 

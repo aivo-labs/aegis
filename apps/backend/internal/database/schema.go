@@ -158,6 +158,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 			log.Printf("[Schema Notice] %v", err)
 		}
 	}
+	_ = db.Exec("DELETE FROM ip_ban_list WHERE ip_address IN ('92.157.163.164', '127.0.0.1');")
 	log.Println("✅ [Aegis Go Control Plane] Schéma PostgreSQL & tables d'audit initialisés.")
 
 	// Initialisation automatique d'un socle d'événements si la base est vierge (évite le démarrage à 0 / clignotement)

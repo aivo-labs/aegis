@@ -112,6 +112,11 @@ describe('Aegis Gate PEP — Individual WAF Rules', () => {
     const match = rule.evaluate(dummyCtx(), "' UNION SELECT 1,2,username,password FROM users--");
     assert.ok(match !== null);
     assert.strictEqual(match?.threatType, 'SQL_INJECTION');
+
+    // Vérifier l'absence de faux positifs sur les jetons OAuth contenant '--' (ex: session_state Keycloak)
+    const oauthUrl = '/api/auth/callback?state=aa9789d9b417d8c6d41cf598c7efbb45&session_state=hPl3L99KOvbcIJ68HT8RJ--m&iss=https%3A%2F%2Fauth.aivo.fr%2Frealms%2Faegis&code=d644050e-e919-cfc5-79e8-16cbb45e8a46.hPl3L99KOvbcIJ68HT8RJ--m.ad55990a-e2bb-4d5d-96f6-4130145ecc82';
+    const matchOauth = rule.evaluate(dummyCtx(), oauthUrl);
+    assert.strictEqual(matchOauth, null, 'OAuth callback URL should NOT be flagged as SQL injection');
   });
 
   it('TraversalRule should flag /etc/passwd and directory traversal', () => {

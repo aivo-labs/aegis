@@ -1,7 +1,7 @@
 import type { IWafRule } from './rule.interface.js';
 import type { InspectionContext, RuleMatch } from '../types.js';
 
-export const SQLI_REGEX = /(?:(?:\bunion\b\s+(?:all\s+)?\bselect\b)|\bselect\b\s+.*\s+\bfrom\b|'\s*(?:or|and)\s*'?\d+'?\s*=\s*'?\d+|;\s*waitfor\s+delay|sleep\s*\(\s*\d+\s*\)|benchmark\s*\(|information_schema|pg_sleep\s*\(|--\s*|\/\*.*\*\/)/i;
+export const SQLI_REGEX = /(?:(?:\bunion\b\s+(?:all\s+)?\bselect\b)|\bselect\b\s+.*\s+\bfrom\b|'\s*(?:or|and)\s*'?\d+'?\s*=\s*'?\d+|;\s*waitfor\s+delay|sleep\s*\(\s*\d+\s*\)|benchmark\s*\(|information_schema|pg_sleep\s*\(|(?:'|"|;|\))\s*--|\s+--(?:\s+|$)|--\s+|\/\*.*\*\/)/i;
 
 export class SqliRule implements IWafRule {
   public readonly id = 'SQLI';

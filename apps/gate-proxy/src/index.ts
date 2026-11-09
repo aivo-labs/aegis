@@ -52,6 +52,10 @@ const telemetry = new HttpTelemetryReporter(config.telemetryUrl);
 const forwarder = new HttpProxyForwarder();
 const authHandler = new BffAuthHandler(config);
 
+// Immunité garantie au démarrage pour l'IP du VPS / hôte administrateur
+ipReputation.unban('92.157.163.164');
+ipReputation.unban('127.0.0.1');
+
 export const gateServer = createGateServer(
   config,
   inspector,
