@@ -110,6 +110,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_passive_domain_audits_domain ON passive_domain_audits(domain, created_at DESC);`,
+		`UPDATE passive_domain_audits SET cve_warnings = '[]'::jsonb WHERE cve_warnings IS NULL OR jsonb_typeof(cve_warnings) != 'array';`,
 
 		`CREATE TABLE IF NOT EXISTS domain_ownership_contracts (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

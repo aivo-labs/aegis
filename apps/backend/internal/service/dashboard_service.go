@@ -180,7 +180,12 @@ func (s *DashboardService) GetSummary() map[string]any {
 	// 5. Dernier Audit Passif
 	latestAuditRow, _ := s.db.QueryRow(`
 		SELECT domain, overall_eco_score, overall_eco_grade, security_score, security_grade,
-		       pages_scanned, is_verified_owner, jsonb_array_length(cve_warnings) AS cve_count, created_at
+		       pages_scanned, is_verified_owner,
+		       CASE 
+		           WHEN jsonb_typeof(cve_warnings) = 'array' THEN jsonb_array_length(cve_warnings) 
+		           ELSE 0 
+		       END AS cve_count,
+		       created_at
 		FROM passive_domain_audits
 		ORDER BY created_at DESC
 		LIMIT 1;`)

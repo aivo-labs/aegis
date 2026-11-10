@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -71,3 +72,20 @@ func TestVerifyDomainAndRunDeepAudit_LocalSandbox(t *testing.T) {
 		t.Errorf("sondes niveau 2 attendues, obtenu: %v", findings)
 	}
 }
+
+func TestPassiveAuditJSONSlices_NonNull(t *testing.T) {
+	res := RunPassiveDomainScan(nil, "localhost")
+	enrichAuditResult(&res)
+
+	cveJSON, err := json.Marshal(res.CVEWarnings)
+	if err != nil {
+		t.Fatalf("json.Marshal failed: %v", err)
+	}
+	if string(cveJSON) == "null" {
+		t.Errorf("CVEWarnings serialized to 'null', want '[]' to avoid TimescaleDB scalar array length errors")
+	}
+	if string(cveJSON) != "[]" && !strings.HasPrefix(string(cveJSON), "[") {
+		t.Errorf("expected JSON array, got: %s", string(cveJSON))
+	}
+}
+

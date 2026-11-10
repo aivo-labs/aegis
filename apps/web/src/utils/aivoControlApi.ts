@@ -91,8 +91,9 @@ export async function sendLeadToAivoControlCenter(options: BuildLeadPayloadOptio
     (window as any).__lastAivoLeadPayload = payload;
   }
 
-  // Si aucun webhook n'est configuré (installation open-source par défaut), on n'émet aucun appel externe
+  // Si aucun webhook n'est configuré (installation open-source autonome), on n'émet aucun appel externe
   if (!AIVO_CONTROL_API_ENDPOINT) {
+    console.info('[Aegis Lead] Mode open-source autonome : aucun webhook AIVO distant configuré.');
     return {
       ok: true,
       delivered_remotely: false,
@@ -102,9 +103,11 @@ export async function sendLeadToAivoControlCenter(options: BuildLeadPayloadOptio
     };
   }
 
+  console.log('[Aegis Lead] Transmission du lead vers :', AIVO_CONTROL_API_ENDPOINT);
+
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     const response = await fetch(AIVO_CONTROL_API_ENDPOINT, {
       method: 'POST',
@@ -117,18 +120,24 @@ export async function sendLeadToAivoControlCenter(options: BuildLeadPayloadOptio
     });
     clearTimeout(timeoutId);
 
+    const respData = await response.json().catch(() => null);
+    console.log('[Aegis Lead] Réponse webhook distant :', response.status, respData);
+
     return {
-      ok: true,
+      ok: response.ok,
       delivered_remotely: response.ok,
       endpoint: AIVO_CONTROL_API_ENDPOINT,
       payload,
+      response: respData,
     };
   } catch (err) {
+    console.warn('[Aegis Lead] Erreur transmission webhook distant :', err);
     return {
-      ok: true,
+      ok: false,
       delivered_remotely: false,
       endpoint: AIVO_CONTROL_API_ENDPOINT,
       payload,
+      error: String(err),
     };
   }
 }

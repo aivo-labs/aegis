@@ -134,6 +134,19 @@ func RunPassiveDomainScan(db *database.PgClient, rawDomain string) domain.Passiv
 
 	// Sauvegarde en base PostgreSQL
 	if db != nil {
+		if res.TechStack == nil {
+			res.TechStack = []domain.TechFingerprint{}
+		}
+		if res.CVEWarnings == nil {
+			res.CVEWarnings = []domain.CVEWarning{}
+		}
+		if res.HeadersAnalysis == nil {
+			res.HeadersAnalysis = []domain.HeaderCheck{}
+		}
+		if res.PagesDetail == nil {
+			res.PagesDetail = []domain.PageEcoAudit{}
+		}
+
 		techJSON, _ := json.Marshal(res.TechStack)
 		cveJSON, _ := json.Marshal(res.CVEWarnings)
 		hdrJSON, _ := json.Marshal(res.HeadersAnalysis)
@@ -306,6 +319,22 @@ func createFallbackAudit(targetURL, path string) domain.PageEcoAudit {
 }
 
 func enrichAuditResult(res *domain.PassiveAuditResult) {
+	if res.TechStack == nil {
+		res.TechStack = []domain.TechFingerprint{}
+	}
+	if res.CVEWarnings == nil {
+		res.CVEWarnings = []domain.CVEWarning{}
+	}
+	if res.HeadersAnalysis == nil {
+		res.HeadersAnalysis = []domain.HeaderCheck{}
+	}
+	if res.PagesDetail == nil {
+		res.PagesDetail = []domain.PageEcoAudit{}
+	}
+	if res.DeepProbes == nil {
+		res.DeepProbes = []map[string]any{}
+	}
+
 	res.EcoIndexScore = res.OverallEcoScore
 	res.EcoIndexGrade = res.OverallEcoGrade
 	res.AvgGCO2Grams = res.AvgGCO2ePerVisit
