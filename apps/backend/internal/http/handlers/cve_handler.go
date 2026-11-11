@@ -22,14 +22,16 @@ func (h *CveHandler) Feed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	feed := h.cveService.GetFeed()
+	coverageReport := h.cveService.VerifyCoverage()
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{
 		"status":                         "success",
 		"count":                          len(feed),
 		"cves":                           feed,
 		"catalog_cves":                   feed,
-		"active_rules_count":             len(feed),
-		"blocked_by_virtual_patch_count": 0,
+		"active_rules_count":             len(service.ActiveAegisRules),
+		"blocked_by_virtual_patch_count": coverageReport.CoveredVirtualPatchCount + coverageReport.MitigatedEgressOnlyCount,
+		"coverage_report":                coverageReport,
 		"updated_at":                     time.Now().UTC().Format(time.RFC3339),
-		"source":                         "Aegis SOC Threat Intel Feed",
+		"source":                         "Aegis SOC Threat Intel & Coverage Verification Engine (CISA KEV + NVD Sync)",
 	})
 }

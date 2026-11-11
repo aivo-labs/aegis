@@ -47,7 +47,7 @@
         <div 
           v-for="(cve, idx) in exposedCves" 
           :key="idx"
-          class="p-4 rounded-xl bg-slate-950/90 border border-rose-500/30 space-y-1.5"
+          class="p-4 rounded-xl bg-slate-950/90 border border-rose-500/30 space-y-2"
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
@@ -63,55 +63,119 @@
               <span class="text-slate-400">({{ cve.component }})</span>
             </div>
             <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-              🛡️ Protégé par Virtual Patch Aegis
+              🛡️ {{ (cve as any).virtual_patch_rule_id ? `Virtual Patch : ${(cve as any).virtual_patch_rule_id}` : 'Protégé par Virtual Patch Aegis' }}
             </span>
           </div>
           <div class="text-white font-bold text-sm pt-0.5">{{ cve.title || cve.name }}</div>
           <p class="text-slate-400 text-[11px] leading-relaxed font-sans">{{ cve.description }}</p>
-          <div class="pt-1 text-[11px] text-cyan-300">
+
+          <div v-if="(cve as any).virtual_patch_summary" class="p-2.5 rounded-lg bg-emerald-950/30 border border-emerald-500/25 text-[11px] text-emerald-200 font-sans">
+            <strong class="text-emerald-300 font-mono">1. Protection Immédiate (Virtual Patch Aegis) :</strong> {{ (cve as any).virtual_patch_summary }}
+          </div>
+
+          <div v-if="(cve as any).root_fix_procedure && (cve as any).root_fix_procedure.length" class="p-2.5 rounded-lg bg-slate-900 border border-cyan-500/25 text-[11px] text-slate-300 space-y-1">
+            <div class="text-cyan-300 font-bold">2. Procédure de Remédiation Racine (Correctif Définitif Serveur) :</div>
+            <ol class="list-decimal list-inside space-y-1 text-[11px] font-sans text-slate-300">
+              <li v-for="(step, sIdx) in (cve as any).root_fix_procedure" :key="sIdx">{{ step }}</li>
+            </ol>
+          </div>
+          <div v-else class="pt-1 text-[11px] text-cyan-300">
             <strong>Remédiation :</strong> {{ (cve as any).remediation || 'Mise à niveau ou Virtual Patching Aegis recommandé' }}
           </div>
         </div>
       </div>
     </div>
 
-    <!-- SECTION 2 : CATALOGUE COMPLET DES PROTECTIONS & VIRTUAL PATCHING -->
+    <!-- SECTION 2 : CATALOGUE COMPLET DES PROTECTIONS, COUVERTURE & REMÉDIATION RACINE -->
     <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
-      <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800 font-mono">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-800 font-mono">
         <div>
           <h3 class="text-sm font-bold text-white">
-            🛡️ Catalogue des CVE Surveillées &amp; Neutralisées par Aegis Gate &amp; Egress
+            🛡️ Catalogue des CVE Surveillées, Statut de Couverture &amp; Procédures de Remédiation Racine
           </h3>
           <p class="text-[11px] text-slate-400 mt-0.5">
-            Ces signatures sont actives en mémoire dans <code class="text-cyan-300">gate-proxy</code> et le sinkhole DNS <code class="text-amber-300">:5053</code>.
+            Chaque faille indique sa règle de Virtual Patching en mémoire (<code class="text-cyan-300">gate-proxy</code> / <code class="text-amber-300">:5053</code>), sa sonde de vérification et sa procédure de correction définitive.
           </p>
         </div>
-        <span class="text-xs text-cyan-400 font-bold">{{ catalogCves.length }} protections actives</span>
+        <span class="text-xs text-cyan-400 font-bold shrink-0">{{ catalogCves.length }} CVE référencées &amp; vérifiées</span>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 font-mono text-xs">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 font-mono text-xs">
         <div 
           v-for="cat in catalogCves" 
           :key="cat.id"
-          class="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-slate-700 transition-all flex flex-col justify-between"
+          class="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 hover:border-slate-700 transition-all flex flex-col justify-between space-y-3"
         >
-          <div>
-            <div class="flex items-center justify-between gap-2 mb-1.5">
-              <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                {{ cat.severity }} • CVSS {{ cat.cvss }}
+          <div class="space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  {{ cat.severity }} • CVSS {{ cat.cvss }}
+                </span>
+                <span v-if="(cat as any).cisa_kev" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  CISA KEV
+                </span>
+              </div>
+              <span 
+                :class="[
+                  'px-2 py-0.5 rounded text-[10px] font-bold border',
+                  (cat as any).coverage_status === 'HOST_PATCH_REQUIRED'
+                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    : (cat as any).coverage_status === 'MITIGATED_EGRESS_ONLY'
+                      ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
+                      : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                ]"
+              >
+                {{ (cat as any).coverage_status === 'HOST_PATCH_REQUIRED'
+                  ? '⚠️ Patch OS Hôte Requis (+ Egress)'
+                  : (cat as any).coverage_status === 'MITIGATED_EGRESS_ONLY'
+                    ? '🔒 Bloquée en Egress (Sinkhole C2)'
+                    : '🛡️ Couverte par Virtual Patch Aegis' }}
               </span>
-              <span class="text-slate-500 text-[10px]">{{ cat.component }}</span>
             </div>
-            <div class="text-white font-bold text-sm mt-1">{{ cat.id }}</div>
-            <div class="text-slate-300 font-sans text-xs mt-0.5">{{ (cat as any).title ?? cat.name }}</div>
-            <p class="text-[11px] text-slate-400 font-sans mt-2 leading-relaxed">
-              <strong class="text-slate-300">Vecteur :</strong> {{ (cat as any).vector ?? cat.description }}
+
+            <div>
+              <div class="flex items-baseline gap-2">
+                <span class="text-white font-bold text-sm">{{ cat.id }}</span>
+                <span class="text-slate-400 text-[11px]">({{ cat.component }})</span>
+              </div>
+              <div class="text-slate-200 font-sans font-semibold text-xs mt-0.5">{{ (cat as any).title ?? cat.name }}</div>
+            </div>
+
+            <p class="text-[11px] text-slate-400 font-sans leading-relaxed">
+              {{ cat.description }}
             </p>
+
+            <!-- 1. Couverture Virtual Patching -->
+            <div v-if="(cat as any).virtual_patch_summary" class="p-2.5 rounded-lg bg-slate-900/90 border border-emerald-500/20 text-[11px] space-y-1">
+              <div class="flex items-center justify-between text-emerald-300 font-bold">
+                <span>1. Bouclier Aegis à Chaud :</span>
+                <code class="text-[10px] text-cyan-300">{{ (cat as any).virtual_patch_rule_id }}</code>
+              </div>
+              <p class="text-slate-300 font-sans leading-relaxed">{{ (cat as any).virtual_patch_summary }}</p>
+            </div>
+
+            <!-- 2. Procédure de Remédiation Racine -->
+            <details v-if="(cat as any).root_fix_procedure && (cat as any).root_fix_procedure.length" class="group rounded-lg bg-slate-900/90 border border-slate-800 p-2.5">
+              <summary class="cursor-pointer text-cyan-300 font-bold text-[11px] flex items-center justify-between select-none">
+                <span>🔧 2. Voir la Procédure de Correction Définitive ({{ (cat as any).root_fix_procedure.length }} étapes)</span>
+                <span class="text-slate-500 group-open:rotate-90 transition-transform">▸</span>
+              </summary>
+              <ol class="mt-2 pt-2 border-t border-slate-800 list-decimal list-inside space-y-1.5 text-[11px] font-sans text-slate-300">
+                <li v-for="(step, sIdx) in (cat as any).root_fix_procedure" :key="sIdx" class="leading-relaxed">
+                  {{ step }}
+                </li>
+              </ol>
+              <div v-if="(cat as any).verification_probe" class="mt-2.5 pt-2 border-t border-slate-800/80">
+                <div class="text-[10px] text-amber-300 font-mono font-bold mb-1">🧪 Sonde de vérification de couverture :</div>
+                <pre class="p-2 rounded bg-slate-950 border border-slate-800 text-[10px] text-emerald-300 overflow-x-auto whitespace-pre-wrap">{{ (cat as any).verification_probe }}</pre>
+              </div>
+            </details>
           </div>
 
-          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
-            <span class="text-emerald-400 font-semibold">✓ Virtual Patch Actif</span>
-            <span class="text-[10px] text-slate-500">Aegis Ingress PEP</span>
+          <div class="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+            <span>Versions : {{ (cat as any).affected_versions || 'Multi-versions' }}</span>
+            <span class="text-emerald-400 font-semibold">✓ Procédure Vérifiée</span>
           </div>
         </div>
       </div>

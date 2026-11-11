@@ -1,13 +1,16 @@
 package scanner
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -25,6 +28,14 @@ func NormalizeDomain(raw string) string {
 		s = s[:idx]
 	}
 	return strings.TrimSpace(s)
+}
+
+func isLocalSandboxDomain(domainName string) bool {
+	return domainName == "localhost" ||
+		strings.HasPrefix(domainName, "127.0.0.1") ||
+		strings.HasSuffix(domainName, ".local") ||
+		strings.HasSuffix(domainName, ".test") ||
+		strings.HasSuffix(domainName, ".internal")
 }
 
 // CreateOwnershipVerification génère un jeton DNS TXT unique pour prouver la propriété du domaine.
@@ -67,18 +78,85 @@ func CreateOwnershipVerification(db *database.PgClient, rawDomain, email, compan
 		"domain":             domainName,
 		"contact_email":      email,
 		"dns_record_type":    "TXT",
-		"dns_record_host":    "@ (ou " + domainName + ")",
+		"dns_record_host":    "@ (ou " + domainName + " / _aegis-challenge." + domainName + ")",
 		"dns_record_value":   token,
 		"verification_token": token,
 		"well_known_path":    "https://" + domainName + "/.well-known/aegis-verify.txt",
+		"well_known_content": token,
 		"legal_contract":     LegalAuditContractText,
-		"offer_model":        "Open-Core Éthique : 1er Audit Approfondi & Export Complet 100% Offert après validation DNS",
+		"offer_model":        "Open-Core Éthique : 1er Audit Approfondi & Export Complet 100% Offert après validation DNS ou HTTP /.well-known",
 	}, nil
 }
 
-// VerifyDomainAndRunDeepAudit vérifie l'enregistrement DNS TXT et enregistre le mandat légal signé.
+// lookupTXTWithPublicFallback interroge d'abord le résolveur système puis les résolveurs publics (1.1.1.1, 8.8.8.8)
+// afin d'éviter les délais de cache DNS négatif lorsque l'utilisateur vient tout juste d'ajouter son enregistrement TXT.
+func lookupTXTWithPublicFallback(host, expectedToken string) bool {
+	hostsToCheck := []string{host, "_aegis-challenge." + host}
+
+	// 1. Résolveur système standard
+	for _, h := range hostsToCheck {
+		if txts, err := net.LookupTXT(h); err == nil {
+			for _, t := range txts {
+				if strings.Contains(strings.TrimSpace(t), expectedToken) {
+					return true
+				}
+			}
+		}
+	}
+
+	// 2. Fallback sur résolveurs DNS publics (Cloudflare 1.1.1.1 & Google 8.8.8.8)
+	publicResolvers := []string{"1.1.1.1:53", "8.8.8.8:53"}
+	for _, resolverAddr := range publicResolvers {
+		r := &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				d := net.Dialer{Timeout: 2000 * time.Millisecond}
+				return d.DialContext(ctx, "udp", resolverAddr)
+			},
+		}
+		for _, h := range hostsToCheck {
+			ctx, cancel := context.WithTimeout(context.Background(), 2500*time.Millisecond)
+			txts, err := r.LookupTXT(ctx, h)
+			cancel()
+			if err == nil {
+				for _, t := range txts {
+					if strings.Contains(strings.TrimSpace(t), expectedToken) {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+// checkWellKnownFile vérifie la présence éventuelle du jeton dans https://<domain>/.well-known/aegis-verify.txt
+func checkWellKnownFile(domainName, expectedToken string) bool {
+	client := &http.Client{Timeout: 2500 * time.Millisecond}
+	url := "https://" + domainName + "/.well-known/aegis-verify.txt"
+	resp, err := client.Get(url)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil {
+		return false
+	}
+	return strings.Contains(strings.TrimSpace(string(bodyBytes)), expectedToken)
+}
+
+// VerifyDomainAndRunDeepAudit vérifie strictement l'enregistrement DNS TXT (ou /.well-known/aegis-verify.txt)
+// et enregistre le mandat légal signé avant de lancer les sondes Niveau 2.
 func VerifyDomainAndRunDeepAudit(db *database.PgClient, rawDomain, email string, contractAccepted bool, signerIP, userAgent string) (map[string]any, error) {
 	domainName := NormalizeDomain(rawDomain)
+	if domainName == "" {
+		return nil, fmt.Errorf("nom de domaine requis pour la vérification")
+	}
 	if !contractAccepted {
 		return nil, fmt.Errorf("vous devez accepter et signer le mandat d'autorisation d'audit pour débloquer l'analyse approfondie")
 	}
@@ -98,23 +176,23 @@ func VerifyDomainAndRunDeepAudit(db *database.PgClient, rawDomain, email string,
 		expectedToken, _ = info["dns_record_value"].(string)
 	}
 
-	// Vérification DNS réelle via net.LookupTXT
+	// Vérification stricte de propriété (DNS TXT ou HTTP /.well-known/aegis-verify.txt)
 	verifiedMethod := ""
-	if domainName == "localhost" || strings.HasPrefix(domainName, "127.0.0.1") || strings.HasSuffix(domainName, ".local") || strings.HasSuffix(domainName, ".test") {
+	if isLocalSandboxDomain(domainName) {
 		verifiedMethod = "LOCAL_SANDBOX_AUTO_VERIFIED"
+	} else if lookupTXTWithPublicFallback(domainName, expectedToken) {
+		verifiedMethod = "DNS_TXT_RECORD_VERIFIED"
+	} else if checkWellKnownFile(domainName, expectedToken) {
+		verifiedMethod = "HTTP_WELL_KNOWN_VERIFIED"
+	} else if os.Getenv("AEGIS_ALLOW_SANDBOX_MANDATE") == "true" {
+		verifiedMethod = "SIGNED_MANDATE_SANDBOX_MODE"
 	} else {
-		txts, err := net.LookupTXT(domainName)
-		if err == nil {
-			for _, t := range txts {
-				if strings.TrimSpace(t) == expectedToken || strings.Contains(t, "aegis-site-verification=") {
-					verifiedMethod = "DNS_TXT_RECORD_VERIFIED"
-					break
-				}
-			}
-		}
-		if verifiedMethod == "" {
-			verifiedMethod = "SIGNED_MANDATE_SANDBOX_MODE"
-		}
+		return nil, fmt.Errorf(
+			"vérification de propriété échouée pour %s : l'enregistrement DNS TXT '%s' (ou le fichier https://%s/.well-known/aegis-verify.txt) n'a pas encore été détecté. Ajoutez cet enregistrement dans votre zone DNS puis réessayez après propagation",
+			domainName,
+			expectedToken,
+			domainName,
+		)
 	}
 
 	signedPayload := fmt.Sprintf("%s|%s|%s|%s|%s", domainName, email, signerIP, time.Now().UTC().Format(time.RFC3339), LegalAuditContractText)

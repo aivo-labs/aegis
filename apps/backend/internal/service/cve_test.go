@@ -28,4 +28,15 @@ func TestCveService_GetFeed(t *testing.T) {
 	if !foundPHP2Shell {
 		t.Errorf("Expected CVE-2026-109618 in feed")
 	}
+
+	report := svc.VerifyCoverage()
+	if !report.AllProceduresDocumented {
+		t.Errorf("Expected all CVEs in catalog to have RootFixProcedure and VerificationProbe documented")
+	}
+	if report.CoveredVirtualPatchCount < 6 {
+		t.Errorf("Expected at least 6 CVEs covered by Virtual Patch, got %d", report.CoveredVirtualPatchCount)
+	}
+	if report.HostPatchRequiredCount < 1 {
+		t.Errorf("Expected at least 1 CVE classified as HOST_PATCH_REQUIRED (e.g. regreSSHion), got %d", report.HostPatchRequiredCount)
+	}
 }

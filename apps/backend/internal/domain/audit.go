@@ -29,17 +29,28 @@ type TechFingerprint struct {
 	Confidence string `json:"confidence"`
 }
 
-// CVEWarning représente une vulnérabilité ou risque identifié.
+// CVEWarning représente une vulnérabilité ou risque identifié ainsi que sa couverture et sa procédure de remédiation.
 type CVEWarning struct {
-	ID             string `json:"id"`
-	CVEID          string `json:"cve_id"`
-	Severity       string `json:"severity"` // CRITICAL, HIGH, MEDIUM
-	CVSS           string `json:"cvss"`
-	Component      string `json:"component"`
-	Title          string `json:"title"`
-	Description    string `json:"description"`
-	Remediation    string `json:"remediation"`
-	BlockedByAegis bool   `json:"blocked_by_aegis"`
+	ID                  string   `json:"id"`
+	CVEID               string   `json:"cve_id"`
+	Name                string   `json:"name,omitempty"`
+	Severity            string   `json:"severity"` // CRITICAL, HIGH, MEDIUM
+	CVSS                string   `json:"cvss"`
+	Component           string   `json:"component"`
+	AffectedVersions    string   `json:"affected_versions,omitempty"`
+	Title               string   `json:"title"`
+	Description         string   `json:"description"`
+	Vector              string   `json:"vector,omitempty"`
+	Remediation         string   `json:"remediation"`
+	BlockedByAegis      bool     `json:"blocked_by_aegis"`
+	IsActiveDefense     bool     `json:"is_active_defense"`
+	CoverageStatus      string   `json:"coverage_status"`       // COVERED_VIRTUAL_PATCH, MITIGATED_EGRESS_ONLY, HOST_PATCH_REQUIRED
+	VirtualPatchRuleID  string   `json:"virtual_patch_rule_id"` // ex: WAF-413-VOLUMETRIC, WAF-PHP-CGI-ARGS
+	VirtualPatchSummary string   `json:"virtual_patch_summary"` // Action immédiate d'Aegis à chaud (sans downtime)
+	RootFixProcedure    []string `json:"root_fix_procedure"`    // Procédure étape par étape pour corriger la cause racine sur l'hôte
+	VerificationProbe   string   `json:"verification_probe"`    // Commande de test permettant de vérifier la couverture
+	CISAKEV             bool     `json:"cisa_kev"`              // Référencée au catalogue CISA Known Exploited Vulnerabilities
+	PublishedAt         string   `json:"published_at,omitempty"`
 }
 
 // HeaderCheck détaille la présence et la conformité d'un en-tête HTTP de sécurité.

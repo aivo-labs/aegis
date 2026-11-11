@@ -73,6 +73,15 @@ func TestVerifyDomainAndRunDeepAudit_LocalSandbox(t *testing.T) {
 	}
 }
 
+func TestVerifyDomainAndRunDeepAudit_PublicDomainRejectsWithoutDNS(t *testing.T) {
+	// Un domaine public sans enregistrement DNS TXT ni fichier /.well-known/aegis-verify.txt
+	// doit être strictement rejeté même si le mandat légal est coché.
+	_, err := VerifyDomainAndRunDeepAudit(nil, "unverified-domain-example.invalid", "admin@example.invalid", true, "127.0.0.1", "TestAgent")
+	if err == nil {
+		t.Error("attendu rejet strict pour un domaine public sans jeton DNS TXT ni fichier .well-known")
+	}
+}
+
 func TestPassiveAuditJSONSlices_NonNull(t *testing.T) {
 	res := RunPassiveDomainScan(nil, "localhost")
 	enrichAuditResult(&res)

@@ -49,14 +49,14 @@
               </div>
 
               <!-- Formulaire de saisie du domaine -->
-              <form @submit.prevent="runPassiveScan" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+              <form @submit.prevent="runPassiveScan" class="flex flex-col justify-between items-stretch sm:items-center gap-3 w-full lg:w-auto">
                 <div class="relative flex items-center min-w-[300px]">
                   <span class="absolute left-3.5 text-slate-400 font-mono text-xs font-bold">https://</span>
                   <input 
                     v-model="scanDomainInput"
                     type="text"
                     required
-                    :placeholder="isFr ? 'mon-entreprise.fr ou localhost' : 'my-company.com or localhost'"
+                    :placeholder="isFr ? 'mon-entreprise.fr' : 'my-company.com'"
                     class="w-full pl-18 pr-4 py-3 rounded-xl bg-slate-950/90 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-emerald-400 shadow-inner"
                   />
                 </div>
@@ -194,7 +194,7 @@
                   <div 
                     v-for="(cve, idx) in auditResult.cve_warnings" 
                     :key="idx"
-                    class="p-4 rounded-xl bg-slate-900/90 border border-rose-500/30 space-y-1.5"
+                    class="p-4 rounded-xl bg-slate-900/90 border border-rose-500/30 space-y-2"
                   >
                     <div class="flex flex-wrap items-center justify-between gap-2">
                       <div class="flex items-center gap-2">
@@ -210,12 +210,26 @@
                         <span class="text-slate-400">({{ cve.component }})</span>
                       </div>
                       <span v-if="cve.blocked_by_aegis" class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                        {{ isFr ? '🛡️ Protégé par Virtual Patch Aegis' : '🛡️ Protected by Aegis Virtual Patch' }}
+                        🛡️ {{ cve.virtual_patch_rule_id ? `Virtual Patch : ${cve.virtual_patch_rule_id}` : (isFr ? 'Protégé par Virtual Patch Aegis' : 'Protected by Aegis Virtual Patch') }}
                       </span>
                     </div>
                     <div class="text-white font-bold text-sm pt-0.5">{{ cve.title }}</div>
                     <p class="text-slate-400 text-[11px] leading-relaxed font-sans">{{ cve.description }}</p>
-                    <div class="pt-1 text-[11px] text-cyan-300">
+
+                    <div v-if="cve.virtual_patch_summary" class="p-2.5 rounded-lg bg-emerald-950/30 border border-emerald-500/25 text-[11px] text-emerald-200 font-sans">
+                      <strong class="text-emerald-300 font-mono">{{ isFr ? '1. Bouclier Immédiat (Virtual Patch Aegis) :' : '1. Immediate Shield (Aegis Virtual Patch):' }}</strong> {{ cve.virtual_patch_summary }}
+                    </div>
+
+                    <details v-if="cve.root_fix_procedure && cve.root_fix_procedure.length" class="group rounded-lg bg-slate-950/90 border border-cyan-500/25 p-2.5">
+                      <summary class="cursor-pointer text-cyan-300 font-bold text-[11px] flex items-center justify-between select-none">
+                        <span>🔧 {{ isFr ? `2. Voir la Procédure de Correction Définitive (${cve.root_fix_procedure.length} étapes)` : `2. View Root-Cause Fix Procedure (${cve.root_fix_procedure.length} steps)` }}</span>
+                        <span class="text-slate-500 group-open:rotate-90 transition-transform">▸</span>
+                      </summary>
+                      <ol class="mt-2 pt-2 border-t border-slate-800 list-decimal list-inside space-y-1 text-[11px] font-sans text-slate-300">
+                        <li v-for="(step, sIdx) in cve.root_fix_procedure" :key="sIdx">{{ step }}</li>
+                      </ol>
+                    </details>
+                    <div v-else class="pt-1 text-[11px] text-cyan-300">
                       <strong>{{ isFr ? 'Remédiation recommandée :' : 'Recommended remediation:' }}</strong> {{ cve.remediation }}
                     </div>
                   </div>
@@ -379,12 +393,18 @@
                     {{ isFr ? 'Générer mon Enregistrement DNS TXT' : 'Generate DNS TXT Record' }}
                   </button>
 
-                  <div v-if="dnsChallenge" class="p-3.5 rounded-xl bg-slate-900 border border-cyan-500/40 space-y-1.5">
-                    <div class="text-[11px] text-slate-400">
-                      {{ isFr ? 'Ajoutez cet enregistrement' : 'Add this' }} <strong class="text-white">TXT</strong> {{ isFr ? 'dans la zone DNS de' : 'record to the DNS zone of' }} <strong class="text-cyan-300">{{ auditResult.domain }}</strong> :
+                  <div v-if="dnsChallenge" class="p-3.5 rounded-xl bg-slate-900 border border-cyan-500/40 space-y-2">
+                    <div class="text-[11px] text-slate-300">
+                      <strong class="text-cyan-300">{{ isFr ? 'Option A (DNS) :' : 'Option A (DNS):' }}</strong>
+                      {{ isFr ? ' Ajoutez cet enregistrement' : ' Add this' }} <strong class="text-white">TXT</strong> {{ isFr ? 'sur' : 'on' }} <strong class="text-cyan-300">@ ({{ auditResult.domain }})</strong> :
                     </div>
                     <div class="p-2 rounded bg-slate-950 border border-slate-800 text-emerald-300 font-bold select-all break-all">
                       {{ dnsChallenge.dns_record_value }}
+                    </div>
+                    <div class="text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+                      <strong class="text-slate-300">{{ isFr ? 'Option B (Fichier HTTP) :' : 'Option B (HTTP File):' }}</strong>
+                      {{ isFr ? ' Ou déposez cette valeur dans ' : ' Or place this value inside ' }}
+                      <code class="text-cyan-300">{{ dnsChallenge.well_known_path || `https://${auditResult.domain}/.well-known/aegis-verify.txt` }}</code>
                     </div>
                   </div>
                 </div>
@@ -410,9 +430,13 @@
                     class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold cursor-pointer shadow-lg transition-all"
                   >
                     {{ isVerifyingDns 
-                      ? (isFr ? '⏳ Vérification DNS & Sondes Niveau 2...' : '⏳ Verifying DNS & Level 2 Probes...') 
+                      ? (isFr ? '⏳ Vérification DNS TXT / .well-known en cours...' : '⏳ Verifying DNS TXT / .well-known...') 
                       : (isFr ? '✓ Vérifier le DNS, Signer le Mandat & Débloquer le Rapport' : '✓ Verify DNS, Sign Mandate & Unlock Report') }}
                   </button>
+
+                  <div v-if="dnsVerificationError" class="p-3 rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-200 text-[11px] font-sans leading-relaxed">
+                    ⚠️ {{ dnsVerificationError }}
+                  </div>
                 </div>
               </div>
 
@@ -586,19 +610,19 @@
             <div class="flex items-center justify-between gap-3 mb-4 relative z-10">
               <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-semibold">
                 <span>🤝</span>
-                <span>{{ isFr ? 'SERVICES PROFESSIONNELS AIVO' : 'AIVO PROFESSIONAL SERVICES' }}</span>
+                <span>{{ isFr ? 'SERVICES & EXPERTISE AIVO' : 'AIVO EXPERT SERVICES' }}</span>
               </div>
-              <span class="text-xs font-mono text-cyan-400 font-bold">{{ isFr ? 'Sur-Mesure' : 'Custom' }}</span>
+              <span class="text-xs font-mono text-cyan-400 font-bold">{{ isFr ? 'TPE • PME • Grands Comptes' : 'SMB • Mid-Market • Enterprise' }}</span>
             </div>
 
             <h3 class="text-2xl font-extrabold text-white mb-2 relative z-10">
-              {{ isFr ? '2. Être Accompagné par nos Experts' : '2. Expert-Guided Onboarding' }}
+              {{ isFr ? '2. Être Accompagné par nos Ingénieurs' : '2. Guided Setup, MCO & Incident Recovery' }}
             </h3>
             
             <p class="text-sm text-slate-300 leading-relaxed mb-6 font-sans relative z-10">
               {{ isFr 
-                ? "Vous manquez de temps ou de ressources expertes en interne ? Nos ingénieurs SecOps certifiés réalisent votre audit d'intrusion approfondi et prennent en charge l'intégration d'Aegis sur mesure."
-                : "Need faster deployment or specialized SecOps expertise? Our certified engineers perform in-depth penetration audits and manage full turnkey Aegis integration." }}
+                ? "Le moteur Aegis est 100% libre et Open-Source. Pour financer son développement, nos ingénieurs accompagnent toutes les structures — de la TPE avec un site vitrine jusqu'aux grands comptes sur Kubernetes — avec des formules adaptées à votre taille."
+                : "The Aegis engine is 100% free and Open-Source. To fund its development, our engineers support organizations of all sizes — from small business websites to enterprise Kubernetes clusters — with pricing tailored to your scale." }}
             </p>
 
             <!-- Liste des bénéfices de l'accompagnement -->
@@ -607,12 +631,12 @@
                 <span class="text-emerald-400 font-bold text-sm">✓</span>
                 <div>
                   <div class="text-white font-bold">
-                    {{ isFr ? "Audit d'intrusion approfondi (Niveau 2) & Homologation DNS" : "In-Depth Penetration Audit (Level 2) & DNS Verification" }}
+                    {{ isFr ? "Setup Accompagné & Durcissement Clé en Main" : "Guided Turnkey Setup & Infrastructure Hardening" }}
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
                     {{ isFr 
-                      ? 'Validation de votre zone DNS, recherche de failles complexes et remise d\'un rapport certifié.'
-                      : 'DNS zone validation, complex vulnerability assessment, and official certified audit report.' }}
+                      ? 'Du simple site vitrine ou VPS (TPE/PME) aux clusters Kubernetes : intégration sans coupure et sécurisation à coût maîtrisé.'
+                      : 'From a simple business website or VPS (SMB) to Kubernetes clusters: zero-downtime integration and affordable hardening.' }}
                   </div>
                 </div>
               </div>
@@ -621,12 +645,12 @@
                 <span class="text-emerald-400 font-bold text-sm">✓</span>
                 <div>
                   <div class="text-white font-bold">
-                    {{ isFr ? 'Déploiement et intégration clé en main sans interruption' : 'Turnkey Zero-Downtime Deployment & Integration' }}
+                    {{ isFr ? 'Maintien en Condition Opérationnelle (MCO) & Éco-Optimisation' : 'Managed Operations (MCO) & Eco-Optimization' }}
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
                     {{ isFr 
-                      ? 'Configuration personnalisée du filtrage Ingress Zero-Trust adaptée à vos stacks applicatives.'
-                      : 'Tailored Zero-Trust Ingress filtering configured specifically for your application stacks.' }}
+                      ? 'Supervision en heures ouvrées, maintien des règles de Virtual Patching CVE et bilans énergétiques ESG / RGESN.'
+                      : 'Business-hours supervision, continuous CVE Virtual Patching maintenance, and ESG / eco-design reporting.' }}
                   </div>
                 </div>
               </div>
@@ -635,12 +659,12 @@
                 <span class="text-emerald-400 font-bold text-sm">✓</span>
                 <div>
                   <div class="text-white font-bold">
-                    {{ isFr ? 'Bilan d\'Éco-Conception & Rapport ESG Opposable' : 'Eco-Design Assessment & Audit-Ready ESG Report' }}
+                    {{ isFr ? 'Urgence, Remise en Service & Analyse de Cause Racine (RCA)' : 'Emergency Recovery & Root Cause Analysis (RCA)' }}
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
                     {{ isFr 
-                      ? 'Mesures RAPL en temps réel et indicateurs conformes aux normes VS EFRAG et RGESN 2024.'
-                      : 'Real-time RAPL hardware energy metrics aligned with EFRAG VS standards and RGESN guidelines.' }}
+                      ? 'Neutralisation d\'attaque (RCE, PHP2Shell, C2), remise en fonction, forensique de la cause racine et correctifs durables.'
+                      : 'Active attack neutralization (RCE, PHP2Shell, C2), service restoration, root cause forensics, and lasting fixes.' }}
                   </div>
                 </div>
               </div>
@@ -649,12 +673,12 @@
                 <span class="text-emerald-400 font-bold text-sm">✓</span>
                 <div>
                   <div class="text-white font-bold">
-                    {{ isFr ? 'Support prioritaire & Accompagnement Conformité NIS 2' : 'Priority SLA Support & NIS 2 Compliance Guidance' }}
+                    {{ isFr ? 'Engagements Maîtrisés & Créneaux Mensuels Dédiés' : 'Realistic SLAs & Dedicated Monthly Engineering Slots' }}
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
                     {{ isFr 
-                      ? 'SLA garanti, maintien en conditions de sécurité et durcissement ANSSI.'
-                      : 'Guaranteed SLA, continuous security maintenance, and ANSSI-grade hardening.' }}
+                      ? 'Protection logicielle autonome 24/7 • Prise en charge ingénieur sous 24h ouvrées (créneaux limités pour garantir notre qualité).'
+                      : '24/7 autonomous software protection • Engineer response within 24 business hours (limited monthly slots to ensure quality).' }}
                   </div>
                 </div>
               </div>
@@ -677,7 +701,7 @@
               </button>
 
               <div class="text-center text-[11px] font-mono text-slate-400">
-                {{ isFr ? 'Réponse sous 24h ouvrées • Échange direct avec un ingénieur SecOps' : 'Response within 24 business hours • Direct discussion with a SecOps engineer' }}
+                {{ isFr ? 'Prise en charge sous 24h ouvrées • Proposition & souscription adaptées après cadrage' : 'Response within 24 business hours • Tailored quote & subscription after scoping' }}
               </div>
             </div>
           </div>
@@ -704,7 +728,7 @@
                   {{ isFr ? "Demande d'Accompagnement AIVO" : "AIVO Professional Support Request" }}
                 </h3>
                 <p class="text-xs text-slate-400 font-mono">
-                  {{ isFr ? "Audit approfondi ou Déploiement clé en main" : "In-depth penetration audit or turnkey deployment" }}
+                  {{ isFr ? "Setup accompagné, MCO ou Remise en service d'urgence (TPE à Grands Comptes)" : "Guided setup, MCO or Emergency recovery (SMB to Enterprise)" }}
                 </p>
               </div>
             </div>
@@ -718,8 +742,8 @@
             </h4>
             <p class="text-xs text-emerald-300 font-sans leading-relaxed">
               {{ isFr 
-                ? `Merci ${leadForm.name}. Votre demande concernant ${leadForm.domain || 'votre infrastructure'} a été transmise à nos ingénieurs SecOps. Nous vous recontacterons sous 24 heures.`
-                : `Thank you ${leadForm.name}. Your request regarding ${leadForm.domain || 'your infrastructure'} has been sent to our SecOps engineers. We will get back to you within 24 hours.` }}
+                ? `Merci ${leadForm.name}. Votre demande concernant ${leadForm.domain || 'votre infrastructure'} a été transmise à notre Centre de Contrôle. Un ingénieur SecOps vous recontactera sous 24h ouvrées pour qualifier votre besoin et vous transmettre votre lien d'accompagnement.`
+                : `Thank you ${leadForm.name}. Your request regarding ${leadForm.domain || 'your infrastructure'} has been sent to our Control Center. A SecOps engineer will get back to you within 24 business hours to scope your needs and provide your onboarding link.` }}
             </p>
             <button 
               @click="showAssistanceModal = false; assistanceSubmitted = false;" 
@@ -732,6 +756,32 @@
           <form v-else @submit.prevent="submitAssistanceLead" class="space-y-4 font-mono text-xs">
             <div v-if="auditResult" class="p-3 rounded-xl bg-slate-950 border border-emerald-500/30 text-[11px] text-emerald-300">
               📌 <strong>{{ isFr ? 'Périmètre rattaché :' : 'Attached Scope:' }}</strong> {{ auditResult.domain }} ({{ isFr ? 'Score Sécurité :' : 'Security Score:' }} {{ auditResult.security_score }}/100, EcoIndex : {{ auditResult.overall_eco_score }}/100)
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-slate-300 mb-1 font-bold">{{ isFr ? 'Type de besoin *' : 'Service Needed *' }}</label>
+                <select 
+                  v-model="leadForm.offerType" 
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400"
+                >
+                  <option value="SETUP_ACCOMPAGNE">{{ isFr ? 'Setup Accompagné & Sécurisation' : 'Guided Setup & Hardening' }}</option>
+                  <option value="MCO_SUPERVISION">{{ isFr ? 'MCO (Maintien & Supervision)' : 'Managed Operations (MCO)' }}</option>
+                  <option value="URGENCE_RCA">{{ isFr ? 'Urgence, Remise en service & RCA' : 'Emergency Recovery & RCA' }}</option>
+                  <option value="AUDIT_APPROFONDI">{{ isFr ? 'Audit Approfondi & Éco-Optimisation' : 'Deep Audit & Eco-Optimization' }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-slate-300 mb-1 font-bold">{{ isFr ? 'Profil d\'infrastructure *' : 'Infrastructure Scale *' }}</label>
+                <select 
+                  v-model="leadForm.infrastructure" 
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400"
+                >
+                  <option value="TPE_SITE_VITRINE_VPS">{{ isFr ? 'TPE / PME — Site vitrine ou VPS' : 'SMB — Website or Single VPS' }}</option>
+                  <option value="PME_CLOUD_MULTI_SERVEURS">{{ isFr ? 'PME / Startup — Cloud Multi-Serveurs' : 'Mid-Market — Multi-Server Cloud' }}</option>
+                  <option value="ETI_KUBERNETES_CRITIQUE">{{ isFr ? 'ETI / Grand Compte — Kubernetes / Critique' : 'Enterprise — Kubernetes / Critical' }}</option>
+                </select>
+              </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -789,13 +839,13 @@
             </div>
 
             <div>
-              <label class="block text-slate-300 mb-1 font-bold">{{ isFr ? 'Précisez votre besoin ou infrastructure' : 'Describe your infrastructure or requirements' }}</label>
+              <label class="block text-slate-300 mb-1 font-bold">{{ isFr ? 'Précisez votre contexte (site vitrine, serveur, incident éventuel...)' : 'Describe your context (website, server, potential incident...)' }}</label>
               <textarea 
                 v-model="leadForm.message" 
                 rows="3" 
                 :placeholder="isFr 
-                  ? 'Ex : Nous souhaitons déployer Aegis devant 3 applications web sur Kubernetes avec assistance pour l\'homologation DNS...' 
-                  : 'E.g. We want to deploy Aegis in front of 3 Kubernetes web apps with assistance for DNS certification...'"
+                  ? 'Ex : Nous souhaitons sécuriser et optimiser notre site vitrine / ou déployer Aegis sur notre cluster avec maintien en condition opérationnelle...' 
+                  : 'E.g. We want to secure and optimize our business website / or deploy Aegis on our cluster with managed operations...'"
                 class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 font-sans text-xs"
               ></textarea>
             </div>
@@ -852,6 +902,7 @@ const contractAccepted = ref(false);
 const isVerifyingDns = ref(false);
 const deepFindings = ref([]);
 const contractSha256 = ref('');
+const dnsVerificationError = ref('');
 
 // État Onglets Installation Rapide
 const activeInstallTab = ref('vps');
@@ -911,6 +962,7 @@ async function runPassiveScan() {
   if (!scanDomainInput.value || isScanning.value) return;
   isScanning.value = true;
   dnsChallenge.value = null;
+  dnsVerificationError.value = '';
   deepFindings.value = [];
   try {
     const res = await fetch('/api/v1/audit/passive-scan', {
@@ -953,6 +1005,7 @@ async function requestDnsToken() {
     showToast(isFr.value ? "Veuillez saisir votre adresse email professionnelle." : "Please enter your work email address.");
     return;
   }
+  dnsVerificationError.value = '';
   try {
     const res = await fetch('/api/v1/audit/request-verification', {
       method: 'POST',
@@ -985,7 +1038,7 @@ async function requestDnsToken() {
           : `DNS TXT token generated for ${auditResult.value.domain}.`
       );
     } else {
-      showToast(data.message || (isFr.value ? "Erreur lors de la génération du jeton DNS." : "Error generating DNS token."));
+      showToast(data.message || data.error || (isFr.value ? "Erreur lors de la génération du jeton DNS." : "Error generating DNS token."));
     }
   } catch (e) {
     showToast(isFr.value ? "Erreur de communication." : "Communication error.");
@@ -999,6 +1052,7 @@ async function verifyAndUnlockDeepAudit() {
     return;
   }
   isVerifyingDns.value = true;
+  dnsVerificationError.value = '';
   try {
     const res = await fetch('/api/v1/audit/verify-ownership', {
       method: 'POST',
@@ -1034,7 +1088,9 @@ async function verifyAndUnlockDeepAudit() {
           : `✓ Domain ${auditResult.value.domain} verified (${data.verification_method}) and Level 2 Audit unlocked!`
       );
     } else {
-      showToast(data.message || (isFr.value ? "Échec de la vérification DNS." : "DNS verification failed."));
+      const errMsg = data.message || data.error || (isFr.value ? "Échec de la vérification DNS." : "DNS verification failed.");
+      dnsVerificationError.value = errMsg;
+      showToast(errMsg);
     }
   } catch (e) {
     showToast(isFr.value ? "Erreur lors de la vérification." : "Verification error.");
@@ -1065,6 +1121,8 @@ function downloadFullAuditReport() {
 const showAssistanceModal = ref(false);
 const assistanceSubmitted = ref(false);
 const leadForm = ref({
+  offerType: 'SETUP_ACCOMPAGNE',
+  infrastructure: 'TPE_SITE_VITRINE_VPS',
   name: '',
   email: '',
   company: '',
@@ -1082,15 +1140,16 @@ function openAssistanceModal() {
 
 async function submitAssistanceLead() {
   try {
-    await sendLeadToAivoControlCenter({
+    const res = await sendLeadToAivoControlCenter({
       source: 'aegis_onboarding_assistance',
-      offerType: 'ACCOMPAGNEMENT_SUR_MESURE',
+      offerType: leadForm.value.offerType || 'SETUP_ACCOMPAGNE',
       contact: { ...leadForm.value },
       contextTrigger: 'assistance_modal_submitted',
       auditReport: auditResult.value,
     });
+    console.log('[Aegis Lead] Résultat de la transmission d\'accompagnement :', res);
   } catch (err) {
-    console.warn('[Aegis Lead] Fallback local:', err);
+    console.warn('[Aegis Lead] Erreur lors de l\'envoi de la demande d\'accompagnement :', err);
   }
 
   assistanceSubmitted.value = true;

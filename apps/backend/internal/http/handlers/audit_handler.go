@@ -63,7 +63,10 @@ func (h *AuditHandler) RequestVerification(w http.ResponseWriter, r *http.Reques
 
 	res, err := h.auditService.RequestVerification(domainName, email, company)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]any{
+			"error":   err.Error(),
+			"message": err.Error(),
+		})
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, res)
@@ -83,7 +86,10 @@ func (h *AuditHandler) VerifyOwnership(w http.ResponseWriter, r *http.Request) {
 
 	res, err := h.auditService.VerifyOwnership(domainName, email, contractAccepted, signerIP, userAgent)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		httputil.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{
+			"error":   err.Error(),
+			"message": err.Error(),
+		})
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, res)
