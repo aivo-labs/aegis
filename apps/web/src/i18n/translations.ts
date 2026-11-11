@@ -128,8 +128,8 @@ export const translations = {
           a: "Aegis deploys a DaemonSet combining the Kepler eBPF probe with a sovereign forwarder. Kepler inspects hardware CPU counters and distributes physical energy consumption across each cgroup and namespace (production, staging, monitoring). This allows DevOps teams to assign Watt quotas and quantify the exact impact of each microservice."
         },
         {
-          q: "What is the difference between the AGPLv3 Community edition and AIVO enterprise support?",
-          a: "100% of the Aegis suite is open source under the AGPLv3 license with zero feature gating or artificial throttling. The AIVO Enterprise offering delivers turnkey managed operations, 24/7 on-call SLA support, customized ANSSI hardening configurations, and dedicated compliance assistance during NIS 2 and EFRAG VS audits."
+          q: "What is the difference between the AGPLv3 Community edition and AIVO engineering support?",
+          a: "100% of the Aegis suite is open source under the AGPLv3 license with zero feature gating or artificial throttling. Whether you are a small business running a showcase site on a single VPS or an enterprise managing Kubernetes clusters, AIVO engineering offers tailored Assisted Setup, Managed Security Operations (MCO) during business hours (24h business SLA), and Emergency Incident Recovery with Root Cause Analysis (RCA)."
         }
       ]
     },
@@ -446,8 +446,8 @@ export const translations = {
           a: "Aegis déploie un DaemonSet combinant la sonde eBPF Kepler et un forwarder souverain. Kepler interroge les compteurs hardware du CPU et ventile précisément la consommation électrique réelle sur chaque cgroup et namespace (production, staging, monitoring). Cela permet aux équipes DevOps de fixer des quotas en Watts et de mesurer l'impact de chaque micro-service."
         },
         {
-          q: "Quelle est la différence entre la version Community AGPLv3 et l'accompagnement AIVO ?",
-          a: "100% de la suite Aegis est open source sous licence libre AGPLv3, sans bridage artificiel ni limitation de fonctionnalités. L'offre AIVO Entreprise fournit une infogérance souveraine clé-en-main, un support d'astreinte 24/7 avec SLA contractuel, le durcissement sur mesure selon les guides ANSSI et l'assistance lors des audits réglementaires NIS 2 et Norme VS."
+          q: "Quelle est la différence entre la version Community AGPLv3 et l'accompagnement ingénieur AIVO ?",
+          a: "100% de la suite Aegis est open source sous licence libre AGPLv3, sans bridage artificiel ni limitation de fonctionnalités. Que vous soyez une TPE avec un simple site vitrine sur VPS ou un grand compte sur Kubernetes, l'accompagnement AIVO propose le Setup Accompagné sur-mesure, le Maintien en Condition Opérationnelle (MCO) en heures ouvrées (prise en charge sous 24h ouvrées) ainsi que la remise en service d'urgence avec analyse de cause racine (RCA)."
         }
       ]
     },

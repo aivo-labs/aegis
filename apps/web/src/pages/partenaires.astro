@@ -87,42 +87,42 @@ import AegisLogo from '../components/AegisLogo.astro';
           </div>
         </div>
 
-        <!-- TRACK 2: EMERGENCY SECURITY AUDIT & AEGIS SETUP -->
+        <!-- TRACK 2: ASSISTED SETUP, MCO & INCIDENT RECOVERY (RCA) -->
         <div class="p-8 rounded-3xl bg-slate-900/85 border border-cyan-500/40 backdrop-blur-xl flex flex-col justify-between shadow-2xl relative overflow-hidden">
           <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 to-emerald-400"></div>
           <div class="space-y-5">
             <div class="flex items-center justify-between">
               <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                ⚡ Fast-Track • 48h SLA
+                ⚡ Response &lt; 24 Business Hours • Controlled Slots
               </span>
-              <span class="text-xs font-mono text-slate-400">International Response</span>
+              <span class="text-xs font-mono text-slate-400">From Small VPS to K8s</span>
             </div>
 
             <div>
-              <h2 class="text-2xl font-extrabold text-white">Emergency Security Audit &amp; Aegis Setup</h2>
+              <h2 class="text-2xl font-extrabold text-white">Assisted Setup, MCO &amp; Incident Recovery (RCA)</h2>
               <p class="text-sm text-slate-300 mt-2 leading-relaxed">
-                A 48-hour emergency engagement to audit exposed attack surfaces, neutralize active intrusion or exfiltration vectors (RCE, PHP2Shell, C2 callbacks), and deploy Aegis shield in front of critical servers.
+                Tailored engineering support for organizations of any size (from a small business showcase site on a single VPS to enterprise Kubernetes clusters): service recovery, Root Cause Analysis (RCA), hardening, and Managed Operations (MCO).
               </p>
             </div>
 
             <div class="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3 text-xs font-mono text-slate-300">
-              <div class="text-cyan-300 font-bold uppercase tracking-wider">Fast-track protocol:</div>
+              <div class="text-cyan-300 font-bold uppercase tracking-wider">Our 3 engagement modes:</div>
               <ul class="space-y-2.5">
                 <li class="flex items-start gap-2.5">
                   <span class="text-cyan-400 font-bold">⚡</span>
-                  <span><strong>48h Security &amp; Outbound Egress Audit</strong>: Comprehensive vulnerability analysis (critical CVEs, PHP2Shell, injections, header and secret leaks).</span>
+                  <span><strong>Incident Recovery &amp; Root Cause Analysis (RCA)</strong>: Neutralization of intrusion vectors (RCE, PHP2Shell, C2), cleanup, and forensic report.</span>
                 </li>
                 <li class="flex items-start gap-2.5">
                   <span class="text-cyan-400 font-bold">⚡</span>
-                  <span><strong>Aegis Gate &amp; Egress Setup on K8s / Cloud</strong>: Transparent inline proxy setup on Scaleway, AWS, Hetzner, OVHcloud, or Bare-Metal.</span>
+                  <span><strong>Turnkey Assisted Setup</strong>: Zero-downtime deployment on your VPS, bare-metal server, Docker, or Kubernetes (OVHcloud, Scaleway, Hetzner, Oracle, AWS...).</span>
                 </li>
                 <li class="flex items-start gap-2.5">
                   <span class="text-cyan-400 font-bold">⚡</span>
-                  <span><strong>Custom Outbound Policies &amp; Virtual Patching</strong>: Immediate lockout of illegitimate outbound traffic and automated bot/scanner mitigation without touching app code.</span>
+                  <span><strong>MCO &amp; Continuous Supervision</strong>: Autonomous 24/7 shield + proactive engineer monitoring during business hours, custom Virtual Patching, and RAPL carbon reports.</span>
                 </li>
                 <li class="flex items-start gap-2.5">
                   <span class="text-cyan-400 font-bold">⚡</span>
-                  <span><strong>Audit mandate &amp; NDA included</strong>: Executive and technical remediation deliverables delivered upon completion.</span>
+                  <span><strong>Fair Pricing &amp; NDA Mandate</strong>: Adapted to your actual organization size (accessible small business package or custom enterprise contract).</span>
                 </li>
               </ul>
             </div>
@@ -134,7 +134,7 @@ import AegisLogo from '../components/AegisLogo.astro';
               onclick="selectPartnerProgram('EMERGENCY_AUDIT_SETUP')"
               class="w-full py-3.5 px-5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs font-mono flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20"
             >
-              <span>Request Emergency Audit &amp; Setup</span>
+              <span>Request Assisted Setup, MCO or Recovery</span>
               <span>➔</span>
             </a>
           </div>
@@ -159,8 +159,9 @@ import AegisLogo from '../components/AegisLogo.astro';
             <div>
               <label class="block text-slate-300 mb-1.5 font-semibold">Desired Engagement</label>
               <select id="partner-program" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white focus:border-emerald-400 focus:outline-none">
-                <option value="DESIGN_PARTNER">Design Partner Program (Assisted Beta)</option>
-                <option value="EMERGENCY_AUDIT_SETUP">Emergency Security Audit &amp; Aegis Setup (48h)</option>
+                <option value="DESIGN_PARTNER">Design Partner Program (Co-Engineering / Cloud Providers / SaaS)</option>
+                <option value="EMERGENCY_AUDIT_SETUP">Urgent: Service Recovery, Remediation &amp; Root Cause Analysis (RCA)</option>
+                <option value="SETUP_MCO">Assisted Setup &amp; MCO (Small Business VPS, SME or Kubernetes)</option>
                 <option value="GENERAL_PARTNERSHIP">Other Custom Integration / Consultation</option>
               </select>
             </div>
