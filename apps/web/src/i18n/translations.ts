@@ -358,6 +358,41 @@ export const translations = {
           procedureVerified: "✓ Procedure Verified",
         },
       }
+    },
+    cveFeed: {
+      banner: {
+        badge: "🛡️ CVE FEED & VIRTUAL PATCHING INTELLIGENCE",
+        sync: "PostgreSQL Live Sync",
+        title: "Continuous monitoring of exposed vulnerabilities and active production shield catalog",
+        activeRules: "Active Rules:",
+        blockedExploits: "Blocked Exploits:",
+      },
+      exposedSection: {
+        title: "CVEs EXPOSED ON YOUR MONITORED SCOPE",
+        actionRequired: "Action Required",
+        noCritFound: "No critical vulnerability detected",
+        emptyMsg: "✓ No unpatched vulnerability detected on the audited domain. Run a diagnostic in the Diagnostics (5 Pages) tab to refresh surface analysis.",
+        virtualPatchBadge: "Virtual Patch :",
+        virtualPatchProtected: "Protected by Aegis Virtual Patch",
+        immediateProtection: "1. Immediate Protection (Aegis Virtual Patch):",
+        rootProcedureTitle: "2. Root Fix Procedure (Permanent Server Remediation):",
+        remediationFallback: "Remediation:",
+        remediationDefault: "Upgrade or Aegis Virtual Patching recommended",
+      },
+      catalogSection: {
+        title: "🛡️ Monitored CVE Catalog, Coverage Status & Root Remediation Procedures",
+        subtitle: "Each flaw displays its in-memory Virtual Patching rule (gate-proxy / :5053), verification probe, and definitive remediation steps.",
+        cveReferenced: "{count} CVEs referenced & verified",
+        hostPatchRequired: "⚠️ Host OS Patch Required (+ Egress)",
+        mitigatedEgress: "🔒 Mitigated at Egress (C2 Sinkhole)",
+        coveredVirtualPatch: "🛡️ Covered by Aegis Virtual Patch",
+        hotShield: "1. Aegis In-Memory Shield:",
+        viewRootProcedure: "🔧 2. View Root Fix Procedure ({count} steps)",
+        verificationProbe: "🧪 Coverage Verification Probe:",
+        versions: "Versions:",
+        multiVersions: "Multi-versions",
+        procedureVerified: "✓ Procedure Verified",
+      },
     }
   },
   fr: {
@@ -711,6 +746,41 @@ export const translations = {
           procedureVerified: "✓ Procédure Vérifiée",
         },
       }
+    },
+    cveFeed: {
+      banner: {
+        badge: "🛡️ CVE FEED & VIRTUAL PATCHING INTELLIGENCE",
+        sync: "Synchronisation Temps Réel PostgreSQL",
+        title: "Surveillance continue des failles exposées et catalogue des protections actives",
+        activeRules: "Règles actives :",
+        blockedExploits: "Exploits bloqués :",
+      },
+      exposedSection: {
+        title: "CVE EXPOSÉES SUR VOTRE SURFACE ATTELÉE",
+        actionRequired: "Action Requise",
+        noCritFound: "Aucune faille critique détectée",
+        emptyMsg: "✓ Aucune faille non corrigée détectée sur le domaine audité. Lancez un diagnostic dans l'onglet Diagnostic (5 Pages) pour rafraîchir l'analyse de surface.",
+        virtualPatchBadge: "Virtual Patch :",
+        virtualPatchProtected: "Protégé par Virtual Patch Aegis",
+        immediateProtection: "1. Protection Immédiate (Virtual Patch Aegis) :",
+        rootProcedureTitle: "2. Procédure de Remédiation Racine (Correctif Définitif Serveur) :",
+        remediationFallback: "Remédiation :",
+        remediationDefault: "Mise à niveau ou Virtual Patching Aegis recommandé",
+      },
+      catalogSection: {
+        title: "🛡️ Catalogue des CVE Surveillées, Statut de Couverture & Procédures de Remédiation Racine",
+        subtitle: "Chaque faille indique sa règle de Virtual Patching en mémoire (gate-proxy / :5053), sa sonde de vérification et sa procédure de correction définitive.",
+        cveReferenced: "{count} CVE référencées & vérifiées",
+        hostPatchRequired: "⚠️ Patch OS Hôte Requis (+ Egress)",
+        mitigatedEgress: "🔒 Bloquée en Egress (Sinkhole C2)",
+        coveredVirtualPatch: "🛡️ Couverte par Virtual Patch Aegis",
+        hotShield: "1. Bouclier Aegis à Chaud :",
+        viewRootProcedure: "🔧 2. Voir la Procédure de Correction Définitive ({count} étapes)",
+        verificationProbe: "🧪 Sonde de vérification de couverture :",
+        versions: "Versions :",
+        multiVersions: "Multi-versions",
+        procedureVerified: "✓ Procédure Vérifiée",
+      },
     }
   }
 };
