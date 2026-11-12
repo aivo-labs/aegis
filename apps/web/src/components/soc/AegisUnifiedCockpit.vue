@@ -254,6 +254,7 @@ function getPathForNav(view: string): string {
   if (view === 'streams' || view === 'security') return `${prefix}/actions/security`;
   if (view === 'telemetry' || view === 'green') return `${prefix}/actions/green`;
   if (view === 'controls' || view === 'compliance') return `${prefix}/actions/compliance`;
+  if (view === 'cve') return `${prefix}/actions/cve`;
   return `${prefix}/?tab=${view}`;
 }
 
@@ -385,6 +386,8 @@ onMounted(async () => {
       activeNav.value = 'telemetry';
     } else if (pathname.endsWith('/actions/compliance')) {
       activeNav.value = 'controls';
+    } else if (pathname.endsWith('/actions/cve')) {
+      activeNav.value = 'cve';
     } else {
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get('tab');
@@ -404,6 +407,7 @@ onMounted(async () => {
         else if (curPath.endsWith('/actions/security')) activeNav.value = 'streams';
         else if (curPath.endsWith('/actions/green')) activeNav.value = 'telemetry';
         else if (curPath.endsWith('/actions/compliance')) activeNav.value = 'controls';
+        else if (curPath.endsWith('/actions/cve')) activeNav.value = 'cve';
         else activeNav.value = 'dashboard';
       }
     };

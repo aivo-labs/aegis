@@ -1,8 +1,10 @@
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { cveApi, type CveItem } from '../services/api/cveApi';
 import { SANDBOX_CVE_FEED } from '../data/sandboxFixtures';
+import { useI18n } from './useI18n';
 
 export function useCveFeed(options?: { isDemo?: boolean }) {
+  const { locale } = useI18n();
   const cves = ref<CveItem[]>([]);
   const activeRulesCount = ref(6);
   const blockedByPatchCount = ref(0);
@@ -21,14 +23,15 @@ export function useCveFeed(options?: { isDemo?: boolean }) {
     updatedAt.value = new Date().toISOString();
   }
 
-  async function fetchCveFeed() {
+  async function fetchCveFeed(lang?: string) {
     if (options?.isDemo) {
       loadSandboxCveData();
       return;
     }
 
+    const targetLang = lang || locale.value || 'fr';
     try {
-      const res = await cveApi.getFeed();
+      const res = await cveApi.getFeed(targetLang);
       if (res.ok && res.data) {
         cves.value = res.data.cves || [];
         catalogCves.value = res.data.catalog_cves || res.data.cves || [];
@@ -45,6 +48,11 @@ export function useCveFeed(options?: { isDemo?: boolean }) {
       }
     }
   }
+
+  // Reload feed whenever user toggles language (e.g. FR <-> EN)
+  watch(locale, (newLang) => {
+    fetchCveFeed(newLang);
+  });
 
   return {
     cves,

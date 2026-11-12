@@ -1,0 +1,14 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import AegisUnifiedCockpit from '../../../components/soc/AegisUnifiedCockpit.vue';
+---
+
+<Layout 
+  title="Aegis Action Center • Intelligence Vulnérabilités & CVE Feed (aegis.aivo.fr/app/actions/cve)"
+  description="Surveillance continue des failles critiques, virtual patching en mémoire à l'Edge et procédures de remédiation racine vérifiées."
+  isApp={true}
+>
+  <main class="flex-1 flex flex-col w-full h-full">
+    <AegisUnifiedCockpit initialView="cve" client:only="vue" />
+  </main>
+</Layout>

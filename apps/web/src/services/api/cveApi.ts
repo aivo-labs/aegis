@@ -24,7 +24,8 @@ export interface CveFeedResponse {
 }
 
 export const cveApi = {
-  async getFeed() {
-    return apiRequest<CveFeedResponse>('/api/v1/cve/feed', { method: 'GET' });
+  async getFeed(lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return apiRequest<CveFeedResponse>(`/api/v1/cve/feed${query}`, { method: 'GET' });
   },
 };
