@@ -46,11 +46,39 @@ export function createGateServer(
           status: 'healthy',
           service: 'aegis-gate-proxy',
           port: config.port,
+          node_mode: config.nodeMode || 'control-plane',
+          node_hostname: config.nodeHostname || undefined,
           protection_enabled: state.protectionEnabled,
           max_payload_bytes: state.maxPayloadBytes,
           banned_ips_count: ipReputation.size()
         })
       );
+      return;
+    }
+
+    // Exemption M2M (Control Plane) : les rapports de télémétrie et d'enrôlement envoyés par des nœuds distants
+    // (ex: VM Oracle Cloud) contiennent les URI/payloads d'attaques bloquées dans leur corps JSON et ne doivent
+    // jamais être auto-bloqués par le WAF du Control Plane.
+    if (
+      config.nodeMode !== 'edge' &&
+      req.url &&
+      (req.url.startsWith('/api/v1/gate/telemetry/') || req.url.startsWith('/api/v1/agent/'))
+    ) {
+      const m2mChunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => m2mChunks.push(chunk));
+      req.on('end', () => {
+        const buffered = Buffer.concat(m2mChunks);
+        const clientIp = getClientIp(req);
+        forwarder.forward(
+          req,
+          res,
+          config.backendUrl,
+          clientIp,
+          state.protectionEnabled,
+          buffered.length,
+          buffered
+        );
+      });
       return;
     }
 
@@ -410,7 +438,15 @@ export function createGateServer(
       // Immunité d'accès pour l'Administrateur SOC Authentifié (Zero-Trust Identity > IP Heuristic)
       const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret);
       const isAdminSession = session?.role === 'admin' || session?.role === 'secops';
-      const isImmuneIp = clientIp === '92.157.163.164' || clientIp === '127.0.0.1';
+      // En mode 'edge' (ex: VM Oracle Cloud), nous n'immunisons pas 127.0.0.1 afin que les scripts
+      // de test locaux ou distants exécutés sur la VM soient réellement inspectés et bloqués par le WAF.
+      const isImmuneIp =
+        config.nodeMode === 'edge'
+          ? false
+          : clientIp === '92.157.163.164' || clientIp === '127.0.0.1';
+      const effectiveHost =
+        config.nodeHostname ||
+        ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0];
 
       if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && (isAdminSession || isImmuneIp)) {
         ipReputation.unban(clientIp);
@@ -442,7 +478,9 @@ export function createGateServer(
             pattern: verdict.pattern,
             payload_bytes: effectiveBytes,
             event_id: eventId,
-            host: ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0],
+            host: effectiveHost,
+            node_hostname: config.nodeHostname || undefined,
+            node_mode: config.nodeMode || 'control-plane',
             engine:
               statusCode === 413
                 ? 'Aegis Gate PEP (Virtual Patching Volumétrique)'
@@ -463,6 +501,7 @@ export function createGateServer(
             risk_score: verdict.risk_score,
             details: verdict.pattern,
             client_ip: clientIp,
+            node_hostname: config.nodeHostname || effectiveHost,
             latency_ms: latency,
             timestamp: new Date().toISOString(),
             event_id: eventId,
@@ -477,6 +516,7 @@ export function createGateServer(
           'X-Aegis-Verdict': 'BLOCKED',
           'X-Aegis-Threat': verdict.threat_type,
           'X-Aegis-Event-ID': eventId,
+          'X-Aegis-Node': config.nodeHostname || effectiveHost,
           'X-Content-Type-Options': 'nosniff',
           'Access-Control-Allow-Origin': '*'
         });
@@ -509,7 +549,9 @@ export function createGateServer(
             pattern: `⚠️ BOUCLIER DÉSACTIVÉ — Exploit transmis au serveur : ${verdict.pattern}`,
             payload_bytes: effectiveBytes,
             event_id: eventId,
-            host: ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0],
+            host: effectiveHost,
+            node_hostname: config.nodeHostname || undefined,
+            node_mode: config.nodeMode || 'control-plane',
             engine: '⚠️ Protection Désactivée (Serveur Exposé)'
           }
         });
@@ -535,19 +577,25 @@ export function createGateServer(
               severity: 'COMPLIANT',
               risk_score: 5,
               entropy: verdict.entropy,
-              host: ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0],
+              host: effectiveHost,
+              node_hostname: config.nodeHostname || undefined,
+              node_mode: config.nodeMode || 'control-plane',
               engine: 'Aegis Gate PEP'
             }
           });
         }
       }
 
-      // Résolution de l'Upstream : routage multi-hôtes Dokploy ou par défaut Aegis
+      // Résolution de l'Upstream :
+      // - En mode 'edge' (ex: VM Oracle Cloud), toutes les requêtes applicatives (y compris /api/* et exploits non bloqués)
+      //   sont routées vers l'application cliente protégée (config.webUrl), tandis que config.backendUrl sert uniquement au Control Plane.
+      // - En mode 'control-plane', routage multi-hôtes Dokploy ou séparation Backend Go / Frontend Astro.
       const reqHost = ((req.headers['x-forwarded-host'] || req.headers.host || '') as string)
         .split(':')[0]
         .toLowerCase();
       const isApiOrExploitTarget =
-        (req.url || '').startsWith('/api/') || (verdict.blocked && !state.protectionEnabled);
+        config.nodeMode !== 'edge' &&
+        ((req.url || '').startsWith('/api/') || (verdict.blocked && !state.protectionEnabled));
       let targetBase = config.upstreamRouting[reqHost];
       if (!targetBase) {
         targetBase = isApiOrExploitTarget ? config.backendUrl : config.webUrl;

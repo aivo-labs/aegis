@@ -85,12 +85,69 @@ export function inspectRequest(
   );
 }
 
+/**
+ * Synchronisation périodique avec le Control Plane Aegis (notamment pour les nœuds Edge distants sur Oracle Cloud / VPS externes)
+ */
+export async function syncWithControlPlane(): Promise<void> {
+  try {
+    const res = await fetch(`${config.backendUrl}/api/v1/protection/status`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'X-Aegis-Node': config.nodeHostname || 'aegis-gate-proxy'
+      },
+      signal: AbortSignal.timeout(2500)
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as {
+      protection_enabled?: boolean;
+      max_payload_bytes?: number;
+      banned_ips?: Array<{ ip?: string } | string>;
+    };
+
+    if (typeof data.protection_enabled === 'boolean') {
+      const prev = serverState.protectionEnabled;
+      serverState.protectionEnabled = data.protection_enabled;
+      if (prev !== data.protection_enabled && config.egressGatewayUrl) {
+        fetch(`${config.egressGatewayUrl}/_aegis/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: data.protection_enabled }),
+          signal: AbortSignal.timeout(1500)
+        }).catch(() => {});
+      }
+    }
+
+    if (typeof data.max_payload_bytes === 'number' && data.max_payload_bytes >= 256) {
+      serverState.maxPayloadBytes = data.max_payload_bytes;
+    }
+
+    if (Array.isArray(data.banned_ips)) {
+      const remoteIps = data.banned_ips
+        .map(item => (typeof item === 'string' ? item : item?.ip || ''))
+        .filter(Boolean);
+      ipReputation.setAll(remoteIps);
+      if (config.nodeMode !== 'edge') {
+        ipReputation.unban('92.157.163.164');
+        ipReputation.unban('127.0.0.1');
+      }
+    }
+  } catch {
+    // Tolérance aux coupures réseau momentanées
+  }
+}
+
 // Démarrage du serveur si exécuté comme script principal
 if (process.argv[1] && (process.argv[1].endsWith('index.js') || process.argv[1].endsWith('index.mjs') || process.argv[1].endsWith('index.ts'))) {
   gateServer.listen(config.port, '0.0.0.0', () => {
-    console.log(`🛡️ [Aegis Gate PEP] Passerelle d'interception Ingress WAF & Virtual Patching active sur le port ${config.port}`);
-    console.log(`🎯 Cibles Upstream -> Web: ${config.webUrl} | Backend: ${config.backendUrl}`);
+    console.log(`🛡️ [Aegis Gate PEP] Passerelle d'interception Ingress WAF & Virtual Patching active sur le port ${config.port} (Mode: ${config.nodeMode || 'control-plane'})`);
+    console.log(`🎯 Cibles Upstream -> Web: ${config.webUrl} | Control Plane: ${config.backendUrl}`);
     console.log(`📡 Ingestion Télémétrie -> ${config.telemetryUrl}`);
     console.log(`🔒 Protection active : Overflow 413 (${serverState.maxPayloadBytes}B max), Zero-Day Virtual Patching, OWASP Top 10 & Scanners`);
+
+    // Synchronisation initiale puis toutes les 3 secondes avec le Control Plane
+    syncWithControlPlane();
+    const syncTimer = setInterval(syncWithControlPlane, 3000);
+    syncTimer.unref();
   });
 }

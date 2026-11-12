@@ -8,6 +8,9 @@ export interface GateConfig {
   defaultMaxPayloadBytes: number;
   defaultProtectionEnabled: boolean;
   upstreamRouting: Record<string, string>;
+  nodeMode?: 'control-plane' | 'edge';
+  nodeHostname?: string;
+  egressGatewayUrl?: string;
 }
 
 export function loadConfigFromEnv(): GateConfig {
@@ -33,6 +36,10 @@ export function loadConfigFromEnv(): GateConfig {
     sessionSecret: process.env.BFF_SESSION_SECRET || process.env.APP_SECRET || 'aegis_sovereign_session_secret_32b_key!',
     defaultMaxPayloadBytes: parseInt(process.env.AEGIS_MAX_PAYLOAD_BYTES || '32768', 10),
     defaultProtectionEnabled: process.env.AEGIS_PROTECTION_ENABLED !== 'false',
-    upstreamRouting
+    upstreamRouting,
+    nodeMode: process.env.AEGIS_NODE_MODE === 'edge' ? 'edge' : 'control-plane',
+    nodeHostname: process.env.AEGIS_NODE_HOSTNAME || process.env.AEGIS_SERVER_ID || '',
+    egressGatewayUrl: process.env.EGRESS_GATEWAY_URL || 'http://egress-gateway:5053'
   };
 }
+

@@ -129,10 +129,32 @@ func (s *DashboardService) GetSummary() map[string]any {
 
 	// 4. Nœuds & Services
 	nodeRows, _ := s.db.Query(fmt.Sprintf(`
-		SELECT DISTINCT ON (hostname) hostname, host(ip_address) AS ip, provider, os_info, scaphandre_agent_version, status, updated_at
-		FROM infrastructure_nodes
-		WHERE tenant_id = %s
-		ORDER BY hostname, updated_at DESC
+		SELECT DISTINCT ON (n.hostname)
+			n.id,
+			n.hostname,
+			host(n.ip_address) AS ip,
+			n.provider,
+			n.os_info,
+			n.scaphandre_agent_version,
+			n.status,
+			n.updated_at,
+			COALESCE((
+				SELECT ROUND((m.cpu_power_watts + m.ram_power_watts)::numeric, 2)
+				FROM telemetry_energy_metrics m
+				WHERE m.node_id = n.id
+				ORDER BY m.timestamp DESC
+				LIMIT 1
+			), 0) AS node_watts,
+			COALESCE((
+				SELECT ROUND(m.cpu_utilization_pct::numeric, 1)
+				FROM telemetry_energy_metrics m
+				WHERE m.node_id = n.id
+				ORDER BY m.timestamp DESC
+				LIMIT 1
+			), 0) AS node_cpu_pct
+		FROM infrastructure_nodes n
+		WHERE n.tenant_id = %s
+		ORDER BY n.hostname, n.updated_at DESC
 		LIMIT 10;`, database.QuoteLiteral(s.defaultTenantID)))
 
 	monitoredNodes := make([]map[string]any, 0)
@@ -144,16 +166,27 @@ func (s *DashboardService) GetSummary() map[string]any {
 		if h == "" {
 			h = "aegis-sovereign-node"
 		}
+		nodeWatts := n.Float("node_watts")
+		if nodeWatts <= 0 {
+			nodeWatts = roundFloat(instantWatts/math.Max(1, float64(len(nodeRows))), 2)
+		}
+		nodeCPU := n.Float("node_cpu_pct")
+		if nodeCPU <= 0 {
+			nodeCPU = cpuPct
+		}
 		monitoredNodes = append(monitoredNodes, map[string]any{
-			"hostname":     h,
-			"service_name": h,
-			"ip":           n.String("ip"),
-			"provider":     n.String("provider"),
-			"os_info":      n.String("os_info"),
-			"agent":        n.String("scaphandre_agent_version"),
-			"watts":        roundFloat(instantWatts/math.Max(1, float64(len(nodeRows))), 2),
-			"status":       "RAPL Live",
-			"updated_at":   n.String("updated_at"),
+			"id":                  n.String("id"),
+			"hostname":            h,
+			"service_name":        h,
+			"ip":                  n.String("ip"),
+			"provider":            n.String("provider"),
+			"os_info":             n.String("os_info"),
+			"agent":               n.String("scaphandre_agent_version"),
+			"watts":               nodeWatts,
+			"power_watts":         nodeWatts,
+			"cpu_utilization_pct": nodeCPU,
+			"status":              "RAPL Live",
+			"updated_at":          n.String("updated_at"),
 		})
 	}
 	if len(monitoredNodes) == 0 {
@@ -1508,31 +1541,56 @@ func (s *DashboardService) GetEnergyTelemetry(timeRange, fromDate, toDate, month
 	nodesList := make([]map[string]any, 0)
 	if s.db != nil {
 		nodeRows, _ := s.db.Query(fmt.Sprintf(`
-			SELECT DISTINCT ON (hostname) id, hostname, host(ip_address) AS ip, provider, os_info, scaphandre_agent_version, status, updated_at
-			FROM infrastructure_nodes
-			WHERE tenant_id = %s
-			ORDER BY hostname, updated_at DESC;`, database.QuoteLiteral(s.defaultTenantID)))
+			SELECT DISTINCT ON (n.hostname)
+				n.id,
+				n.hostname,
+				host(n.ip_address) AS ip,
+				n.provider,
+				n.os_info,
+				n.scaphandre_agent_version,
+				n.status,
+				n.updated_at,
+				COALESCE((
+					SELECT ROUND(AVG(m.cpu_power_watts + m.ram_power_watts)::numeric, 2)
+					FROM telemetry_energy_metrics m
+					WHERE m.node_id = n.id AND m.timestamp >= NOW() - INTERVAL '24 hours'
+				), 0) AS node_avg_watts
+			FROM infrastructure_nodes n
+			WHERE n.tenant_id = %s
+			ORDER BY n.hostname, n.updated_at DESC;`, database.QuoteLiteral(s.defaultTenantID)))
 		for _, nr := range nodeRows {
 			h := strings.TrimSpace(nr.String("hostname"))
 			if isHexContainerID(h) {
 				continue
 			}
-			provider := nr.String("provider")
-			if provider == "" || provider == "scaleway" {
+			provider := strings.TrimSpace(nr.String("provider"))
+			if provider == "" || provider == "scaleway" || provider == "ovhcloud" {
 				provider = "OVHcloud / KVM VPS"
+			} else if strings.EqualFold(provider, "oracle") || strings.EqualFold(provider, "oci") {
+				provider = "Oracle Cloud (OCI)"
+			}
+			nWatts := nr.Float("node_avg_watts")
+			if nWatts <= 0 {
+				nWatts = avgWatts
+			}
+			nKwh := roundFloat((nWatts*durationHours)/1000.0, 4)
+			nCarbonKg := roundFloat((nKwh*pue*carbonIntensity)/1000.0, 4)
+			osInfo := strings.TrimSpace(nr.String("os_info"))
+			if osInfo == "" || osInfo == "Linux" {
+				osInfo = "Linux 6.8 (Kernel /proc/stat & RAPL)"
 			}
 			nodesList = append(nodesList, map[string]any{
-				"id":         nr.String("id"),
-				"hostname":   h,
-				"ip":         nr.String("ip"),
-				"provider":   provider,
-				"os_info":    "Linux 6.8 (Kernel /proc/stat & RAPL)",
-				"agent":      nr.String("scaphandre_agent_version"),
-				"status":     nr.String("status"),
-				"avg_watts":  avgWatts,
-				"kwh":        totalKwh,
-				"carbon_kg":  totalCarbonKg,
-				"share_pct":  100.0,
+				"id":        nr.String("id"),
+				"hostname":  h,
+				"ip":        nr.String("ip"),
+				"provider":  provider,
+				"os_info":   osInfo,
+				"agent":     nr.String("scaphandre_agent_version"),
+				"status":    nr.String("status"),
+				"avg_watts": nWatts,
+				"kwh":       nKwh,
+				"carbon_kg": nCarbonKg,
+				"share_pct": roundFloat(100.0/math.Max(1.0, float64(len(nodeRows))), 1),
 			})
 		}
 	}

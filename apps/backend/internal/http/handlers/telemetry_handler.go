@@ -58,10 +58,12 @@ func (h *TelemetryHandler) IngestEnergy(w http.ResponseWriter, r *http.Request) 
 		cpuUtil = httputil.AsFloat(body, "cpu_usage_percent", 0)
 	}
 
+	ipAddr := resolveRemoteIP(r, httputil.AsString(body, "ip_address", ""))
+
 	payload := domain.EnergyTelemetry{
 		TenantID:             httputil.AsString(body, "tenant_id", ""),
 		Hostname:             hostname,
-		IPAddress:            httputil.AsString(body, "ip_address", "127.0.0.1"),
+		IPAddress:            ipAddr,
 		Provider:             provider,
 		CPUPowerWatts:        cpuPower,
 		RAMPowerWatts:        ramPower,
@@ -86,7 +88,7 @@ func (h *TelemetryHandler) IngestIngress(w http.ResponseWriter, r *http.Request)
 
 	payload := domain.IngressTelemetry{
 		TenantID:           httputil.AsString(body, "tenant_id", ""),
-		ClientIP:           httputil.AsString(body, "client_ip", "127.0.0.1"),
+		ClientIP:           resolveRemoteIP(r, httputil.AsString(body, "client_ip", "")),
 		UserAgent:          httputil.AsString(body, "user_agent", ""),
 		HTTPMethod:         httputil.AsString(body, "http_method", "GET"),
 		RequestURI:         httputil.AsString(body, "request_uri", "/"),
@@ -113,7 +115,7 @@ func (h *TelemetryHandler) IngestEgress(w http.ResponseWriter, r *http.Request) 
 
 	payload := domain.EgressTelemetry{
 		TenantID:      httputil.AsString(body, "tenant_id", ""),
-		ClientIP:      httputil.AsString(body, "client_ip", "127.0.0.1"),
+		ClientIP:      resolveRemoteIP(r, httputil.AsString(body, "client_ip", "")),
 		FQDN:          httputil.AsString(body, "fqdn", "unknown.local"),
 		DomainEntropy: httputil.AsFloat(body, "domain_entropy", 0),
 		Action:        httputil.AsString(body, "action", "ALLOW"),
@@ -127,6 +129,31 @@ func (h *TelemetryHandler) IngestEgress(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	httputil.WriteJSON(w, http.StatusCreated, map[string]any{"status": "ingested", "type": "egress"})
+}
+
+func resolveRemoteIP(r *http.Request, provided string) string {
+	trimmed := strings.TrimSpace(provided)
+	if trimmed != "" && trimmed != "127.0.0.1" && trimmed != "::1" {
+		return trimmed
+	}
+	if xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); xff != "" {
+		parts := strings.Split(xff, ",")
+		if first := strings.TrimSpace(parts[0]); first != "" {
+			return first
+		}
+	}
+	if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
+		return xri
+	}
+	remote := strings.TrimSpace(r.RemoteAddr)
+	if idx := strings.LastIndex(remote, ":"); idx != -1 {
+		remote = remote[:idx]
+	}
+	remote = strings.Trim(remote, "[]")
+	if remote != "" {
+		return remote
+	}
+	return "127.0.0.1"
 }
 
 func isHexContainerID(s string) bool {
