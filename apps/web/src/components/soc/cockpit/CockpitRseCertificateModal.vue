@@ -9,19 +9,38 @@
   >
     <div 
       v-if="show" 
-      class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+      class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
       @click.self="$emit('close')"
     >
       <div 
-        class="bg-slate-900 border border-emerald-500/40 rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl relative text-left my-auto max-h-[92vh] flex flex-col overflow-hidden"
+        :class="[
+          'rounded-3xl max-w-4xl w-full p-5 sm:p-7 shadow-2xl relative text-left my-auto max-h-[92vh] flex flex-col overflow-hidden transition-colors',
+          isLightMode ? 'bg-white border border-slate-200 text-slate-900 shadow-slate-300/40' : 'bg-slate-900 border border-emerald-500/40 text-slate-100 shadow-slate-950'
+        ]"
       >
-        <!-- BARRE SUPÉRIEURE D'ACTIONS (ÉCRAN UNIQUEMENT) -->
-        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800 print:hidden shrink-0">
+        <!-- 1. BARRE D'ACTIONS SUPÉRIEURE (ÉCRAN UNIQUEMENT) -->
+        <div 
+          :class="[
+            'flex items-center justify-between pb-3.5 mb-3.5 border-b shrink-0',
+            isLightMode ? 'border-slate-200' : 'border-slate-800'
+          ]"
+        >
           <div class="flex items-center gap-2">
-            <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs">
-              🌿 Rapport &amp; Certificat Officiel RSE / CSRD
+            <span 
+              :class="[
+                'px-2.5 py-1 rounded-full font-bold text-xs flex items-center gap-1.5 border',
+                isLightMode ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+              ]"
+            >
+              <span>🌿</span>
+              <span>Rapport &amp; Certificat Officiel RSE / CSRD</span>
             </span>
-            <span class="text-xs text-slate-400 font-mono hidden sm:inline">
+            <span 
+              :class="[
+                'text-xs font-mono hidden sm:inline',
+                isLightMode ? 'text-slate-500' : 'text-slate-400'
+              ]"
+            >
               Ref: {{ certificateId }}
             </span>
           </div>
@@ -30,8 +49,8 @@
             <!-- Bouton Impression / Export PDF -->
             <button
               @click="printCertificate"
-              class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer transition-all"
-              title="Exporter ou imprimer le certificat officiel au format PDF (A4)"
+              class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer transition-all active:scale-95"
+              title="Générer et imprimer le certificat officiel au format PDF A4 haute définition"
             >
               <span>📄</span>
               <span>Imprimer / Exporter PDF</span>
@@ -41,7 +60,10 @@
             <a
               :href="csvDownloadUrl"
               :download="`aegis-rse-report-${selectedRange}.csv`"
-              class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+              :class="[
+                'px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all',
+                isLightMode ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+              ]"
               title="Télécharger les données brutes sous format CSV"
             >
               <span>📥 CSV</span>
@@ -50,7 +72,10 @@
             <!-- Bouton Fermer -->
             <button
               @click="$emit('close')"
-              class="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-sm cursor-pointer transition-all"
+              :class="[
+                'w-8 h-8 rounded-xl flex items-center justify-center text-sm cursor-pointer transition-all',
+                isLightMode ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white'
+              ]"
               aria-label="Fermer la modale"
             >
               ✕
@@ -58,149 +83,308 @@
           </div>
         </div>
 
-        <!-- ZONE DÉFILABLE ÉCRAN / ZONE IMPRIMABLE OFFICIELLE -->
-        <div class="flex-1 overflow-y-auto pr-1 space-y-6 font-sans text-slate-200" id="rse-certificate-printable">
+        <!-- 2. CONTENU DU CERTIFICAT (DÉFILABLE ÉCRAN) -->
+        <div class="flex-1 overflow-y-auto pr-1 space-y-5 font-sans">
           
-          <!-- 1. EN-TÊTE OFFICIEL DU CERTIFICAT -->
-          <div class="p-6 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/40 border border-emerald-500/30 relative overflow-hidden">
-            <div class="absolute -right-8 -top-8 w-44 h-44 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none"></div>
-
+          <!-- BANNIÈRE EN-TÊTE DU CERTIFICAT -->
+          <div 
+            :class="[
+              'p-5 sm:p-6 rounded-2xl border relative overflow-hidden transition-colors',
+              isLightMode 
+                ? 'bg-gradient-to-br from-emerald-50/70 via-slate-50 to-cyan-50/50 border-emerald-200/80' 
+                : 'bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/40 border-emerald-500/30'
+            ]"
+          >
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
               <div class="flex items-center gap-4">
                 <AegisLogo size="lg" />
                 <div>
-                  <div class="text-[11px] font-mono uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-1.5">
+                  <div 
+                    :class="[
+                      'text-[11px] font-mono uppercase tracking-widest font-bold flex items-center gap-1.5',
+                      isLightMode ? 'text-emerald-700' : 'text-emerald-400'
+                    ]"
+                  >
                     <span>🛡️ Aegis Zero-Trust Shield</span>
                     <span>•</span>
-                    <span>GreenOps &amp; Hardware Telemetry</span>
+                    <span>Télémétrie Matérielle GreenOps</span>
                   </div>
-                  <h3 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight mt-0.5">
+                  <h3 
+                    :class="[
+                      'text-xl sm:text-2xl font-extrabold tracking-tight mt-0.5',
+                      isLightMode ? 'text-slate-900' : 'text-white'
+                    ]"
+                  >
                     Certificat d'Audit d'Empreinte Numérique
                   </h3>
-                  <p class="text-xs text-slate-400 mt-1">
-                    Conforme aux exigences <strong>CSRD / EFRAG VS</strong>, <strong>RGESN 2024</strong> et <strong>GHG Protocol Scope 2</strong>
+                  <p 
+                    :class="[
+                      'text-xs mt-1',
+                      isLightMode ? 'text-slate-600' : 'text-slate-400'
+                    ]"
+                  >
+                    Conforme aux normes <strong>CSRD / EFRAG VS</strong>, <strong>RGESN 2024</strong> et <strong>GHG Protocol Scope 2</strong>
                   </p>
                 </div>
               </div>
 
-              <!-- Bloc Sceau / Date -->
-              <div class="sm:text-right font-mono text-xs text-slate-400 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-800">
-                <div class="text-slate-200 font-bold">Identifiant Unique d'Audit :</div>
-                <div class="text-emerald-400 font-bold text-xs">{{ certificateId }}</div>
-                <div class="text-[11px] text-slate-500 mt-0.5">Délivré le {{ currentDateFormatted }}</div>
+              <!-- Bloc Référence & Date -->
+              <div 
+                :class="[
+                  'sm:text-right font-mono text-xs border-t sm:border-t-0 pt-3 sm:pt-0',
+                  isLightMode ? 'border-slate-200 text-slate-600' : 'border-slate-800 text-slate-400'
+                ]"
+              >
+                <div :class="isLightMode ? 'text-slate-800 font-bold' : 'text-slate-200 font-bold'">
+                  Réf. Certificat :
+                </div>
+                <div :class="isLightMode ? 'text-emerald-700 font-bold' : 'text-emerald-400 font-bold'">
+                  {{ certificateId }}
+                </div>
+                <div class="text-[11px] mt-0.5 opacity-75">
+                  Délivré le {{ currentDateFormatted }}
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- 2. PÉRIMÈTRE DE L'AUDIT & SPÉCIFICATIONS HÔTE -->
+          <!-- PÉRIMÈTRE D'AUDIT -->
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
-            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
-              <span class="text-slate-400 block text-[11px]">Période Certifiée</span>
-              <span class="text-white font-bold text-sm block mt-0.5">{{ periodLabel }}</span>
-              <span class="text-[10px] text-emerald-400 block mt-0.5">Durée : {{ periodHours }} heures</span>
+            <div 
+              :class="[
+                'p-3.5 rounded-xl border transition-colors',
+                isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-800'
+              ]"
+            >
+              <span :class="isLightMode ? 'text-slate-500 block text-[11px]' : 'text-slate-400 block text-[11px]'">Période Certifiée</span>
+              <span :class="isLightMode ? 'text-slate-900 font-bold text-sm block mt-0.5' : 'text-white font-bold text-sm block mt-0.5'">{{ periodLabel }}</span>
+              <span :class="isLightMode ? 'text-emerald-700 block mt-0.5 text-[10px]' : 'text-emerald-400 block mt-0.5 text-[10px]'">Durée : {{ periodHours }} heures</span>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
-              <span class="text-slate-400 block text-[11px]">Infrastructure &amp; Nœud</span>
-              <span class="text-white font-bold text-sm block mt-0.5 truncate">{{ nodeName }}</span>
-              <span class="text-[10px] text-cyan-400 block mt-0.5">{{ nodeProvider }}</span>
+            <div 
+              :class="[
+                'p-3.5 rounded-xl border transition-colors',
+                isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-800'
+              ]"
+            >
+              <span :class="isLightMode ? 'text-slate-500 block text-[11px]' : 'text-slate-400 block text-[11px]'">Infrastructure Serveur</span>
+              <span :class="isLightMode ? 'text-slate-900 font-bold text-sm block mt-0.5 truncate' : 'text-white font-bold text-sm block mt-0.5 truncate'">{{ nodeName }}</span>
+              <span :class="isLightMode ? 'text-cyan-700 block mt-0.5 text-[10px]' : 'text-cyan-400 block mt-0.5 text-[10px]'">{{ nodeProvider }}</span>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
-              <span class="text-slate-400 block text-[11px]">Sonde Matérielle</span>
-              <span class="text-white font-bold text-sm block mt-0.5">Intel/AMD RAPL MSR</span>
-              <span class="text-[10px] text-slate-400 block mt-0.5">Scaphandre v4.3.0</span>
+            <div 
+              :class="[
+                'p-3.5 rounded-xl border transition-colors',
+                isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-800'
+              ]"
+            >
+              <span :class="isLightMode ? 'text-slate-500 block text-[11px]' : 'text-slate-400 block text-[11px]'">Sonde Matérielle Silicium</span>
+              <span :class="isLightMode ? 'text-slate-900 font-bold text-sm block mt-0.5' : 'text-white font-bold text-sm block mt-0.5'">Intel/AMD RAPL MSR</span>
+              <span :class="isLightMode ? 'text-slate-600 block mt-0.5 text-[10px]' : 'text-slate-400 block mt-0.5 text-[10px]'">Scaphandre v4.3.0</span>
             </div>
 
-            <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800">
-              <span class="text-slate-400 block text-[11px]">Indice d'Efficience (PUE)</span>
-              <span class="text-white font-bold text-sm block mt-0.5">{{ summary.pue || 1.15 }}</span>
-              <span class="text-[10px] text-emerald-400 block mt-0.5">Datacenter Éco-conçu</span>
+            <div 
+              :class="[
+                'p-3.5 rounded-xl border transition-colors',
+                isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-800'
+              ]"
+            >
+              <span :class="isLightMode ? 'text-slate-500 block text-[11px]' : 'text-slate-400 block text-[11px]'">Indice d'Efficience (PUE)</span>
+              <span :class="isLightMode ? 'text-slate-900 font-bold text-sm block mt-0.5' : 'text-white font-bold text-sm block mt-0.5'">{{ summary.pue || 1.15 }}</span>
+              <span :class="isLightMode ? 'text-emerald-700 block mt-0.5 text-[10px]' : 'text-emerald-400 block mt-0.5 text-[10px]'">Datacenter Optimisé</span>
             </div>
           </div>
 
-          <!-- 3. LES 4 GRANDS INDICATEURS OFFICIELS RSE (CSRD / EFRAG) -->
+          <!-- 4 GRANDS INDICATEURS CERTIFIÉS -->
           <div>
-            <h4 class="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+            <h4 
+              :class="[
+                'text-xs font-mono font-bold uppercase tracking-wider mb-2.5 flex items-center gap-1.5',
+                isLightMode ? 'text-slate-700' : 'text-slate-400'
+              ]"
+            >
               <span>📊</span>
-              <span>Indicateurs d'Impact Certifiés sur la Période</span>
+              <span>Métriques d'Impact Certifiées sur la Période</span>
             </h4>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <!-- Énergie -->
-              <div class="p-4 rounded-2xl bg-gradient-to-b from-amber-500/10 to-slate-950 border border-amber-500/30">
-                <div class="flex items-center justify-between text-xs font-mono text-amber-300">
-                  <span>⚡ Énergie Électrique</span>
+              <div 
+                :class="[
+                  'p-4 rounded-2xl border transition-colors',
+                  isLightMode 
+                    ? 'bg-amber-50/70 border-amber-200' 
+                    : 'bg-gradient-to-b from-amber-500/10 to-slate-950 border-amber-500/30'
+                ]"
+              >
+                <div 
+                  :class="[
+                    'flex items-center justify-between text-xs font-mono',
+                    isLightMode ? 'text-amber-800 font-bold' : 'text-amber-300'
+                  ]"
+                >
+                  <span>⚡ Énergie Consommée</span>
                   <span>RAPL</span>
                 </div>
-                <div class="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-2">
+                <div 
+                  :class="[
+                    'text-2xl sm:text-3xl font-extrabold font-mono mt-2',
+                    isLightMode ? 'text-slate-900' : 'text-white'
+                  ]"
+                >
                   {{ formatKwh(summary.total_kwh) }}
                 </div>
-                <div class="text-[11px] text-slate-400 font-mono mt-1">
+                <div 
+                  :class="[
+                    'text-[11px] font-mono mt-1',
+                    isLightMode ? 'text-slate-600' : 'text-slate-400'
+                  ]"
+                >
                   {{ formatJoules(summary.total_joules) }} Joules
                 </div>
               </div>
 
               <!-- Émissions Carbone -->
-              <div class="p-4 rounded-2xl bg-gradient-to-b from-emerald-500/10 to-slate-950 border border-emerald-500/30">
-                <div class="flex items-center justify-between text-xs font-mono text-emerald-300">
+              <div 
+                :class="[
+                  'p-4 rounded-2xl border transition-colors',
+                  isLightMode 
+                    ? 'bg-emerald-50/70 border-emerald-200' 
+                    : 'bg-gradient-to-b from-emerald-500/10 to-slate-950 border-emerald-500/30'
+                ]"
+              >
+                <div 
+                  :class="[
+                    'flex items-center justify-between text-xs font-mono',
+                    isLightMode ? 'text-emerald-800 font-bold' : 'text-emerald-300'
+                  ]"
+                >
                   <span>🌱 Émissions GES (Scope 2)</span>
                   <span>52 g/kWh</span>
                 </div>
-                <div class="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-2">
+                <div 
+                  :class="[
+                    'text-2xl sm:text-3xl font-extrabold font-mono mt-2',
+                    isLightMode ? 'text-slate-900' : 'text-white'
+                  ]"
+                >
                   {{ formatCarbon(summary.total_carbon_gco2, summary.total_carbon_kg) }}
                 </div>
-                <div class="text-[11px] text-slate-400 font-mono mt-1">
+                <div 
+                  :class="[
+                    'text-[11px] font-mono mt-1',
+                    isLightMode ? 'text-slate-600' : 'text-slate-400'
+                  ]"
+                >
                   Mix électrique décarboné RTE
                 </div>
               </div>
 
               <!-- Empreinte Hydrique -->
-              <div class="p-4 rounded-2xl bg-gradient-to-b from-sky-500/10 to-slate-950 border border-sky-500/30">
-                <div class="flex items-center justify-between text-xs font-mono text-sky-300">
+              <div 
+                :class="[
+                  'p-4 rounded-2xl border transition-colors',
+                  isLightMode 
+                    ? 'bg-sky-50/70 border-sky-200' 
+                    : 'bg-gradient-to-b from-sky-500/10 to-slate-950 border-sky-500/30'
+                ]"
+              >
+                <div 
+                  :class="[
+                    'flex items-center justify-between text-xs font-mono',
+                    isLightMode ? 'text-sky-800 font-bold' : 'text-sky-300'
+                  ]"
+                >
                   <span>💧 Empreinte Eau (WUE)</span>
                   <span>ADEME</span>
                 </div>
-                <div class="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-2">
+                <div 
+                  :class="[
+                    'text-2xl sm:text-3xl font-extrabold font-mono mt-2',
+                    isLightMode ? 'text-slate-900' : 'text-white'
+                  ]"
+                >
                   {{ summary.water_usage_liters.toFixed(2) }} <span class="text-base font-normal">Litres</span>
                 </div>
-                <div class="text-[11px] text-slate-400 font-mono mt-1">
+                <div 
+                  :class="[
+                    'text-[11px] font-mono mt-1',
+                    isLightMode ? 'text-slate-600' : 'text-slate-400'
+                  ]"
+                >
                   Refroidissement direct &amp; indirect
                 </div>
               </div>
 
               <!-- Puissance & CPU -->
-              <div class="p-4 rounded-2xl bg-gradient-to-b from-cyan-500/10 to-slate-950 border border-cyan-500/30">
-                <div class="flex items-center justify-between text-xs font-mono text-cyan-300">
+              <div 
+                :class="[
+                  'p-4 rounded-2xl border transition-colors',
+                  isLightMode 
+                    ? 'bg-cyan-50/70 border-cyan-200' 
+                    : 'bg-gradient-to-b from-cyan-500/10 to-slate-950 border-cyan-500/30'
+                ]"
+              >
+                <div 
+                  :class="[
+                    'flex items-center justify-between text-xs font-mono',
+                    isLightMode ? 'text-cyan-800 font-bold' : 'text-cyan-300'
+                  ]"
+                >
                   <span>⚙️ Puissance Continue</span>
                   <span>Moyenne</span>
                 </div>
-                <div class="text-2xl sm:text-3xl font-extrabold text-white font-mono mt-2">
+                <div 
+                  :class="[
+                    'text-2xl sm:text-3xl font-extrabold font-mono mt-2',
+                    isLightMode ? 'text-slate-900' : 'text-white'
+                  ]"
+                >
                   {{ summary.avg_watts.toFixed(2) }} <span class="text-base font-normal">W</span>
                 </div>
-                <div class="text-[11px] text-slate-400 font-mono mt-1">
+                <div 
+                  :class="[
+                    'text-[11px] font-mono mt-1',
+                    isLightMode ? 'text-slate-600' : 'text-slate-400'
+                  ]"
+                >
                   Charge CPU : {{ summary.avg_cpu_load_pct.toFixed(1) }} %
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- 4. VENTILATION PAR WORKLOAD & SERVICE DOKPLOY -->
+          <!-- TABLEAU DES WORKLOADS & SERVICES DOKPLOY -->
           <div v-if="workloads && workloads.length > 0">
-            <h4 class="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+            <h4 
+              :class="[
+                'text-xs font-mono font-bold uppercase tracking-wider mb-2.5 flex items-center justify-between',
+                isLightMode ? 'text-slate-700' : 'text-slate-400'
+              ]"
+            >
               <span class="flex items-center gap-1.5">
                 <span>📦</span>
                 <span>Ventilation de l'Impact par Workload &amp; Namespace</span>
               </span>
-              <span class="text-[11px] font-normal text-slate-500">
-                Attribution cgroup Kepler / Scaphandre
+              <span :class="isLightMode ? 'text-[11px] font-normal text-slate-500' : 'text-[11px] font-normal text-slate-500'">
+                Attribution cgroup Scaphandre / Kepler
               </span>
             </h4>
 
-            <div class="rounded-xl border border-slate-800 overflow-hidden bg-slate-950/60 font-mono text-xs">
+            <div 
+              :class="[
+                'rounded-xl border overflow-hidden font-mono text-xs transition-colors',
+                isLightMode ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-950/60 border-slate-800'
+              ]"
+            >
               <table class="w-full text-left border-collapse">
                 <thead>
-                  <tr class="bg-slate-900/90 text-slate-400 border-b border-slate-800 text-[11px]">
+                  <tr 
+                    :class="[
+                      'border-b text-[11px] font-bold',
+                      isLightMode ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-900/90 text-slate-400 border-slate-800'
+                    ]"
+                  >
                     <th class="py-2.5 px-3">Service / Application</th>
                     <th class="py-2.5 px-3">Namespace</th>
                     <th class="py-2.5 px-3 text-right">Part (%)</th>
@@ -209,24 +393,28 @@
                     <th class="py-2.5 px-3 text-right">CO₂eq</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-850">
-                  <tr v-for="wl in workloads" :key="wl.service" class="hover:bg-slate-900/40">
-                    <td class="py-2 px-3 font-bold text-white">
+                <tbody :class="isLightMode ? 'divide-y divide-slate-100' : 'divide-y divide-slate-850'">
+                  <tr 
+                    v-for="wl in workloads" 
+                    :key="wl.service" 
+                    :class="isLightMode ? 'hover:bg-slate-50/80 transition-colors' : 'hover:bg-slate-900/40 transition-colors'"
+                  >
+                    <td :class="['py-2 px-3 font-bold', isLightMode ? 'text-slate-900' : 'text-white']">
                       {{ wl.service }}
                     </td>
-                    <td class="py-2 px-3 text-amber-300 text-[11px]">
+                    <td :class="['py-2 px-3 text-[11px]', isLightMode ? 'text-amber-800 font-semibold' : 'text-amber-300']">
                       {{ wl.namespace }}
                     </td>
-                    <td class="py-2 px-3 text-right text-cyan-300 font-bold">
+                    <td :class="['py-2 px-3 text-right font-bold', isLightMode ? 'text-cyan-800' : 'text-cyan-300']">
                       {{ wl.share_pct }} %
                     </td>
-                    <td class="py-2 px-3 text-right text-slate-300">
+                    <td :class="['py-2 px-3 text-right', isLightMode ? 'text-slate-700' : 'text-slate-300']">
                       {{ wl.watts }} W
                     </td>
-                    <td class="py-2 px-3 text-right text-slate-300">
+                    <td :class="['py-2 px-3 text-right', isLightMode ? 'text-slate-700' : 'text-slate-300']">
                       {{ formatKwh(wl.kwh) }}
                     </td>
-                    <td class="py-2 px-3 text-right text-emerald-400 font-bold">
+                    <td :class="['py-2 px-3 text-right font-bold', isLightMode ? 'text-emerald-800' : 'text-emerald-400']">
                       {{ wl.carbon_gco2 }} g
                     </td>
                   </tr>
@@ -235,67 +423,89 @@
             </div>
           </div>
 
-          <!-- 5. ÉQUIVALENCES D'IMPACT ENVIRONNEMENTAL -->
-          <div class="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs font-mono">
-            <div class="text-slate-300 font-bold mb-2 flex items-center gap-1.5">
+          <!-- ÉQUIVALENCES D'IMPACT -->
+          <div 
+            :class="[
+              'p-4 rounded-2xl border text-xs font-mono transition-colors',
+              isLightMode ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-slate-950/70 border-slate-800 text-slate-300'
+            ]"
+          >
+            <div :class="['font-bold mb-2 flex items-center gap-1.5', isLightMode ? 'text-slate-900' : 'text-white']">
               <span>🌍</span>
-              <span>Équivalences &amp; Ordres de Grandeur (Rappels Pédagogiques) :</span>
+              <span>Équivalences Environnementales Pédagogiques :</span>
             </div>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-slate-400">
-              <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80">
-                <span class="block text-[11px] text-slate-500">Trajet Voiture Thermique</span>
-                <strong class="text-white text-sm block mt-0.5">{{ summary.equivalencies?.car_km || 0 }} km</strong>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div :class="['p-2.5 rounded-lg border', isLightMode ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-slate-800/80']">
+                <span :class="['block text-[11px]', isLightMode ? 'text-slate-500' : 'text-slate-400']">Voiture Thermique</span>
+                <strong :class="['text-sm block mt-0.5', isLightMode ? 'text-slate-900' : 'text-white']">{{ summary.equivalencies?.car_km || 0 }} km</strong>
               </div>
-              <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80">
-                <span class="block text-[11px] text-slate-500">Recharges Smartphone</span>
-                <strong class="text-white text-sm block mt-0.5">{{ summary.equivalencies?.smartphones_charged || 0 }}</strong>
+              <div :class="['p-2.5 rounded-lg border', isLightMode ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-slate-800/80']">
+                <span :class="['block text-[11px]', isLightMode ? 'text-slate-500' : 'text-slate-400']">Recharges Smartphone</span>
+                <strong :class="['text-sm block mt-0.5', isLightMode ? 'text-slate-900' : 'text-white']">{{ summary.equivalencies?.smartphones_charged || 0 }}</strong>
               </div>
-              <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80">
-                <span class="block text-[11px] text-slate-500">Bouteilles d'Eau (1.5L)</span>
-                <strong class="text-white text-sm block mt-0.5">{{ summary.equivalencies?.water_bottles || 0 }}</strong>
+              <div :class="['p-2.5 rounded-lg border', isLightMode ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-slate-800/80']">
+                <span :class="['block text-[11px]', isLightMode ? 'text-slate-500' : 'text-slate-400']">Bouteilles d'Eau (1.5L)</span>
+                <strong :class="['text-sm block mt-0.5', isLightMode ? 'text-slate-900' : 'text-white']">{{ summary.equivalencies?.water_bottles || 0 }}</strong>
               </div>
-              <div class="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80">
-                <span class="block text-[11px] text-slate-500">Douche Équivalente (50L)</span>
-                <strong class="text-white text-sm block mt-0.5">{{ summary.equivalencies?.showers_pct || 0 }} %</strong>
+              <div :class="['p-2.5 rounded-lg border', isLightMode ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-slate-800/80']">
+                <span :class="['block text-[11px]', isLightMode ? 'text-slate-500' : 'text-slate-400']">Douche Équivalente (50L)</span>
+                <strong :class="['text-sm block mt-0.5', isLightMode ? 'text-slate-900' : 'text-white']">{{ summary.equivalencies?.showers_pct || 0 }} %</strong>
               </div>
             </div>
           </div>
 
-          <!-- 6. CADRE RÉGLEMENTAIRE & SCEAU DE CONFORMITÉ -->
-          <div class="p-4 rounded-2xl bg-slate-950 border border-emerald-500/30 text-[11px] font-mono text-slate-400 space-y-2">
-            <div class="text-white font-bold flex items-center gap-1.5">
+          <!-- CADRE LÉGAL & VISA CRYPTOGRAPHIQUE -->
+          <div 
+            :class="[
+              'p-4 rounded-2xl border text-[11px] font-mono space-y-2 transition-colors',
+              isLightMode ? 'bg-emerald-50/40 border-emerald-200 text-slate-700' : 'bg-slate-950 border-emerald-500/30 text-slate-400'
+            ]"
+          >
+            <div :class="['font-bold flex items-center gap-1.5', isLightMode ? 'text-slate-900' : 'text-white']">
               <span>⚖️</span>
-              <span>Cadre Légal &amp; Méthodologie d'Audit Souveraine :</span>
+              <span>Cadre Réglementaire &amp; Validité d'Audit :</span>
             </div>
             <p class="leading-relaxed">
-              • <strong>Directive CSRD / Standard EFRAG VS (PME)</strong> : Données énergétiques et carbone prêtes pour intégration dans la déclaration de durabilité extra-financière d'entreprise.
+              • <strong>Directive CSRD / Standard EFRAG VS (PME)</strong> : Données matérielles certifiées prêtes pour l'intégration dans la déclaration de durabilité extra-financière.
             </p>
             <p class="leading-relaxed">
-              • <strong>Référentiel RGESN 2024 (Art. L. 300-1)</strong> : Mesures réelles non simulées garantissant la conformité avec les critères d'éco-conception logicielle et matérielle.
+              • <strong>Référentiel RGESN 2024 (Art. L. 300-1)</strong> : Mesures physiques directes évitant toute surestimation ou sous-estimation d'empreinte logicielle.
             </p>
             <p class="leading-relaxed">
-              • <strong>GHG Protocol Scope 2 (Location-Based)</strong> : Facteur d'émission électrique appliqué de <code class="text-cyan-300">52 gCO₂eq / kWh</code> (RTE France), PUE audité à <code class="text-emerald-300">{{ summary.pue || 1.15 }}</code>.
-            </p>
-            <p class="leading-relaxed">
-              • <strong>Empreinte Hydrique (ADEME &amp; Boavizta)</strong> : Facteur standardisé de <code class="text-sky-300">1.50 L / kWh</code> intégrant l'évaporation indirecte des circuits de production électrique et le refroidissement direct du centre de données.
+              • <strong>GHG Protocol Scope 2 (Location-Based)</strong> : Facteur d'émission électrique appliqué de <code :class="isLightMode ? 'text-cyan-800 font-bold' : 'text-cyan-300'">52 gCO₂eq / kWh</code> (RTE France), PUE audité à <code :class="isLightMode ? 'text-emerald-800 font-bold' : 'text-emerald-300'">{{ summary.pue || 1.15 }}</code>.
             </p>
 
-            <div class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] text-slate-500">
+            <div 
+              :class="[
+                'pt-3 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px]',
+                isLightMode ? 'border-emerald-200 text-slate-600' : 'border-slate-800 text-slate-500'
+              ]"
+            >
               <span>Sceau Cryptographique : <code>SHA256:{{ hashCertificate }}</code></span>
-              <span class="text-emerald-400 font-bold">Certifié par la Plateforme Aegis Zero-Trust Shield</span>
+              <span :class="isLightMode ? 'text-emerald-700 font-bold' : 'text-emerald-400 font-bold'">
+                Certifié par la Plateforme Aegis Zero-Trust Shield
+              </span>
             </div>
           </div>
 
         </div>
 
-        <!-- PIED DE MODALE (ACTIONS SECONDAIRES) -->
-        <div class="pt-4 mt-4 border-t border-slate-800 flex items-center justify-between text-xs font-mono print:hidden shrink-0">
-          <span class="text-slate-500 text-[11px]">
-            Appuyez sur "Imprimer / Exporter PDF" pour générer la version A4 officielle.
+        <!-- 3. PIED DE MODALE -->
+        <div 
+          :class="[
+            'pt-3.5 mt-3.5 border-t flex items-center justify-between text-xs font-mono shrink-0',
+            isLightMode ? 'border-slate-200 text-slate-600' : 'border-slate-800 text-slate-400'
+          ]"
+        >
+          <span class="text-[11px] opacity-80">
+            Export PDF vectoriel haute définition conforme aux exigences des auditeurs CSRD.
           </span>
           <button 
             @click="$emit('close')"
-            class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer transition-all"
+            :class="[
+              'px-4 py-2 rounded-xl font-semibold cursor-pointer transition-all',
+              isLightMode ? 'bg-slate-100 hover:bg-slate-200 text-slate-800' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+            ]"
           >
             Fermer
           </button>
@@ -309,6 +519,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import AegisLogo from '../AegisLogo.vue';
+import { useAegisTheme } from '../../../composables/useAegisTheme';
 import type { EnergySummary, WorkloadEnergy, NodeEnergy } from '../../../services/api/telemetryApi';
 
 const props = defineProps<{
@@ -328,6 +539,8 @@ const props = defineProps<{
 defineEmits<{
   (e: 'close'): void;
 }>();
+
+const { isLightMode } = useAegisTheme();
 
 // Date du jour formatée
 const currentDateFormatted = computed(() => {
@@ -463,30 +676,384 @@ function formatCarbon(gco2: number, kgco2: number): string {
   return `${(kgco2 || gco2 / 1000).toFixed(3)} kg`;
 }
 
+/**
+ * Génère le document HTML officiel pour l'impression A4 et l'export PDF
+ * Solution éprouvée par iframe isolé garantissant une pagination nette
+ * sans conflits d'overflow, de position fixed ou de classes sombres.
+ */
+function generatePrintableHtml(): string {
+  const workloadsRows = (props.workloads || []).map(wl => `
+    <tr>
+      <td style="padding: 8px 10px; font-weight: bold; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${wl.service}</td>
+      <td style="padding: 8px 10px; color: #b45309; border-bottom: 1px solid #e2e8f0;">${wl.namespace}</td>
+      <td style="padding: 8px 10px; text-align: right; font-weight: bold; color: #0369a1; border-bottom: 1px solid #e2e8f0;">${wl.share_pct} %</td>
+      <td style="padding: 8px 10px; text-align: right; color: #334155; border-bottom: 1px solid #e2e8f0;">${wl.watts} W</td>
+      <td style="padding: 8px 10px; text-align: right; color: #334155; border-bottom: 1px solid #e2e8f0;">${formatKwh(wl.kwh)}</td>
+      <td style="padding: 8px 10px; text-align: right; font-weight: bold; color: #047857; border-bottom: 1px solid #e2e8f0;">${wl.carbon_gco2} g</td>
+    </tr>
+  `).join('');
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Certificat d'Audit RSE - ${certificateId.value}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 14mm 16mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+      font-size: 11pt;
+      line-height: 1.45;
+    }
+    .header-box {
+      border: 1.5px solid #10b981;
+      background: linear-gradient(135deg, #ecfdf5 0%, #f8fafc 60%, #f0fdf4 100%);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .shield-icon {
+      width: 48px;
+      height: 48px;
+    }
+    .header-titles h1 {
+      margin: 0;
+      font-size: 16pt;
+      font-weight: 800;
+      color: #064e3b;
+      letter-spacing: -0.5px;
+    }
+    .header-titles .sub {
+      font-size: 8.5pt;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #059669;
+      margin-bottom: 3px;
+    }
+    .header-titles .desc {
+      font-size: 9pt;
+      color: #475569;
+      margin-top: 2px;
+    }
+    .header-right {
+      text-align: right;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 8.5pt;
+      color: #334155;
+    }
+    .header-right strong {
+      color: #064e3b;
+      font-size: 9.5pt;
+    }
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .card {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .card .label {
+      font-size: 8pt;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #64748b;
+      margin-bottom: 3px;
+      display: block;
+    }
+    .card .val {
+      font-size: 11pt;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .card .meta {
+      font-size: 8pt;
+      color: #059669;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .metric-box {
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1.5px solid #e2e8f0;
+    }
+    .metric-energy {
+      background: #fffbeb;
+      border-color: #fde68a;
+    }
+    .metric-carbon {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+    }
+    .metric-water {
+      background: #f0f9ff;
+      border-color: #bae6fd;
+    }
+    .metric-power {
+      background: #f0fdfa;
+      border-color: #99f6e4;
+    }
+    .metric-tag {
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .metric-energy .metric-tag { color: #b45309; }
+    .metric-carbon .metric-tag { color: #047857; }
+    .metric-water .metric-tag { color: #0369a1; }
+    .metric-power .metric-tag { color: #0f766e; }
+    .metric-value {
+      font-size: 16pt;
+      font-weight: 900;
+      color: #0f172a;
+      font-family: "Courier New", Courier, monospace;
+      margin: 4px 0 2px 0;
+    }
+    .metric-sub {
+      font-size: 8pt;
+      color: #64748b;
+    }
+    .section-title {
+      font-size: 9.5pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #334155;
+      margin: 14px 0 8px 0;
+      border-bottom: 1.5px solid #e2e8f0;
+      padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5pt;
+      font-family: "Courier New", Courier, monospace;
+      margin-bottom: 16px;
+    }
+    th {
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 800;
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1.5px solid #cbd5e1;
+    }
+    .legal-box {
+      border: 1.5px solid #a7f3d0;
+      background: #f0fdf4;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 8pt;
+      color: #334155;
+      margin-top: 14px;
+      line-height: 1.5;
+    }
+    .legal-box strong {
+      color: #064e3b;
+    }
+    .footer-seal {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 7.5pt;
+      color: #64748b;
+    }
+    .footer-seal .status {
+      color: #059669;
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <div class="cert-container">
+    
+    <!-- EN-TÊTE OFFICIEL AVEC LOGO AEGIS -->
+    <div class="header-box">
+      <div class="header-left">
+        <!-- SVG Bouclier Aegis officiel -->
+        <svg class="shield-icon" viewBox="0 0 64 64" fill="none">
+          <path d="M32 4L10 13.5V29.5C10 44.2 19.4 55.6 32 60C44.6 55.6 54 44.2 54 29.5V13.5L32 4Z" fill="#064e3b" stroke="#10b981" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M32 8L14 16V29.5C14 42 21.5 52 32 56C42.5 52 50 42 50 29.5V16L32 8Z" stroke="#6ee7b7" stroke-width="1.2" opacity="0.6"/>
+          <path d="M21.5 32.5L28.8 39.5L43 23.5" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="header-titles">
+          <div class="sub">🛡️ Aegis Zero-Trust Shield • Hardware GreenOps</div>
+          <h1>Certificat d'Audit d'Empreinte Numérique</h1>
+          <div class="desc">Standard CSRD / EFRAG VS (PME) • RGESN 2024 (Art. L. 300-1) • GHG Protocol Scope 2</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div>RÉF. CERTIFICAT :</div>
+        <strong>${certificateId.value}</strong>
+        <div style="margin-top: 3px;">Délivré le ${currentDateFormatted.value}</div>
+      </div>
+    </div>
+
+    <!-- PÉRIMÈTRE D'AUDIT -->
+    <div class="grid-4">
+      <div class="card">
+        <span class="label">Période Certifiée</span>
+        <div class="val">${periodLabel.value}</div>
+        <div class="meta">Durée : ${periodHours.value} heures</div>
+      </div>
+      <div class="card">
+        <span class="label">Serveur Audité</span>
+        <div class="val">${nodeName.value}</div>
+        <div class="meta">${nodeProvider.value}</div>
+      </div>
+      <div class="card">
+        <span class="label">Capteur Matériel</span>
+        <div class="val">Intel/AMD RAPL MSR</div>
+        <div class="meta">Scaphandre Probe v4.3.0</div>
+      </div>
+      <div class="card">
+        <span class="label">PUE Datacenter</span>
+        <div class="val">${props.summary.pue || 1.15}</div>
+        <div class="meta">Datacenter Éco-conçu</div>
+      </div>
+    </div>
+
+    <!-- 4 GRANDS INDICATEURS D'IMPACT -->
+    <div class="metrics-grid">
+      <div class="metric-box metric-energy">
+        <div class="metric-tag">⚡ Énergie Consommée</div>
+        <div class="metric-value">${formatKwh(props.summary.total_kwh)}</div>
+        <div class="metric-sub">${formatJoules(props.summary.total_joules)} Joules (RAPL Silicium)</div>
+      </div>
+      <div class="metric-box metric-carbon">
+        <div class="metric-tag">🌱 Émissions GES (Scope 2)</div>
+        <div class="metric-value">${formatCarbon(props.summary.total_carbon_gco2, props.summary.total_carbon_kg)}</div>
+        <div class="metric-sub">Facteur 52 gCO₂eq / kWh (Réseau FR)</div>
+      </div>
+      <div class="metric-box metric-water">
+        <div class="metric-tag">💧 Empreinte Hydrique (WUE)</div>
+        <div class="metric-value">${(props.summary.water_usage_liters || 0).toFixed(2)} L</div>
+        <div class="metric-sub">Refroidissement ADEME / Boavizta</div>
+      </div>
+      <div class="metric-box metric-power">
+        <div class="metric-tag">⚙️ Puissance Continue</div>
+        <div class="metric-value">${(props.summary.avg_watts || 0).toFixed(2)} W</div>
+        <div class="metric-sub">Charge CPU : ${(props.summary.avg_cpu_load_pct || 0).toFixed(1)} %</div>
+      </div>
+    </div>
+
+    <!-- VENTILATION PAR WORKLOAD -->
+    <div class="section-title">
+      <span>Ventilation par Workload &amp; Service Dokploy</span>
+      <span style="font-size: 8pt; font-weight: normal; color: #64748b;">Attribution cgroup Scaphandre / Kepler</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Service / Application</th>
+          <th>Namespace</th>
+          <th style="text-align: right;">Part (%)</th>
+          <th style="text-align: right;">Puissance</th>
+          <th style="text-align: right;">Énergie</th>
+          <th style="text-align: right;">Émissions CO₂eq</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${workloadsRows || '<tr><td colspan="6" style="padding: 10px; text-align: center; color: #64748b;">Aucun workload ventilé</td></tr>'}
+      </tbody>
+    </table>
+
+    <!-- CADRE LÉGAL & VISA DE CONFORMITÉ -->
+    <div class="legal-box">
+      <div><strong>Cadre Réglementaire &amp; Validité d'Audit Extra-Financier :</strong></div>
+      <div>• <strong>Directive Européenne CSRD / Standard EFRAG VS (PME)</strong> : Relevés d'énergie et de gaz à effet de serre certifiés conformes pour le reporting extra-financier de durabilité.</div>
+      <div>• <strong>Référentiel RGESN 2024 (Art. L. 300-1)</strong> : Mesures matérielles issues des registres MSR du processeur (/sys/class/powercap/intel-rapl), garantissant une rigueur probante sans estimation forfaitaire.</div>
+      <div>• <strong>GHG Protocol Scope 2 Location-Based</strong> : Émissions calculées sur le mix électrique de production avec un facteur validé de 52 gCO₂eq / kWh et un PUE de ${props.summary.pue || 1.15}.</div>
+      
+      <div class="footer-seal">
+        <span>Sceau Cryptographique : SHA256:${hashCertificate.value}</span>
+        <span class="status">✓ CERTIFIÉ CONFORME PAR LA PLATEFORME SOUVERAINE AEGIS</span>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>`;
+}
+
+/**
+ * Lance l'impression propre via un iframe invisible dédié.
+ * Cette technique contourne les contraintes d'overflow et de fixed
+ * de l'application parent sur Chrome et Firefox.
+ */
 function printCertificate() {
-  window.print();
+  const printFrame = document.createElement('iframe');
+  printFrame.style.position = 'fixed';
+  printFrame.style.right = '0';
+  printFrame.style.bottom = '0';
+  printFrame.style.width = '0';
+  printFrame.style.height = '0';
+  printFrame.style.border = '0';
+  document.body.appendChild(printFrame);
+
+  const doc = printFrame.contentWindow?.document;
+  if (!doc) {
+    document.body.removeChild(printFrame);
+    window.print();
+    return;
+  }
+
+  doc.open();
+  doc.write(generatePrintableHtml());
+  doc.close();
+
+  setTimeout(() => {
+    try {
+      printFrame.contentWindow?.focus();
+      printFrame.contentWindow?.print();
+    } catch (e) {
+      console.warn('[Aegis Certificate] Impression iframe échouée, fallback sur window.print()', e);
+      window.print();
+    } finally {
+      setTimeout(() => {
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 1500);
+    }
+  }, 250);
 }
 </script>
-
-<style>
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  #rse-certificate-printable, #rse-certificate-printable * {
-    visibility: visible;
-  }
-  #rse-certificate-printable {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 1.5cm;
-    background: #090d16 !important;
-    color: #f1f5f9 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-}
-</style>

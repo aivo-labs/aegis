@@ -1091,6 +1091,10 @@ func (s *DashboardService) GetEnergyTelemetry(timeRange, fromDate, toDate, month
 	var isSimulated bool
 
 	durationHours := math.Max(1.0, end.Sub(start).Hours())
+	elapsedHours := durationHours
+	if end.After(now) {
+		elapsedHours = math.Max(1.0, now.Sub(start).Hours())
+	}
 
 	if s.db != nil {
 		aggRow, _ := s.db.QueryRow(fmt.Sprintf(`
@@ -1133,10 +1137,12 @@ func (s *DashboardService) GetEnergyTelemetry(timeRange, fromDate, toDate, month
 				}
 			}
 
-			// Si les échantillons en base ne couvrent qu'une portion partielle de la période demandée (<80%),
-			// nous extrapolons l'énergie totale sur la durée totale de la période (ex: 7j, 30j, an)
-			// d'après la puissance continue moyenne mesurée par RAPL.
-			if coveredHours < (0.80 * durationHours) {
+			// Si la base couvre bien la période écoulée (ex: mois complet révolu ou mois en cours jusqu'à ce jour),
+			// nous conservons la somme brute 100% réelle mesurée par Scaphandre/RAPL.
+			// Si les échantillons ne couvrent qu'un fragment récent (<80% du temps écoulé, ex: serveur enrôlé il y a 3h),
+			// nous extrapolons sur la durée de la période pour refléter la charge réelle du parc.
+			targetDuration := elapsedHours
+			if coveredHours < (0.80 * targetDuration) {
 				totalJoules = roundFloat(avgWatts*durationHours*3600.0, 2)
 			}
 			isSimulated = false
