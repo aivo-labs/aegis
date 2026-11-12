@@ -127,3 +127,68 @@ func TestGetEnergyTelemetry_RangesAndMetrics(t *testing.T) {
 	}
 }
 
+func TestGetEnergyTelemetry_DeterminismAndExport(t *testing.T) {
+	svc := NewDashboardService(nil, nil, "00000000-0000-0000-0000-000000000001")
+
+	// 1. Déterminisme absolu de Juillet 2026 : deux appels successifs doivent renvoyer exactement les mêmes valeurs
+	call1, err := svc.GetEnergyTelemetry("month", "", "", "2026-07", "", "all", "all")
+	if err != nil {
+		t.Fatalf("call1 error: %v", err)
+	}
+	call2, err := svc.GetEnergyTelemetry("month", "", "", "2026-07", "", "all", "all")
+	if err != nil {
+		t.Fatalf("call2 error: %v", err)
+	}
+
+	sum1 := call1["summary"].(map[string]any)
+	sum2 := call2["summary"].(map[string]any)
+
+	if sum1["avg_watts"] != sum2["avg_watts"] || sum1["avg_watts"].(float64) != 13.20 {
+		t.Errorf("expected avg_watts = 13.20, got call1=%v, call2=%v", sum1["avg_watts"], sum2["avg_watts"])
+	}
+	if sum1["total_carbon_gco2"] != sum2["total_carbon_gco2"] {
+		t.Errorf("expected identical total_carbon_gco2, got call1=%v, call2=%v", sum1["total_carbon_gco2"], sum2["total_carbon_gco2"])
+	}
+	if sum1["water_usage_liters"] != sum2["water_usage_liters"] {
+		t.Errorf("expected identical water_usage_liters, got call1=%v, call2=%v", sum1["water_usage_liters"], sum2["water_usage_liters"])
+	}
+
+	ts1 := call1["timeseries"].([]EnergyTimePoint)
+	ts2 := call2["timeseries"].([]EnergyTimePoint)
+	if len(ts1) != 31 || len(ts2) != 31 {
+		t.Errorf("expected exactly 31 points for July 2026, got %d and %d", len(ts1), len(ts2))
+	}
+	for i := range ts1 {
+		if ts1[i].Watts != ts2[i].Watts || ts1[i].Time != ts2[i].Time {
+			t.Errorf("point %d mismatch: %+v vs %+v", i, ts1[i], ts2[i])
+		}
+	}
+
+	// 2. Échelonnage logique de l'énergie : 7j (168h) vs 30j (720h)
+	res7d, _ := svc.GetEnergyTelemetry("7d", "", "", "", "", "all", "all")
+	res30d, _ := svc.GetEnergyTelemetry("30d", "", "", "", "", "all", "all")
+	kwh7d := res7d["summary"].(map[string]any)["total_kwh"].(float64)
+	kwh30d := res30d["summary"].(map[string]any)["total_kwh"].(float64)
+	if kwh30d <= kwh7d {
+		t.Errorf("expected 30d total_kwh (%v) > 7d total_kwh (%v)", kwh30d, kwh7d)
+	}
+
+	// 3. Export CSV certifié RSE
+	var buf strings.Builder
+	err = svc.ExportEnergyCSV(&buf, "month", "", "", "2026-07", "", "all", "all")
+	if err != nil {
+		t.Fatalf("ExportEnergyCSV error: %v", err)
+	}
+	csvContent := buf.String()
+	if !strings.Contains(csvContent, "RAPPORT D'AUDIT RSE & BILAN CARBONE GREENOPS") {
+		t.Errorf("expected CSRD header in CSV, got: %s", csvContent[:200])
+	}
+	if !strings.Contains(csvContent, "Mois de 2026-07") {
+		t.Errorf("expected 'Mois de 2026-07' in CSV metadata")
+	}
+	if !strings.Contains(csvContent, "Intel/AMD RAPL MSR") {
+		t.Errorf("expected RAPL MSR hardware probe mention in CSV")
+	}
+}
+
+

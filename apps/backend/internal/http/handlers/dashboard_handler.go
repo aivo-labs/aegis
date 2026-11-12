@@ -136,11 +136,29 @@ func (h *DashboardHandler) EnergyExport(w http.ResponseWriter, r *http.Request) 
 		httputil.WriteJSON(w, http.StatusNoContent, nil)
 		return
 	}
-	format := r.URL.Query().Get("format")
+	q := r.URL.Query()
+	format := q.Get("format")
+	timeRange := q.Get("range")
+	fromDate := q.Get("from")
+	toDate := q.Get("to")
+	month := q.Get("month")
+	year := q.Get("year")
+	nodeID := q.Get("node")
+	namespace := q.Get("namespace")
+
 	if format == "csv" {
+		fileName := "aegis-rapl-telemetry.csv"
+		if month != "" {
+			fileName = fmt.Sprintf("aegis-rse-report-%s.csv", month)
+		} else if year != "" {
+			fileName = fmt.Sprintf("aegis-rse-report-%s.csv", year)
+		} else if timeRange != "" {
+			fileName = fmt.Sprintf("aegis-rse-report-%s.csv", timeRange)
+		}
+
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-		w.Header().Set("Content-Disposition", "attachment; filename=\"aegis-rapl-telemetry.csv\"")
-		_ = h.dashboardService.ExportEnergyCSV(w)
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
+		_ = h.dashboardService.ExportEnergyCSV(w, timeRange, fromDate, toDate, month, year, nodeID, namespace)
 		return
 	}
 	summary := h.dashboardService.GetSummary()

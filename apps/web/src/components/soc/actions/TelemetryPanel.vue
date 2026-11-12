@@ -71,13 +71,24 @@
 
         <!-- Export Rapports & Télémétrie brute -->
         <div class="flex items-center gap-2">
-          <a 
-            :href="`/api/v1/dashboard/energy/export?format=csv&range=${selectedRange}`"
-            download="aegis-rapl-telemetry.csv"
-            class="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-            title="Exporter les relevés RAPL pour bilan RSE / CSRD"
+          <!-- Bouton Certificat Officiel PDF -->
+          <button 
+            @click="showCertificateModal = true"
+            class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/25 to-cyan-500/25 hover:from-emerald-500/40 hover:to-cyan-500/40 border border-emerald-500/50 text-emerald-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+            title="Consulter et générer le Certificat Officiel d'Audit RSE / CSRD (Format PDF)"
           >
-            <span>📥 Export RSE (.CSV)</span>
+            <span>📜</span>
+            <span>Certificat RSE (PDF)</span>
+          </button>
+
+          <!-- Bouton Export Données Brutes CSV -->
+          <a 
+            :href="csvExportUrl"
+            :download="`aegis-rapl-telemetry-${selectedRange}.csv`"
+            class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs text-xs"
+            title="Exporter les relevés RAPL bruts filtrés pour bilan RSE / tableur"
+          >
+            <span>📥 Export CSV</span>
           </a>
         </div>
       </div>
@@ -686,18 +697,37 @@
       </p>
     </div>
 
+    <!-- MODALE DU CERTIFICAT OFFICIEL D'AUDIT RSE / CSRD (FORMAT PDF & IMPRESSION) -->
+    <CockpitRseCertificateModal
+      :show="showCertificateModal"
+      :summary="summary"
+      :workloads="workloads"
+      :nodes="nodes"
+      :selectedRange="selectedRange"
+      :selectedMonth="selectedMonth"
+      :selectedYear="selectedYear"
+      :customFrom="customFrom"
+      :customTo="customTo"
+      :selectedNode="selectedNode"
+      :selectedNamespace="selectedNamespace"
+      @close="showCertificateModal = false"
+    />
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useTelemetry } from '../../../composables/useTelemetry';
+import CockpitRseCertificateModal from '../cockpit/CockpitRseCertificateModal.vue';
 
 const props = withDefaults(defineProps<{
   isDemo?: boolean;
 }>(), {
   isDemo: false,
 });
+
+const showCertificateModal = ref(false);
 
 const {
   selectedRange,
@@ -729,6 +759,24 @@ const {
   dynamicCarbonAreaSvgPath,
   fetchEnergyTelemetry,
 } = useTelemetry({ isDemo: props.isDemo });
+
+const csvExportUrl = computed(() => {
+  const params = new URLSearchParams({
+    format: 'csv',
+    range: selectedRange.value,
+  });
+  if (selectedRange.value === 'month') {
+    params.set('month', selectedMonth.value);
+  } else if (selectedRange.value === 'year') {
+    params.set('year', selectedYear.value);
+  } else if (selectedRange.value === 'custom') {
+    if (customFrom.value) params.set('from', customFrom.value);
+    if (customTo.value) params.set('to', customTo.value);
+  }
+  if (selectedNode.value) params.set('node', selectedNode.value);
+  if (selectedNamespace.value) params.set('namespace', selectedNamespace.value);
+  return `/api/v1/dashboard/energy/export?${params.toString()}`;
+});
 
 // État d'interaction au survol du graphique
 const hoveredIndex = ref<number | null>(null);
