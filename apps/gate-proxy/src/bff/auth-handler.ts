@@ -15,6 +15,9 @@ export interface BffOidcConfig {
   clientId?: string;
   clientSecret?: string;
   redirectUri?: string;
+  authorizationEndpoint?: string;
+  tokenEndpoint?: string;
+  endSessionEndpoint?: string;
 }
 
 export class BffAuthHandler {
@@ -28,8 +31,45 @@ export class BffAuthHandler {
       issuerUrl: oidcConfig.issuerUrl || process.env.OIDC_ISSUER_URL || '',
       clientId: oidcConfig.clientId || process.env.OIDC_CLIENT_ID || 'aegis-cockpit',
       clientSecret: oidcConfig.clientSecret || process.env.OIDC_CLIENT_SECRET || '',
-      redirectUri: oidcConfig.redirectUri || process.env.OIDC_REDIRECT_URI || ''
+      redirectUri: oidcConfig.redirectUri || process.env.OIDC_REDIRECT_URI || '',
+      authorizationEndpoint: oidcConfig.authorizationEndpoint || process.env.OIDC_AUTHORIZATION_ENDPOINT || '',
+      tokenEndpoint: oidcConfig.tokenEndpoint || process.env.OIDC_TOKEN_ENDPOINT || '',
+      endSessionEndpoint: oidcConfig.endSessionEndpoint || process.env.OIDC_END_SESSION_ENDPOINT || ''
     };
+  }
+
+  /**
+   * Résout dynamiquement l'endpoint d'autorisation OIDC selon le fournisseur (Keycloak, Okta, Authelia, Authentik, etc.)
+   */
+  public getAuthorizationEndpoint(): string {
+    if (this.oidcConfig.authorizationEndpoint) {
+      return this.oidcConfig.authorizationEndpoint;
+    }
+    const issuer = (this.oidcConfig.issuerUrl || '').replace(/\/$/, '');
+    if (issuer.includes('/realms/')) {
+      return `${issuer}/protocol/openid-connect/auth`;
+    }
+    if (issuer.includes('okta.com')) {
+      return `${issuer}/v1/authorize`;
+    }
+    return `${issuer}/authorize`;
+  }
+
+  /**
+   * Résout dynamiquement l'endpoint de fin de session / déconnexion (SLO) selon le fournisseur
+   */
+  public getEndSessionEndpoint(): string {
+    if (this.oidcConfig.endSessionEndpoint) {
+      return this.oidcConfig.endSessionEndpoint;
+    }
+    const issuer = (this.oidcConfig.issuerUrl || '').replace(/\/$/, '');
+    if (issuer.includes('/realms/')) {
+      return `${issuer}/protocol/openid-connect/logout`;
+    }
+    if (issuer.includes('okta.com')) {
+      return `${issuer}/v1/logout`;
+    }
+    return `${issuer}/logout`;
   }
 
   /**
@@ -148,7 +188,7 @@ export class BffAuthHandler {
 
       const publicOrigin = this.getPublicOrigin(req, isHttps);
       const redirectUri = this.oidcConfig.redirectUri || `${publicOrigin}/api/auth/callback`;
-      const authUrl = new URL(`${this.oidcConfig.issuerUrl}/protocol/openid-connect/auth`);
+      const authUrl = new URL(this.getAuthorizationEndpoint());
       authUrl.searchParams.append('client_id', this.oidcConfig.clientId || 'aegis-cockpit');
       authUrl.searchParams.append('redirect_uri', redirectUri);
       authUrl.searchParams.append('response_type', 'code');
@@ -256,7 +296,10 @@ export class BffAuthHandler {
 
       let logoutUrl = '/api/auth/login';
       if (isOidcActive) {
-        logoutUrl = `${this.oidcConfig.issuerUrl}/protocol/openid-connect/logout?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirect)}&client_id=${encodeURIComponent(this.oidcConfig.clientId || 'aegis-cockpit')}`;
+        const endSessionUrl = new URL(this.getEndSessionEndpoint());
+        endSessionUrl.searchParams.append('post_logout_redirect_uri', postLogoutRedirect);
+        endSessionUrl.searchParams.append('client_id', this.oidcConfig.clientId || 'aegis-cockpit');
+        logoutUrl = endSessionUrl.toString();
       }
 
       if (req.method === 'GET') {

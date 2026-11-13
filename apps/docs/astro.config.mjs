@@ -51,7 +51,8 @@ export default defineConfig({
             fr: '📦 Guides de Déploiement',
           },
           items: [
-            { label: 'Single-Server & VPS (Docker / Dokploy)', translations: { fr: 'Mono-Serveur & VPS (Docker / Dokploy)' }, slug: 'guides/vps' },
+            { label: 'Production Dokploy & Traefik (ForwardAuth)', translations: { fr: 'Production Dokploy & Traefik (ForwardAuth)' }, slug: 'guides/dokploy-traefik' },
+            { label: 'Single-Server & VPS (Docker Compose)', translations: { fr: 'Mono-Serveur & VPS (Docker Compose)' }, slug: 'guides/vps' },
             { label: 'Bare-Metal Dedicated Server (Hardware RAPL)', translations: { fr: 'Serveur Dédié Bare-Metal (RAPL Physique)' }, slug: 'guides/baremetal' },
             { label: 'Kubernetes Cluster (Helm & Kepler eBPF)', translations: { fr: 'Cluster Kubernetes (Helm & Kepler eBPF)' }, slug: 'guides/kubernetes' },
             { label: 'Standalone Client Agent (1-Click Script)', translations: { fr: 'Agent Client Seul (Script 1-Clic)' }, slug: 'guides/agent' },

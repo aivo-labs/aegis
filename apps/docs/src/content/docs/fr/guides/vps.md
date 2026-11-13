@@ -53,37 +53,106 @@ sudo docker compose ps
 
 ---
 
-## 🌐 Configuration du Reverse Proxy & Certificat SSL (HTTPS)
+## 🌐 Configuration du Reverse Proxy & Agnosticisme d'Infrastructure
 
-Pour exposer vos services sur vos propres noms de domaine avec chiffrement TLS Let's Encrypt :
+Aegis a été conçu dès l'origine pour être **100% agnostique** vis-à-vis de votre infrastructure d'hébergement et de vos outils de terminaison TLS. Que vous utilisiez **Nginx**, **Traefik**, **Caddy**, **HAProxy** ou **Envoy**, deux modes d'intégration s'offrent à vous :
 
-### Exemple avec Caddy Server
+### Option A : Nginx en Coupure `auth_request` (Similaire à ForwardAuth)
+Dans ce mode, Nginx sert directement votre site ou votre API métier (ex: un WordPress, une application Symfony, Python ou Node.js), mais soumet **chaque requête entrante** à Aegis Gate sur `/_aegis/verify` avant de la traiter :
+
 ```nginx
-# Cockpit d'administration SOC & ESG (Exemple Caddy / Nginx)
-soc.votre-entreprise.fr {
-    reverse_proxy localhost:4321
-}
-
-# Passerelle WAF Ingress (pour protéger vos APIs)
-waf.votre-entreprise.fr {
-    reverse_proxy localhost:8000
-}
-```
-
-### Exemple avec Nginx
-```nginx
+# Configuration Nginx (/etc/nginx/sites-available/mon-application.conf)
 server {
-    server_name soc.votre-entreprise.fr;
-    listen 80;
+    listen 443 ssl http2;
+    server_name mon-app.votre-entreprise.fr;
 
+    ssl_certificate /etc/letsencrypt/live/mon-app.votre-entreprise.fr/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mon-app.votre-entreprise.fr/privkey.pem;
+
+    # 1. Protection de l'application via sous-requête Aegis WAF
     location / {
-        proxy_pass http://127.0.0.1:4321;
+        # Interrogation in-line du WAF Aegis (< 0.5 ms)
+        auth_request /_aegis/verify;
+
+        # Récupération des en-têtes certifiés
+        auth_request_set $aegis_verified $upstream_http_x_aegis_verified;
+        auth_request_set $aegis_client_ip $upstream_http_x_aegis_client_ip;
+
+        # Redirection vers votre application applicative locale
+        proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Aegis-Verified $aegis_verified;
+    }
+
+    # 2. Point de contrôle interne de vérification WAF
+    location = /_aegis/verify {
+        internal;
+        proxy_pass http://127.0.0.1:8000/_aegis/verify;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        
+        # Transmission des métadonnées de la requête originale
+        proxy_set_header X-Forwarded-Method $request_method;
+        proxy_set_header X-Forwarded-Uri $request_uri;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Host $host;
+    }
+
+    # 3. Page d'erreur personnalisée si Aegis bloque l'attaquant
+    error_page 403 = @aegis_blocked;
+    location @aegis_blocked {
+        default_type application/json;
+        return 403 '{"status":403,"verdict":"BLOCKED","error":"Accès neutralisé par Aegis Gate PEP"}';
     }
 }
+```
+
+### Option B : Nginx en Reverse Proxy Transparent
+Si vous préférez qu'Aegis prenne en charge le routage applicatif interne et le Token Handler Pure BFF :
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name soc.votre-entreprise.fr;
+
+    ssl_certificate /etc/letsencrypt/live/soc.votre-entreprise.fr/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/soc.votre-entreprise.fr/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+    }
+}
+```
+
+---
+
+## 🔑 Agnosticisme Total des Fournisseurs d'Identité (IdP / IAM)
+
+Le module **Pure BFF** d'Aegis repose sur les standards ouverts **OpenID Connect (OIDC)** et **OAuth 2.0 PKCE (RFC 7636)**. Vous n'êtes aucunement lié à Keycloak : Aegis s'interconnecte nativement avec n'importe quel fournisseur conforme :
+
+| Fournisseur d'Identité | Configuration `OIDC_ISSUER_URL` | Spécificités & Endpoints |
+| :--- | :--- | :--- |
+| **Keycloak (Défaut)** | `https://auth.votre-domaine.fr/realms/aegis` | Endpoints standard `/protocol/openid-connect/*` gérés nativement. |
+| **Okta** | `https://dev-xxxx.okta.com/oauth2/default` | Résolution automatique des endpoints `/v1/authorize` et `/v1/logout`. |
+| **Authelia** | `https://auth.votre-domaine.fr` | Solution souveraine légère. Endpoints `/api/oidc/authorization`. |
+| **Authentik** | `https://authentik.votre-domaine.fr/application/o/aegis/` | Fournisseur open-source moderne. Endpoints dérivés automatiquement. |
+| **Auth0 / Okta CIC** | `https://mon-tenant.eu.auth0.com` | Renseigner `OIDC_CLIENT_ID` et `OIDC_CLIENT_SECRET`. |
+| **Microsoft Entra ID** | `https://login.microsoftonline.com/{tenant-id}/v2.0` | Compatible flux OIDC PKCE Azure d'entreprise. |
+
+### Définition Manuelle des Endpoints (Optionnelle)
+Si votre serveur d'authentification utilise des URI atypiques, Aegis permet de spécifier directement les endpoints sans dépendre de découverte dynamique :
+```bash
+OIDC_AUTHORIZATION_ENDPOINT="https://auth.mon-entreprise.fr/oauth/custom/authorize"
+OIDC_TOKEN_ENDPOINT="https://auth.mon-entreprise.fr/oauth/custom/token"
+OIDC_END_SESSION_ENDPOINT="https://auth.mon-entreprise.fr/oauth/custom/logout"
 ```
 
 ---
