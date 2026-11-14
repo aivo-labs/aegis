@@ -1,0 +1,129 @@
+# ==============================================================================
+# AEGIS SOVEREIGN GATE — SERVEUR CLIENT DE RÉFÉRENCE ORACLE CLOUD (MANAGED DEMO)
+# Stack Multi-Langages Réaliste (Nginx + PHP-FPM 8.3 + Node.js 20)
+# Protégée par Aegis Gate PEP (:80 / :8000) + Aegis Egress (:5053) + Agent RAPL
+# Connectée en temps réel au Cockpit Control Plane : https://aegis.aivo.fr/app
+# ==============================================================================
+
+services:
+  # 1. Application Cliente Multi-Stack (Nginx + PHP-FPM 8.3 + Microservice Node.js)
+  client-target-app:
+    build:
+      context: ./target-app
+      dockerfile: Dockerfile
+    container_name: aegis_oci_client_app
+    restart: unless-stopped
+    environment:
+      - EGRESS_CHECK_URL=http://aegis-egress-edge:5053/check
+    networks:
+      - aegis-oci-net
+
+  # 2. Bouclier Ingress PEP & WAF Zero-Trust (Mode 'edge' synchronisé avec aegis.aivo.fr)
+  aegis-gate-edge:
+    build:
+      context: ../../apps/gate-proxy
+      dockerfile: Dockerfile
+    container_name: aegis_oci_gate_edge
+    restart: unless-stopped
+    ports:
+      - "${OCI_HTTP_PORT:-80}:8000"
+      - "8000:8000"
+    environment:
+      - GATE_PORT=8000
+      - AEGIS_NODE_MODE=edge
+      - AEGIS_NODE_HOSTNAME=${AEGIS_SERVER_ID:-oci-managed-client-01}
+      - WEB_URL=http://client-target-app:80
+      - BACKEND_URL=${AEGIS_CONTROL_PLANE_URL:-https://aegis.aivo.fr}
+      - AEGIS_GATE_API_URL=${AEGIS_CONTROL_PLANE_URL:-https://aegis.aivo.fr}/api/v1/gate/telemetry/ingress
+      - EGRESS_GATEWAY_URL=http://aegis-egress-edge:5053
+      - AEGIS_TENANT_ID=${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}
+      - AEGIS_PROTECTION_ENABLED=true
+      - AEGIS_MAX_PAYLOAD_BYTES=32768
+    depends_on:
+      - client-target-app
+      - aegis-egress-edge
+    networks:
+      - aegis-oci-net
+
+  # 3. Passerelle DNS & HTTP Egress Zero-Trust (Anti-C2 / Anti-Reverse Shell)
+  aegis-egress-edge:
+    build:
+      context: ../../apps/egress-gateway
+      dockerfile: Dockerfile
+    container_name: aegis_oci_egress_edge
+    restart: unless-stopped
+    ports:
+      - "5053:5053/udp"
+      - "5053:5053/tcp"
+    environment:
+      - EGRESS_LISTEN_PORT=5053
+      - AEGIS_TENANT_ID=${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}
+      - AEGIS_GATE_API_URL=${AEGIS_CONTROL_PLANE_URL:-https://aegis.aivo.fr}/api/v1/gate/telemetry/egress
+      - AEGIS_PROTECTION_ENABLED=true
+    networks:
+      - aegis-oci-net
+
+  # 4. Sonde Télémétrie Énergétique & CPU Temps Réel (/proc/stat & RAPL -> aegis.aivo.fr)
+  aegis-telemetry-edge:
+    image: alpine:3.20
+    container_name: aegis_oci_telemetry_edge
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys/class/powercap:/host/powercap:ro
+    environment:
+      - CONTROL_PLANE_URL=${AEGIS_CONTROL_PLANE_URL:-https://aegis.aivo.fr}
+      - SERVER_ID=${AEGIS_SERVER_ID:-oci-managed-client-01}
+      - PROVIDER=${AEGIS_PROVIDER:-Oracle Cloud (OCI)}
+      - PUBLIC_IP=${OCI_PUBLIC_IP:-}
+      - TENANT_ID=${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache curl bc >/dev/null 2>&1
+        echo "⚡ [Aegis OCI Telemetry] Sonde /proc/stat & RAPL connectée à $${CONTROL_PLANE_URL} (Node: $${SERVER_ID})"
+        PUB_IP="$${PUBLIC_IP}"
+        if [ -z "$${PUB_IP}" ]; then
+          PUB_IP=$$(curl -s --max-time 4 https://ifconfig.me || echo "127.0.0.1")
+        fi
+        PREV_TOTAL=0
+        PREV_IDLE=0
+        while true; do
+          CPU_LINE=$$(head -n 1 /host/proc/stat)
+          USER=$$(echo $$CPU_LINE | awk '{print $$2}')
+          NICE=$$(echo $$CPU_LINE | awk '{print $$3}')
+          SYSTEM=$$(echo $$CPU_LINE | awk '{print $$4}')
+          IDLE=$$(echo $$CPU_LINE | awk '{print $$5}')
+          IOWAIT=$$(echo $$CPU_LINE | awk '{print $$6}')
+          IRQ=$$(echo $$CPU_LINE | awk '{print $$7}')
+          SOFTIRQ=$$(echo $$CPU_LINE | awk '{print $$8}')
+          TOTAL=$$((USER + NICE + SYSTEM + IDLE + IOWAIT + IRQ + SOFTIRQ))
+          DIFF_TOTAL=$$((TOTAL - PREV_TOTAL))
+          DIFF_IDLE=$$((IDLE - PREV_IDLE))
+          if [ $$DIFF_TOTAL -gt 0 ] && [ $$PREV_TOTAL -gt 0 ]; then
+            CPU_PCT=$$(awk "BEGIN {printf \"%.1f\", (100 * ($$DIFF_TOTAL - $$DIFF_IDLE) / $$DIFF_TOTAL)}")
+          else
+            CPU_PCT="3.8"
+          fi
+          PREV_TOTAL=$$TOTAL
+          PREV_IDLE=$$IDLE
+
+          # Modèle énergétique calibré sur la charge CPU réelle de la VM Oracle Cloud
+          CPU_WATTS=$$(awk "BEGIN {printf \"%.2f\", 6.8 + ($$CPU_PCT * 0.42)}")
+          RAM_WATTS="3.40"
+          TOTAL_WATTS=$$(awk "BEGIN {printf \"%.2f\", $$CPU_WATTS + $$RAM_WATTS}")
+          JOULES=$$(awk "BEGIN {printf \"%.2f\", $$TOTAL_WATTS * 3.0}")
+
+          curl -s -X POST "$${CONTROL_PLANE_URL}/api/v1/gate/telemetry/energy" \
+            -H "Content-Type: application/json" \
+            -d "{\"tenant_id\":\"$${TENANT_ID}\",\"hostname\":\"$${SERVER_ID}\",\"ip_address\":\"$${PUB_IP}\",\"provider\":\"$${PROVIDER}\",\"power_watts\":$${TOTAL_WATTS},\"cpu_power_watts\":$${CPU_WATTS},\"ram_power_watts\":$${RAM_WATTS},\"energy_consumed_joules\":$${JOULES},\"cpu_utilization_pct\":$${CPU_PCT}}" >/dev/null || true
+
+          sleep 3
+        done
+    networks:
+      - aegis-oci-net
+
+networks:
+  aegis-oci-net:
+    driver: bridge

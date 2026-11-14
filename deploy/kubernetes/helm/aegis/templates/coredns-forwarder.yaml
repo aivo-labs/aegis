@@ -1,0 +1,88 @@
+{{- if .Values.egressSecurity.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aegis-coredns-sinkhole-rules
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: aegis-egress
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  sinkhole.hosts: |
+    # Domaines malveillants identifiés par Nimble 9B & AnSSI Threat Feeds
+    0.0.0.0 c2-attacker.ru
+    0.0.0.0 exfiltration.evilcorp.com
+    0.0.0.0 bad-actor.onion.to
+    0.0.0.0 botnet-control.xyz
+    0.0.0.0 ransom-payment.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aegis-egress-forwarder
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: aegis-egress-forwarder
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aegis-egress-forwarder
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aegis-egress-forwarder
+    spec:
+      containers:
+        - name: forwarder
+          image: "coredns/coredns:1.11.3"
+          args: [ "-conf", "/etc/coredns/Corefile" ]
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/coredns
+          ports:
+            - name: dns-udp
+              containerPort: 53
+              protocol: UDP
+            - name: dns-tcp
+              containerPort: 53
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: config-volume
+          configMap:
+            name: aegis-coredns-sinkhole-config
+            items:
+              - key: Corefile
+                path: Corefile
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aegis-coredns-sinkhole-config
+  namespace: {{ .Release.Namespace }}
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+            lameduck 5s
+        }
+        ready
+        hosts /etc/coredns/sinkhole.hosts {
+            fallthrough
+        }
+        forward . /etc/resolv.conf
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+{{- end }}

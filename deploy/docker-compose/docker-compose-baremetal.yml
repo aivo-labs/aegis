@@ -1,0 +1,132 @@
+# =============================================================================
+# AEGIS BY AIVO — PROFIL SERVEUR DÉDIÉ PHYSIQUE / BARE-METAL
+# Accès direct aux registres matériels Intel/AMD RAPL (/sys/class/powercap)
+# Précision physique brute en Joules & Watts (Licence AGPLv3)
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # 1. BASE DE DONNÉES TIMESCALEDB (PERSISTENCE & HYPERTABLES)
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: aegis_timescaledb_bm
+    restart: always
+    environment:
+      POSTGRES_DB: aegis_db
+      POSTGRES_USER: aegis_user
+      POSTGRES_PASSWORD: aegis_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - aegis_pgdata_bm:/var/lib/postgresql/data
+      - ../../apps/backend/migrations/schema-database-postgresql-aegis.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aegis_user -d aegis_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. BACKEND API CONTROL PLANE (SYMFONY 7)
+  backend:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    container_name: aegis_backend_bm
+    restart: always
+    environment:
+      DATABASE_URL: "postgresql://aegis_user:aegis_dev_password@timescaledb:5432/aegis_db?serverVersion=16&charset=utf8"
+      APP_ENV: prod
+      APP_SECRET: 4f88631b14a9a08990b7e452a32bf
+    ports:
+      - "8080:80"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  # 3. PASSERELLE SORTANTE AEGIS EGRESS (SYSTEM ONE AI ENGINE & CORE-DNS)
+  egress-gateway:
+    build:
+      context: ../../apps/egress-gateway
+      dockerfile: Dockerfile
+    container_name: aegis_egress_gateway_bm
+    restart: always
+    environment:
+      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/egress"
+      SYSTEMONE_API_URL: "http://ollama-nimble:11434/v1/systemone"
+      SYSTEMONE_MODEL_NAME: "nimble"
+      EGRESS_LISTEN_PORT: 5053
+    ports:
+      - "5053:5053/udp"
+      - "5053:5053/tcp"
+    depends_on:
+      - backend
+      - ollama-nimble
+
+  # 4. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE RUST (ACCÈS RAPL PHYSIQUE DIRECT)
+  telemetry-agent:
+    build:
+      context: ../../apps/telemetry-agent
+      dockerfile: Dockerfile
+    container_name: aegis_telemetry_agent_bm
+    restart: always
+    pid: "host"
+    privileged: true
+    volumes:
+      # Montage des registres matériels Intel/AMD RAPL physique
+      - /sys/class/powercap:/host/sys/class/powercap:ro
+      - /sys/class/powercap:/sys/class/powercap:ro
+      - /proc:/host/proc:ro
+    environment:
+      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/energy"
+      POLL_INTERVAL_SECS: "5"
+    depends_on:
+      - backend
+
+  # 5. MOTEUR IA SYSTEM ONE SOUVERAIN (OLLAMA / NIMBLE 9B LOCAL)
+  ollama-nimble:
+    image: ollama/ollama:latest
+    container_name: aegis_ollama_nimble_bm
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - aegis_ollama_data_bm:/root/.ollama
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull nimble && wait"]
+
+  # 6. APPLICATION WEB & COCKPIT SOC / ESG UNIFIÉ (ASTRO / VUE 3 / NGINX HARDENED)
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    container_name: aegis_web_bm
+    restart: always
+    ports:
+      - "4321:80"
+    depends_on:
+      - backend
+
+  # 7. PASSERELLE INGRESS PEP & WAF (OWASP TOP 10 & PENTEST INTERCEPTION)
+  gate-proxy:
+    build:
+      context: ../../apps/gate-proxy
+      dockerfile: Dockerfile
+    container_name: aegis_gate_proxy_bm
+    restart: always
+    environment:
+      GATE_PORT: 8000
+      BACKEND_URL: "http://backend:80"
+      WEB_URL: "http://web:80"
+      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/ingress"
+      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - backend
+      - web
+
+volumes:
+  aegis_pgdata_bm:
+  aegis_ollama_data_bm:

@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Aegis Sovereign Gate — Broadcast Benchmark Studio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: #020617;
+      color: #f8fafc;
+      font-family: 'Noto Sans', 'Liberation Sans', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .mono { font-family: 'DejaVu Sans Mono', 'Liberation Mono', monospace; }
+
+    /* Fond Cyber-Grid & Lueur Dynamique */
+    .bg-stage {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(16, 185, 129, 0.14), transparent 45%),
+        radial-gradient(circle at 82% 82%, rgba(6, 182, 212, 0.11), transparent 45%),
+        linear-gradient(180deg, #020617 0%, #060b19 100%);
+      z-index: 0;
+    }
+    .bg-stage.alert-glow {
+      background:
+        radial-gradient(circle at 22% 18%, rgba(239, 68, 68, 0.18), transparent 48%),
+        radial-gradient(circle at 80% 78%, rgba(249, 115, 22, 0.12), transparent 45%),
+        linear-gradient(180deg, #09040a 0%, #020617 100%);
+    }
+    .grid-overlay {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      z-index: 1;
+    }
+
+    .scene {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: none;
+    }
+    .scene.active { display: flex; }
+
+    /* =====================================================================
+       SCENE 1 : HOOK INTRO (0.0s -> 3.8s)
+       ===================================================================== */
+    #scene-intro {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 60px 120px;
+    }
+    .intro-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 26px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.4);
+      color: #6ee7b7;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 34px;
+    }
+    .intro-logo-wrap {
+      width: 118px;
+      height: 118px;
+      margin-bottom: 28px;
+      filter: drop-shadow(0 0 36px rgba(16, 185, 129, 0.5));
+    }
+    .intro-title {
+      font-size: 62px;
+      font-weight: 900;
+      line-height: 1.14;
+      letter-spacing: -0.025em;
+      max-width: 1620px;
+      margin-bottom: 24px;
+      background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .intro-highlight {
+      color: #34d399;
+      -webkit-text-fill-color: #34d399;
+    }
+    .intro-highlight-red {
+      color: #f87171;
+      -webkit-text-fill-color: #f87171;
+    }
+    .intro-sub {
+      font-size: 28px;
+      color: #94a3b8;
+      max-width: 1200px;
+      line-height: 1.45;
+      margin-bottom: 48px;
+    }
+    .intro-pills {
+      display: flex;
+      gap: 28px;
+      align-items: center;
+    }
+    .vs-card {
+      padding: 20px 36px;
+      border-radius: 20px;
+      font-size: 24px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .vs-card.safe {
+      background: rgba(16, 185, 129, 0.14);
+      border: 2px solid rgba(16, 185, 129, 0.55);
+      color: #6ee7b7;
+    }
+    .vs-card.danger {
+      background: rgba(239, 68, 68, 0.14);
+      border: 2px solid rgba(239, 68, 68, 0.55);
+      color: #fca5a5;
+    }
+    .vs-sep {
+      font-size: 26px;
+      font-weight: 900;
+      color: #64748b;
+    }
+
+    /* =====================================================================
+       SCENE 2 : STUDIO SPLIT-SCREEN LIVE BENCHMARK (3.8s -> 42.0s)
+       ===================================================================== */
+    #scene-studio {
+      flex-direction: column;
+      padding: 24px 32px 26px;
+      gap: 20px;
+    }
+
+    /* Top Header */
+    .studio-header {
+      height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 26px;
+      border-radius: 20px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+    .brand-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-logo { width: 42px; height: 42px; }
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: #f8fafc;
+    }
+    .hw-sub {
+      font-size: 11.5px;
+      color: #94a3b8;
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+
+    /* Phase Stepper */
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(2, 6, 23, 0.75);
+      padding: 7px 11px;
+      border-radius: 14px;
+      border: 1px solid rgba(51, 65, 85, 0.65);
+    }
+    .step-item {
+      padding: 6px 11px;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+    .step-item.active-green {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.55);
+    }
+    .step-item.active-amber {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.55);
+    }
+    .step-item.active-red {
+      background: rgba(239, 68, 68, 0.24);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.65);
+    }
+
+    /* Shield Status Pill */
+    .shield-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      border-radius: 14px;
+      font-size: 15.5px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+    .shield-pill.on {
+      background: rgba(16, 185, 129, 0.16);
+      border: 2px solid #10b981;
+      color: #34d399;
+      box-shadow: 0 0 24px rgba(16, 185, 129, 0.25);
+    }
+    .shield-pill.off {
+      background: rgba(239, 68, 68, 0.22);
+      border: 2px solid #ef4444;
+      color: #fca5a5;
+      box-shadow: 0 0 28px rgba(239, 68, 68, 0.35);
+    }
+    .dot-pulse {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .on .dot-pulse { background: #10b981; box-shadow: 0 0 12px #10b981; }
+    .off .dot-pulse { background: #ef4444; box-shadow: 0 0 12px #ef4444; }
+
+    /* Main Split Grid */
+    .studio-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 760px 1fr;
+      gap: 22px;
+      min-height: 0;
+    }
+
+    /* Left Pane: Attacker Terminal + Live Counters */
+    .left-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: 0;
+    }
+    .terminal-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-radius: 20px;
+      background: #060a14;
+      border: 1px solid rgba(51, 65, 85, 0.85);
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    }
+    .term-bar {
+      height: 46px;
+      background: #0f172a;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+    }
+    .term-dots { display: flex; gap: 8px; }
+    .term-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .term-title { font-size: 13px; color: #94a3b8; font-weight: 700; }
+    .term-cmd {
+      padding: 14px 18px;
+      background: rgba(15, 23, 42, 0.65);
+      border-bottom: 1px solid rgba(30, 41, 59, 0.9);
+      font-size: 14px;
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+    .term-prompt { color: #38bdf8; font-weight: 700; }
+    .term-flag { color: #fbbf24; }
+    .term-logs {
+      flex: 1;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 7px;
+      overflow: hidden;
+      font-size: 13.5px;
+      line-height: 1.35;
+    }
+    .log-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    .log-row.blocked {
+      background: rgba(16, 185, 129, 0.09);
+      border-left: 3px solid #10b981;
+      color: #a7f3d0;
+    }
+    .log-row.exploited {
+      background: rgba(239, 68, 68, 0.14);
+      border-left: 3px solid #ef4444;
+      color: #fecaca;
+    }
+    .log-badge {
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .blocked .log-badge { background: rgba(16, 185, 129, 0.22); color: #34d399; }
+    .exploited .log-badge { background: rgba(239, 68, 68, 0.28); color: #f87171; }
+
+    .tactical-counters {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      height: 170px;
+    }
+    .tac-box {
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .tac-label { font-size: 13px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    .tac-val { font-size: 40px; font-weight: 900; line-height: 1; }
+    .tac-sub { font-size: 13px; color: #cbd5e1; }
+
+    /* Right Pane: Live KPIs + Dual Chart + Real Cockpit PiP */
+    .right-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: 0;
+    }
+
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      height: 132px;
+    }
+    .kpi-card {
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(51, 65, 85, 0.85);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .kpi-card.danger-border {
+      border-color: rgba(239, 68, 68, 0.7);
+      background: rgba(45, 10, 16, 0.72);
+    }
+    .kpi-card.safe-border {
+      border-color: rgba(16, 185, 129, 0.55);
+    }
+    .kpi-name { font-size: 13px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi-num { font-size: 35px; font-weight: 900; line-height: 1; white-space: nowrap; }
+    .kpi-note { font-size: 12.5px; color: #94a3b8; }
+
+    .chart-card {
+      flex: 1;
+      border-radius: 20px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(51, 65, 85, 0.85);
+      padding: 18px 22px 14px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .chart-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+    .chart-title { font-size: 16.5px; font-weight: 800; color: #f8fafc; white-space: nowrap; }
+    .chart-legend { display: flex; gap: 16px; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+    .leg-item { display: flex; align-items: center; gap: 8px; }
+    .leg-swatch { width: 16px; height: 4px; border-radius: 2px; }
+    #telemetryCanvas {
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Real Cockpit PiP Card */
+    .pip-card {
+      height: 245px;
+      border-radius: 20px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(51, 65, 85, 0.85);
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      overflow: hidden;
+    }
+    .pip-shot-wrap {
+      position: relative;
+      background: #020617;
+      border-right: 1px solid rgba(51, 65, 85, 0.8);
+      overflow: hidden;
+    }
+    .pip-shot-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top left;
+    }
+    .pip-url-badge {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      padding: 5px 12px;
+      border-radius: 8px;
+      background: rgba(2, 6, 23, 0.88);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      font-size: 12px;
+      color: #38bdf8;
+      font-weight: 700;
+    }
+    .pip-info {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .pip-tag {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      width: fit-content;
+    }
+    .pip-tag.safe { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .pip-tag.danger { background: rgba(239, 68, 68, 0.22); color: #f87171; }
+    .pip-headline { font-size: 21px; font-weight: 800; color: #f8fafc; line-height: 1.3; }
+    .pip-desc { font-size: 15px; color: #94a3b8; line-height: 1.45; }
+
+    /* =====================================================================
+       SCENE 3 : EXECUTIVE SCOREBOARD SUMMARY (42.0s -> 50.0s)
+       ===================================================================== */
+    #scene-outro {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 90px;
+      gap: 34px;
+    }
+    .outro-head { text-align: center; }
+    .outro-title {
+      font-size: 52px;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 10px;
+    }
+    .outro-sub { font-size: 22px; color: #94a3b8; }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      width: 100%;
+      max-width: 1620px;
+    }
+    .comp-col {
+      border-radius: 26px;
+      padding: 32px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .comp-col.safe {
+      background: linear-gradient(160deg, rgba(6, 78, 59, 0.35), rgba(15, 23, 42, 0.92));
+      border: 2px solid rgba(16, 185, 129, 0.65);
+      box-shadow: 0 20px 50px rgba(16, 185, 129, 0.14);
+    }
+    .comp-col.danger {
+      background: linear-gradient(160deg, rgba(127, 29, 29, 0.35), rgba(15, 23, 42, 0.92));
+      border: 2px solid rgba(239, 68, 68, 0.65);
+      box-shadow: 0 20px 50px rgba(239, 68, 68, 0.14);
+    }
+    .comp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .comp-h-title { font-size: 30px; font-weight: 900; }
+    .safe .comp-h-title { color: #34d399; }
+    .danger .comp-h-title { color: #f87171; }
+    .comp-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 10px 0;
+      border-bottom: 1px dashed rgba(148, 163, 184, 0.15);
+    }
+    .comp-k { font-size: 20px; color: #cbd5e1; font-weight: 600; }
+    .comp-v { font-size: 28px; font-weight: 900; }
+    .safe .comp-v { color: #6ee7b7; }
+    .danger .comp-v { color: #fca5a5; }
+
+    .outro-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 1620px;
+      padding: 20px 34px;
+      border-radius: 20px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(52, 211, 153, 0.4);
+    }
+    .cta-brand { display: flex; align-items: center; gap: 18px; }
+    .cta-text { font-size: 24px; font-weight: 800; color: #f8fafc; }
+    .cta-links { display: flex; gap: 24px; font-size: 20px; font-weight: 700; color: #34d399; }
+  </style>
+</head>
+<body>
+  <div id="bg-stage" class="bg-stage"></div>
+  <div class="grid-overlay"></div>
+
+  <!-- SCENE 1 : INTRO HOOK -->
+  <div id="scene-intro" class="scene">
+    <div id="intro-badge" class="intro-badge mono"></div>
+    <div id="intro-logo" class="intro-logo-wrap"></div>
+    <h1 id="intro-title" class="intro-title"></h1>
+    <p id="intro-sub" class="intro-sub"></p>
+    <div class="intro-pills">
+      <div id="vs-safe" class="vs-card safe"></div>
+      <div class="vs-sep">VS</div>
+      <div id="vs-danger" class="vs-card danger"></div>
+    </div>
+  </div>
+
+  <!-- SCENE 2 : LIVE BROADCAST STUDIO -->
+  <div id="scene-studio" class="scene">
+    <header class="studio-header">
+      <div class="brand-left">
+        <div id="header-logo" class="brand-logo"></div>
+        <div>
+          <div class="brand-title">AEGIS SOVEREIGN GATE <span style="color:#34d399;">• BENCHMARK RAPL</span></div>
+          <div id="hw-spec" class="hw-sub mono"></div>
+        </div>
+      </div>
+
+      <div class="stepper mono">
+        <div id="st-base" class="step-item"></div>
+        <div id="st-p1" class="step-item"></div>
+        <div id="st-trans" class="step-item"></div>
+        <div id="st-p2" class="step-item"></div>
+        <div id="st-end" class="step-item"></div>
+      </div>
+
+      <div id="shield-pill" class="shield-pill on mono">
+        <div class="dot-pulse"></div>
+        <span id="shield-pill-text"></span>
+      </div>
+    </header>
+
+    <div class="studio-body">
+      <!-- LEFT: TERMINAL + COUNTERS -->
+      <div class="left-pane">
+        <div class="terminal-card">
+          <div class="term-bar">
+            <div class="term-dots">
+              <div class="term-dot" style="background:#ef4444;"></div>
+              <div class="term-dot" style="background:#f59e0b;"></div>
+              <div class="term-dot" style="background:#10b981;"></div>
+            </div>
+            <div id="term-title" class="term-title mono"></div>
+            <div id="term-rps" class="mono" style="font-size:12px;color:#38bdf8;font-weight:700;"></div>
+          </div>
+          <div class="term-cmd mono">
+            <div><span class="term-prompt">attacker@kali:~$</span> curl -X POST <span class="term-flag">"http://target-app/index.php?%ADd+allow_url_include=1"</span> \</div>
+            <div style="padding-left:20px;">-A <span class="term-flag">"Exploit/CVE-2024-4577-PHP2Shell"</span> -d <span style="color:#f87171;">"&lt;?php system('id; uname -a'); ?&gt;"</span></div>
+          </div>
+          <div id="term-logs" class="term-logs mono"></div>
+        </div>
+
+        <div class="tactical-counters">
+          <div id="tac-box-a" class="tac-box">
+            <div id="tac-a-label" class="tac-label"></div>
+            <div id="tac-a-val" class="tac-val mono" style="color:#34d399;">0</div>
+            <div id="tac-a-sub" class="tac-sub"></div>
+          </div>
+          <div id="tac-box-b" class="tac-box">
+            <div id="tac-b-label" class="tac-label"></div>
+            <div id="tac-b-val" class="tac-val mono" style="color:#34d399;">0</div>
+            <div id="tac-b-sub" class="tac-sub"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: KPI STRIP + DUAL CHART + COCKPIT PIP -->
+      <div class="right-pane">
+        <div class="kpi-strip">
+          <div id="kpi-watts-card" class="kpi-card safe-border">
+            <div id="kpi-watts-lbl" class="kpi-name"></div>
+            <div id="kpi-watts-val" class="kpi-num mono" style="color:#38bdf8;">0.0 W</div>
+            <div id="kpi-watts-note" class="kpi-note"></div>
+          </div>
+          <div id="kpi-php-card" class="kpi-card safe-border">
+            <div id="kpi-php-lbl" class="kpi-name"></div>
+            <div id="kpi-php-val" class="kpi-num mono" style="color:#34d399;">0.0%</div>
+            <div id="kpi-php-note" class="kpi-note"></div>
+          </div>
+          <div id="kpi-host-card" class="kpi-card">
+            <div id="kpi-host-lbl" class="kpi-name"></div>
+            <div id="kpi-host-val" class="kpi-num mono" style="color:#e2e8f0;">0.0%</div>
+            <div id="kpi-host-note" class="kpi-note"></div>
+          </div>
+          <div id="kpi-lat-card" class="kpi-card">
+            <div id="kpi-lat-lbl" class="kpi-name"></div>
+            <div id="kpi-lat-val" class="kpi-num mono" style="color:#34d399;">0.0 ms</div>
+            <div id="kpi-lat-note" class="kpi-note"></div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-head">
+            <div id="chart-title" class="chart-title"></div>
+            <div class="chart-legend">
+              <div class="leg-item"><span class="leg-swatch" style="background:#38bdf8;"></span><span id="leg-watts"></span></div>
+              <div class="leg-item"><span class="leg-swatch" style="background:#f59e0b;"></span><span id="leg-php"></span></div>
+            </div>
+          </div>
+          <canvas id="telemetryCanvas" width="1040" height="360"></canvas>
+        </div>
+
+        <div class="pip-card">
+          <div class="pip-shot-wrap">
+            <img id="pip-img" src="" alt="Aegis Cockpit" />
+            <div id="pip-url" class="pip-url-badge mono">https://aegis.aivo.fr/app/triage</div>
+          </div>
+          <div class="pip-info">
+            <div id="pip-tag" class="pip-tag safe mono"></div>
+            <div id="pip-headline" class="pip-headline"></div>
+            <div id="pip-desc" class="pip-desc"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCENE 3 : OUTRO COMPARISON SCOREBOARD -->
+  <div id="scene-outro" class="scene">
+    <div class="outro-head">
+      <div id="outro-title" class="outro-title"></div>
+      <div id="outro-sub" class="outro-sub mono"></div>
+    </div>
+
+    <div class="compare-grid">
+      <div class="comp-col safe">
+        <div class="comp-header">
+          <div id="comp-safe-title" class="comp-h-title"></div>
+          <span class="mono" style="font-size:18px;font-weight:800;color:#6ee7b7;">EDGE PEP (17.3 ms avg)</span>
+        </div>
+        <div class="comp-row"><span id="r1-k-safe" class="comp-k"></span><span id="r1-v-safe" class="comp-v mono"></span></div>
+        <div class="comp-row"><span id="r2-k-safe" class="comp-k"></span><span id="r2-v-safe" class="comp-v mono"></span></div>
+        <div class="comp-row"><span id="r3-k-safe" class="comp-k"></span><span id="r3-v-safe" class="comp-v mono"></span></div>
+        <div class="comp-row"><span id="r4-k-safe" class="comp-k"></span><span id="r4-v-safe" class="comp-v mono"></span></div>
+        <div class="comp-row" style="border:none;"><span id="r5-k-safe" class="comp-k"></span><span id="r5-v-safe" class="comp-v mono"></span></div>
+      </div>
+
+      <div class="comp-col danger">
+        <div class="comp-header">
+          <div id="comp-danger-title" class="comp-h-title"></div>
+          <span class="mono" style="font-size:18px;font-weight:800;color:#fca5a5;">EXPOSED PHP-FPM 8.3</span>
+        </div>
+        <div class="comp-row"><span id="r1-k-danger" class="comp-k"></span><span id="r1-v-danger" class="comp-v mono"></span></div>
+        <div class="comp-row"><span id="r2-k-danger" class="comp-k"></span><span id="r2-v-danger" class="comp-v mono"></span></div>
+        <div class="comp-row"><span id="r3-k-danger" class="comp-k"></span><span id="r3-v-danger" class="comp-v mono"></span></div>
+        <div class="comp-row"><span id="r4-k-danger" class="comp-k"></span><span id="r4-v-danger" class="comp-v mono"></span></div>
+        <div class="comp-row" style="border:none;"><span id="r5-k-danger" class="comp-k"></span><span id="r5-v-danger" class="comp-v mono"></span></div>
+      </div>
+    </div>
+
+    <div class="outro-footer">
+      <div class="cta-brand">
+        <div id="outro-logo" style="width:48px;height:48px;"></div>
+        <div id="outro-cta-text" class="cta-text"></div>
+      </div>
+      <div class="cta-links mono">
+        <span>⭐ github.com/aivo-labs/aegis</span>
+        <span>🌐 aegis.aivo.fr</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LOGO_SVG = `<svg viewBox="0 0 64 64" fill="none" style="width:100%;height:100%">
+      <defs>
+        <linearGradient id="bgS" x1="10" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#064e3b"/><stop offset="100%" stop-color="#021c16"/>
+        </linearGradient>
+        <linearGradient id="rimS" x1="10" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#6ee7b7"/><stop offset="100%" stop-color="#10b981"/>
+        </linearGradient>
+      </defs>
+      <path d="M32 4L10 13.5V29.5C10 44.2 19.4 55.6 32 60C44.6 55.6 54 44.2 54 29.5V13.5L32 4Z" fill="url(#bgS)" stroke="url(#rimS)" stroke-width="2.6"/>
+      <polygon points="32,7.8 13.5,15.8 32,22.5" fill="#10b981" fill-opacity="0.14"/>
+      <polygon points="32,7.8 50.5,15.8 32,22.5" fill="#059669" fill-opacity="0.22"/>
+      <polygon points="18,43.5 32,55.8 32,46.5" fill="#059669" fill-opacity="0.24"/>
+      <path d="M21.5 32.5L28.8 39.5L43 23.5" stroke="#34d399" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M21.5 32.5L28.8 39.5L43 23.5" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+
+    const I18N = {
+      fr: {
+        introBadge: 'TEST MATÉRIEL RÉEL • COMPTEURS INTEL RAPL + PHP-FPM 8.3',
+        introTitle: 'CVE-2024-4577 (PHP2Shell) :<br/>Combien coûte une attaque <span class="intro-highlight-red">SANS bouclier</span> ?',
+        introSub: 'Rafale soutenue d’exploits envoyée en local sur la même stack Nginx + PHP-FPM 8.3 + Node.js, avec captation physique des Watts en direct.',
+        vsSafe: '🛡️ AVEC BOUCLIER AEGIS (0% PHP)',
+        vsDanger: '💥 SANS BOUCLIER (SATURATION CPU)',
+        steps: ['01 BASELINE', '02 BOUCLIER ACTIF', '03 BASCULE OFF', '04 SANS BOUCLIER', '05 RÉTABLI'],
+        shieldOn: '🛡️ BOUCLIER AEGIS ACTIF',
+        shieldOff: '⚠️ BOUCLIER DÉSACTIVÉ (EXPOSÉ)',
+        termTitle: 'rafale-php2shell — nginx + php-fpm 8.3',
+        tacALabelSafe: 'Requêtes Bloquées (WAF 403)',
+        tacALabelDanger: 'Exploits Subis par PHP-FPM (200)',
+        tacASubSafe: 'Rejetées en bordure Edge PEP (0% PHP)',
+        tacASubDanger: 'Exécution PHP non filtrée & surcharge CPU',
+        tacBLabel: 'Passerelle Egress DNS / C2',
+        tacBSubSafe: '0 exfiltration — C2 bloqué à la source',
+        tacBSubDanger: 'Appels sortants C2 déclenchés (Egress PEP)',
+        kpiWattsLbl: 'Puissance Intel RAPL',
+        kpiWattsNote: 'Lecture matérielle /sys/class/powercap',
+        kpiPhpLbl: 'CPU Cible PHP-FPM',
+        kpiPhpNote: 'Charge réelle conteneur cible',
+        kpiHostLbl: 'CPU Global Hôte',
+        kpiHostNote: 'Charge cumulée Linux /proc/stat',
+        kpiLatLbl: 'Latence HTTP Moy.',
+        kpiLatNote: 'Temps de réponse sous rafale',
+        chartTitle: 'Télémétrie Synchronisée : Watts Intel RAPL & CPU PHP-FPM',
+        legWatts: 'Intel RAPL (W)',
+        legPhp: 'PHP-FPM CPU (%)',
+        zoneSafe: 'ZONE PROTÉGÉE (AEGIS ACTIF)',
+        zoneToggle: '⚡ BASCULE OFF',
+        zoneDanger: 'SANS BOUCLIER (EXPOSÉ)',
+        pipTagSafe: 'COCKPIT AEGIS LIVE • DÉFENSE PÉRIMÉTRIQUE',
+        pipHeadSafe: 'Coupure réseau Edge PEP : PHP-FPM reste à 0% CPU',
+        pipDescSafe: 'Chaque payload PHP2Shell est rejeté (HTTP 403) par Aegis Gate PEP avant même d’effleurer Nginx ou PHP-FPM.',
+        pipTagDanger: 'COCKPIT AEGIS LIVE • COMPROMISSION & PIC RAPL',
+        pipHeadDanger: 'Saturation CPU multi-cœurs + pic énergétique matériel RAPL',
+        pipDescDanger: 'Sans bouclier, chaque requête déclenche une exécution PHP lourde et un callback sortant vers le serveur C2 simulé.',
+        outroTitle: 'Verdict Comparatif : Impact Sécurité & Énergétique',
+        outroSub: 'Résultats bruts mesurés en local sur Intel RAPL Hardware Direct & PHP-FPM 8.3',
+        compSafeTitle: '🛡️ AVEC BOUCLIER AEGIS',
+        compDangerTitle: '💥 SANS BOUCLIER',
+        rows: [
+          'Taux de blocage PHP2Shell',
+          'Pic CPU Conteneur PHP-FPM',
+          'Puissance RAPL (Moy / Pic)',
+          'Énergie Cumulée Mesurée',
+          'Latence HTTP moyenne'
+        ],
+        ctaText: 'Cybersécurité Zero-Trust & Télémétrie Énergétique Souveraine'
+      },
+      en: {
+        introBadge: 'REAL HARDWARE BENCHMARK • INTEL RAPL + PHP-FPM 8.3',
+        introTitle: 'CVE-2024-4577 (PHP2Shell):<br/>What Does an Attack Burn <span class="intro-highlight-red">Without</span> a Shield?',
+        introSub: 'Sustained live exploit burst launched against Nginx + PHP-FPM 8.3 + Node.js with direct hardware Watt & CPU telemetry.',
+        vsSafe: '🛡️ WITH AEGIS SHIELD (0% PHP)',
+        vsDanger: '💥 WITHOUT SHIELD (CPU SPIKE)',
+        steps: ['01 BASELINE', '02 SHIELD ON', '03 TOGGLE OFF', '04 UNPROTECTED', '05 RESTORED'],
+        shieldOn: '🛡️ AEGIS SHIELD ACTIVE',
+        shieldOff: '⚠️ SHIELD DISABLED (EXPOSED)',
+        termTitle: 'php2shell-burst — nginx + php-fpm 8.3',
+        tacALabelSafe: 'Blocked Attacks (WAF 403)',
+        tacALabelDanger: 'PHP-FPM Exploits Executed (200)',
+        tacASubSafe: 'Dropped at Edge PEP perimeter (0% PHP)',
+        tacASubDanger: 'Unfiltered PHP execution & CPU burn',
+        tacBLabel: 'Egress DNS / C2 Monitor',
+        tacBSubSafe: '0 exfiltration — stopped before execution',
+        tacBSubDanger: 'Outbound C2 callbacks triggered (Egress PEP)',
+        kpiWattsLbl: 'Intel RAPL Power',
+        kpiWattsNote: 'Direct silicon /sys/class/powercap',
+        kpiPhpLbl: 'PHP-FPM Target CPU',
+        kpiPhpNote: 'Target app container CPU usage',
+        kpiHostLbl: 'Host CPU Load',
+        kpiHostNote: 'Linux kernel /proc/stat total load',
+        kpiLatLbl: 'Avg HTTP Latency',
+        kpiLatNote: 'Response time under burst',
+        chartTitle: 'Synchronized Telemetry: Intel RAPL Watts & PHP-FPM CPU',
+        legWatts: 'Intel RAPL (W)',
+        legPhp: 'PHP-FPM CPU (%)',
+        zoneSafe: 'PROTECTED ZONE (AEGIS ON)',
+        zoneToggle: '⚡ TOGGLED OFF',
+        zoneDanger: 'UNPROTECTED (EXPOSED)',
+        pipTagSafe: 'LIVE AEGIS COCKPIT • PERIMETER DEFENSE',
+        pipHeadSafe: 'Edge PEP interception: PHP-FPM workload stays at 0% CPU',
+        pipDescSafe: 'Every PHP2Shell exploit packet is dropped (HTTP 403) at Aegis Gate PEP before ever reaching Nginx or PHP-FPM.',
+        pipTagDanger: 'LIVE AEGIS COCKPIT • CPU & RAPL SPIKE',
+        pipHeadDanger: 'Multi-core PHP-FPM saturation & hardware RAPL power surge',
+        pipDescDanger: 'With the shield disabled, every exploit burns real PHP CPU cycles and fires outbound C2 exfiltration callbacks.',
+        outroTitle: 'Benchmark Verdict: Security & Energy Impact',
+        outroSub: 'Genuine measurements captured locally via Intel RAPL Hardware Direct & PHP-FPM 8.3',
+        compSafeTitle: '🛡️ WITH AEGIS SHIELD',
+        compDangerTitle: '💥 WITHOUT SHIELD',
+        rows: [
+          'PHP2Shell Mitigation Rate',
+          'PHP-FPM Container Peak CPU',
+          'Hardware RAPL Power (Avg / Peak)',
+          'Total Measured Energy',
+          'Average HTTP Latency'
+        ],
+        ctaText: 'Open-Source Zero-Trust Security & Sovereign Energy Telemetry'
+      }
+    };
+
+    let DATA = null;
+    let LANG = 'fr';
+    let ASSETS = {};
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function sampleAtElapsed(elapsedMs) {
+      const s = DATA.samples;
+      if (!s.length) return { watts: 0, host_cpu_pct: 0, target_cpu_pct: 0, recent_latency_ms: 0, recent_rps: 0, phase: 'baseline', shield_active: true };
+      if (elapsedMs <= s[0].elapsed_ms) return s[0];
+      if (elapsedMs >= s[s.length - 1].elapsed_ms) return s[s.length - 1];
+      for (let i = 1; i < s.length; i++) {
+        if (s[i].elapsed_ms >= elapsedMs) {
+          const prev = s[i - 1];
+          const curr = s[i];
+          const span = Math.max(1, curr.elapsed_ms - prev.elapsed_ms);
+          const f = (elapsedMs - prev.elapsed_ms) / span;
+          return {
+            elapsed_ms: elapsedMs,
+            phase: curr.phase,
+            shield_active: curr.shield_active,
+            watts: lerp(prev.watts, curr.watts, f),
+            host_cpu_pct: lerp(prev.host_cpu_pct, curr.host_cpu_pct, f),
+            target_cpu_pct: lerp(prev.target_cpu_pct, curr.target_cpu_pct, f),
+            recent_latency_ms: lerp(prev.recent_latency_ms, curr.recent_latency_ms, f),
+            recent_rps: Math.round(lerp(prev.recent_rps, curr.recent_rps, f))
+          };
+        }
+      }
+      return s[s.length - 1];
+    }
+
+    function drawChart(currentElapsedMs) {
+      const canvas = document.getElementById('telemetryCanvas');
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const pad = { l: 64, r: 74, t: 28, b: 36 };
+      const cw = W - pad.l - pad.r;
+      const ch = H - pad.t - pad.b;
+
+      const totalMs = Math.max(1000, DATA.summary.total_duration_ms);
+      const samples = DATA.samples;
+      if (!samples.length) return;
+
+      const maxWatts = Math.max(25, Math.ceil(Math.max(...samples.map(s => s.watts)) * 1.18 / 5) * 5);
+      const maxCpu = Math.max(100, Math.ceil(Math.max(...samples.map(s => s.target_cpu_pct)) * 1.15 / 50) * 50);
+
+      const xForMs = ms => pad.l + (Math.min(ms, totalMs) / totalMs) * cw;
+      const yForWatts = w => pad.t + ch - (Math.min(w, maxWatts) / maxWatts) * ch;
+      const yForCpu = c => pad.t + ch - (Math.min(c, maxCpu) / maxCpu) * ch;
+
+      // Zone backgrounds (With vs Without shield)
+      const transPhase = DATA.phases.find(p => p.id === 'transition') || { start_ms: totalMs * 0.45 };
+      const unprotPhase = DATA.phases.find(p => p.id === 'unprotected') || { start_ms: totalMs * 0.55 };
+      const coolPhase = DATA.phases.find(p => p.id === 'cooldown') || { start_ms: totalMs * 0.90 };
+
+      const xTrans = xForMs(transPhase.start_ms);
+      const xUnprot = xForMs(unprotPhase.start_ms);
+      const xCool = xForMs(coolPhase.start_ms);
+
+      // Emerald shaded region
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.06)';
+      ctx.fillRect(pad.l, pad.t, xTrans - pad.l, ch);
+
+      // Red shaded region
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+      ctx.fillRect(xUnprot, pad.t, xCool - xUnprot, ch);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+      ctx.lineWidth = 1;
+      ctx.font = 'bold 12px "DejaVu Sans Mono", monospace';
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.t + (ch / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(pad.l, y);
+        ctx.lineTo(W - pad.r, y);
+        ctx.stroke();
+
+        const wVal = Math.round(maxWatts * (1 - i / 4));
+        const cVal = Math.round(maxCpu * (1 - i / 4));
+        ctx.fillStyle = '#38bdf8';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${wVal}W`, pad.l - 10, y + 4);
+        ctx.fillStyle = '#fbbf24';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${cVal}%`, W - pad.r + 10, y + 4);
+      }
+
+      // Zone labels
+      ctx.font = 'bold 12px "Noto Sans", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#34d399';
+      ctx.fillText(I18N[LANG].zoneSafe, pad.l + 12, pad.t + 18);
+
+      ctx.fillStyle = '#fca5a5';
+      ctx.fillText(I18N[LANG].zoneDanger, xUnprot + 12, pad.t + 18);
+
+      // Toggle vertical marker + badge
+      ctx.save();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.moveTo(xTrans, pad.t);
+      ctx.lineTo(xTrans, pad.t + ch);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.25)';
+      const tLabel = I18N[LANG].zoneToggle;
+      ctx.font = 'bold 11px "DejaVu Sans Mono", monospace';
+      const tw = ctx.measureText(tLabel).width + 14;
+      ctx.fillRect(xTrans - tw / 2, pad.t + 4, tw, 20);
+      ctx.fillStyle = '#fde68a';
+      ctx.textAlign = 'center';
+      ctx.fillText(tLabel, xTrans, pad.t + 18);
+      ctx.restore();
+
+      // Visible samples up to currentElapsedMs
+      const visible = samples.filter(s => s.elapsed_ms <= currentElapsedMs);
+      const interp = sampleAtElapsed(currentElapsedMs);
+      const plotPts = [...visible, interp];
+      if (plotPts.length < 2) return;
+
+      // Area under Watts curve
+      const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
+      grad.addColorStop(0, currentElapsedMs >= unprotPhase.start_ms && currentElapsedMs < coolPhase.start_ms
+        ? 'rgba(239, 68, 68, 0.32)' : 'rgba(56, 189, 248, 0.25)');
+      grad.addColorStop(1, 'rgba(2, 6, 23, 0.0)');
+
+      ctx.beginPath();
+      ctx.moveTo(xForMs(plotPts[0].elapsed_ms), pad.t + ch);
+      for (const p of plotPts) ctx.lineTo(xForMs(p.elapsed_ms), yForWatts(p.watts));
+      ctx.lineTo(xForMs(interp.elapsed_ms), pad.t + ch);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // PHP-FPM CPU curve (amber / orange)
+      ctx.beginPath();
+      for (let i = 0; i < plotPts.length; i++) {
+        const px = xForMs(plotPts[i].elapsed_ms);
+        const py = yForCpu(plotPts[i].target_cpu_pct);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+
+      // Watts curve (cyan)
+      ctx.beginPath();
+      for (let i = 0; i < plotPts.length; i++) {
+        const px = xForMs(plotPts[i].elapsed_ms);
+        const py = yForWatts(plotPts[i].watts);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 3.6;
+      ctx.stroke();
+
+      // Peak callout pills once crossed
+      const peakW = samples.reduce((m, s) => s.watts > m.watts ? s : m, samples[0]);
+      if (peakW && currentElapsedMs >= peakW.elapsed_ms) {
+        const px = xForMs(peakW.elapsed_ms);
+        const py = yForWatts(peakW.watts);
+        const txt = `⚡ ${peakW.watts.toFixed(1)}W`;
+        ctx.save();
+        ctx.font = 'bold 12px "DejaVu Sans Mono", monospace';
+        const bw = ctx.measureText(txt).width + 16;
+        const bx = Math.min(W - pad.r - bw - 4, Math.max(pad.l + 4, px - bw / 2));
+        const by = Math.max(pad.t + 24, py - 28);
+        ctx.fillStyle = 'rgba(14, 116, 144, 0.92)';
+        ctx.fillRect(bx, by, bw, 22);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(bx, by, bw, 22);
+        ctx.fillStyle = '#f0f9ff';
+        ctx.textAlign = 'center';
+        ctx.fillText(txt, bx + bw / 2, by + 15);
+        ctx.restore();
+      }
+
+      const peakC = samples.reduce((m, s) => s.target_cpu_pct > m.target_cpu_pct ? s : m, samples[0]);
+      if (peakC && peakC.target_cpu_pct > 10 && currentElapsedMs >= peakC.elapsed_ms) {
+        const px = xForMs(peakC.elapsed_ms);
+        const py = yForCpu(peakC.target_cpu_pct);
+        const txt = `🔥 PHP ${peakC.target_cpu_pct.toFixed(1)}%`;
+        ctx.save();
+        ctx.font = 'bold 12px "DejaVu Sans Mono", monospace';
+        const bw = ctx.measureText(txt).width + 16;
+        const bx = Math.min(W - pad.r - bw - 4, Math.max(pad.l + 4, px - bw / 2));
+        const by = Math.max(pad.t + 26, py - 28);
+        ctx.fillStyle = 'rgba(154, 52, 18, 0.92)';
+        ctx.fillRect(bx, by, bw, 22);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(bx, by, bw, 22);
+        ctx.fillStyle = '#fef3c7';
+        ctx.textAlign = 'center';
+        ctx.fillText(txt, bx + bw / 2, by + 15);
+        ctx.restore();
+      }
+
+      // Live playhead dots
+      const cx = xForMs(interp.elapsed_ms);
+      const cyW = yForWatts(interp.watts);
+      const cyC = yForCpu(interp.target_cpu_pct);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath(); ctx.arc(cx, cyW, 6.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(cx, cyW, 2.8, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath(); ctx.arc(cx, cyC, 6, 0, Math.PI * 2); ctx.fill();
+
+      // Bottom time axis
+      ctx.fillStyle = '#64748b';
+      ctx.font = '12px "DejaVu Sans Mono", monospace';
+      ctx.textAlign = 'center';
+      const maxSec = Math.floor(totalMs / 1000);
+      for (let s = 0; s <= maxSec; s += 5) {
+        ctx.fillText(`${s}s`, xForMs(s * 1000), H - 10);
+      }
+    }
+
+    function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+    function easeOutCubic(t) { return 1 - Math.pow(1 - clamp01(t), 3); }
+
+    window.initStudio = function(data, lang, assets) {
+      DATA = data;
+      LANG = lang;
+      ASSETS = assets || {};
+      const T = I18N[LANG];
+
+      document.getElementById('intro-logo').innerHTML = LOGO_SVG;
+      document.getElementById('header-logo').innerHTML = LOGO_SVG;
+      document.getElementById('outro-logo').innerHTML = LOGO_SVG;
+
+      document.getElementById('intro-badge').textContent = T.introBadge;
+      document.getElementById('intro-title').innerHTML = T.introTitle;
+      document.getElementById('intro-sub').textContent = T.introSub;
+      document.getElementById('vs-safe').textContent = T.vsSafe;
+      document.getElementById('vs-danger').textContent = T.vsDanger;
+
+      document.getElementById('hw-spec').textContent = `${DATA.hardware.cpuModel} (${DATA.hardware.cores} vCPUs) • RAPL Hardware Direct`;
+      ['st-base', 'st-p1', 'st-trans', 'st-p2', 'st-end'].forEach((id, i) => {
+        document.getElementById(id).textContent = T.steps[i];
+      });
+
+      document.getElementById('term-title').textContent = T.termTitle;
+      document.getElementById('kpi-watts-lbl').textContent = T.kpiWattsLbl;
+      document.getElementById('kpi-watts-note').textContent = T.kpiWattsNote;
+      document.getElementById('kpi-php-lbl').textContent = T.kpiPhpLbl;
+      document.getElementById('kpi-php-note').textContent = T.kpiPhpNote;
+      document.getElementById('kpi-host-lbl').textContent = T.kpiHostLbl;
+      document.getElementById('kpi-host-note').textContent = T.kpiHostNote;
+      document.getElementById('kpi-lat-lbl').textContent = T.kpiLatLbl;
+      document.getElementById('kpi-lat-note').textContent = T.kpiLatNote;
+      document.getElementById('chart-title').textContent = T.chartTitle;
+      document.getElementById('leg-watts').textContent = T.legWatts;
+      document.getElementById('leg-php').textContent = T.legPhp;
+
+      // Outro values
+      const S = DATA.summary;
+      document.getElementById('outro-title').textContent = T.outroTitle;
+      document.getElementById('outro-sub').textContent = T.outroSub;
+      document.getElementById('comp-safe-title').textContent = T.compSafeTitle;
+      document.getElementById('comp-danger-title').textContent = T.compDangerTitle;
+      document.getElementById('outro-cta-text').textContent = T.ctaText;
+
+      const rowsSafe = [
+        `100% (${S.protected.blocked_count}/${S.protected.requests_sent})`,
+        `${S.protected.peak_target_cpu_pct}% CPU`,
+        `${S.protected.avg_watts} W / ${S.protected.peak_watts} W`,
+        `${S.protected.total_joules.toFixed(1)} J`,
+        `${S.protected.avg_latency_ms} ms`
+      ];
+      const rowsDanger = [
+        `0% (${S.unprotected.exploited_count} Pwned)`,
+        `${S.unprotected.peak_target_cpu_pct}% CPU`,
+        `${S.unprotected.avg_watts} W / ${S.unprotected.peak_watts} W`,
+        `${S.unprotected.total_joules.toFixed(1)} J (×${S.deltas.energy_multiplier})`,
+        `${S.unprotected.avg_latency_ms} ms`
+      ];
+      for (let i = 0; i < 5; i++) {
+        document.getElementById(`r${i+1}-k-safe`).textContent = T.rows[i];
+        document.getElementById(`r${i+1}-v-safe`).textContent = rowsSafe[i];
+        document.getElementById(`r${i+1}-k-danger`).textContent = T.rows[i];
+        document.getElementById(`r${i+1}-v-danger`).textContent = rowsDanger[i];
+      }
+    };
+
+    window.renderAtTime = function(videoTimeSec) {
+      const T = I18N[LANG];
+      const sIntroEnd = 3.8;
+      const sStudioEnd = 42.0;
+
+      const s1 = document.getElementById('scene-intro');
+      const s2 = document.getElementById('scene-studio');
+      const s3 = document.getElementById('scene-outro');
+      const bg = document.getElementById('bg-stage');
+
+      s1.classList.remove('active');
+      s2.classList.remove('active');
+      s3.classList.remove('active');
+
+      if (videoTimeSec < sIntroEnd) {
+        s1.classList.add('active');
+        bg.classList.remove('alert-glow');
+        const pIn = easeOutCubic(videoTimeSec / 0.7);
+        const pOut = videoTimeSec > (sIntroEnd - 0.35) ? clamp01((sIntroEnd - videoTimeSec) / 0.35) : 1;
+        s1.style.opacity = (pIn * pOut).toFixed(3);
+        s1.style.transform = `translateY(${((1 - pIn) * 24).toFixed(1)}px) scale(${(0.97 + 0.03 * pIn).toFixed(4)})`;
+        return;
+      }
+
+      if (videoTimeSec >= sStudioEnd) {
+        s3.classList.add('active');
+        bg.classList.remove('alert-glow');
+        const pIn = easeOutCubic((videoTimeSec - sStudioEnd) / 0.65);
+        s3.style.opacity = pIn.toFixed(3);
+        s3.style.transform = `translateY(${((1 - pIn) * 22).toFixed(1)}px)`;
+        return;
+      }
+
+      s2.classList.add('active');
+      s2.style.opacity = '1';
+      const studioFrac = (videoTimeSec - sIntroEnd) / (sStudioEnd - sIntroEnd);
+      const elapsedMs = studioFrac * DATA.summary.total_duration_ms;
+      const curr = sampleAtElapsed(elapsedMs);
+      const isDanger = !curr.shield_active;
+
+      bg.classList.toggle('alert-glow', isDanger);
+
+      // Stepper
+      const stepMap = { baseline: 'st-base', protected: 'st-p1', transition: 'st-trans', unprotected: 'st-p2', cooldown: 'st-end' };
+      ['st-base', 'st-p1', 'st-trans', 'st-p2', 'st-end'].forEach(id => {
+        const el = document.getElementById(id);
+        el.className = 'step-item';
+        if (id === stepMap[curr.phase]) {
+          el.classList.add(curr.phase === 'unprotected' ? 'active-red' : curr.phase === 'transition' ? 'active-amber' : 'active-green');
+        }
+      });
+
+      // Shield pill
+      const pill = document.getElementById('shield-pill');
+      pill.className = `shield-pill mono ${isDanger ? 'off' : 'on'}`;
+      document.getElementById('shield-pill-text').textContent = isDanger ? T.shieldOff : T.shieldOn;
+
+      // KPIs
+      document.getElementById('kpi-watts-val').textContent = `${curr.watts.toFixed(1)} W`;
+      document.getElementById('kpi-watts-val').style.color = isDanger ? '#f87171' : '#38bdf8';
+      document.getElementById('kpi-watts-card').className = `kpi-card ${isDanger ? 'danger-border' : 'safe-border'}`;
+
+      document.getElementById('kpi-php-val').textContent = `${curr.target_cpu_pct.toFixed(1)}%`;
+      document.getElementById('kpi-php-val').style.color = curr.target_cpu_pct > 25 ? '#f59e0b' : '#34d399';
+      document.getElementById('kpi-php-card').className = `kpi-card ${curr.target_cpu_pct > 25 ? 'danger-border' : 'safe-border'}`;
+
+      document.getElementById('kpi-host-val').textContent = `${curr.host_cpu_pct.toFixed(1)}%`;
+      document.getElementById('kpi-host-val').style.color = curr.host_cpu_pct > 55 ? '#f87171' : '#e2e8f0';
+
+      document.getElementById('kpi-lat-val').textContent = `${curr.recent_latency_ms.toFixed(1)} ms`;
+      document.getElementById('kpi-lat-val').style.color = curr.recent_latency_ms > 20 ? '#fca5a5' : '#34d399';
+
+      // Counters from actual terminal feed up to elapsedMs
+      const feedUntilNow = DATA.terminal_feed.filter(ev => ev.elapsed_ms <= elapsedMs);
+      const blockedScale = DATA.summary.protected.requests_sent / Math.max(1, DATA.terminal_feed.filter(e => e.phase === 'protected').length);
+      const p1Done = feedUntilNow.filter(e => e.phase === 'protected' && (e.status === 403 || e.status === 413)).length;
+      const p2Done = feedUntilNow.filter(e => e.phase === 'unprotected' && (e.verdict === 'EXPLOITED' || e.status === 200)).length;
+      const scaleP2 = DATA.summary.unprotected.requests_sent / Math.max(1, DATA.terminal_feed.filter(e => e.phase === 'unprotected').length);
+
+      if (curr.phase === 'unprotected' || curr.phase === 'cooldown') {
+        const expCount = Math.round(p2Done * scaleP2);
+        document.getElementById('tac-a-label').textContent = T.tacALabelDanger;
+        document.getElementById('tac-a-val').textContent = `${expCount}`;
+        document.getElementById('tac-a-val').style.color = '#f87171';
+        document.getElementById('tac-a-sub').textContent = T.tacASubDanger;
+        document.getElementById('tac-b-val').textContent = `${expCount}`;
+        document.getElementById('tac-b-val').style.color = '#fbbf24';
+        document.getElementById('tac-b-sub').textContent = T.tacBSubDanger;
+      } else {
+        const blkCount = Math.round(p1Done * blockedScale);
+        document.getElementById('tac-a-label').textContent = T.tacALabelSafe;
+        document.getElementById('tac-a-val').textContent = `${blkCount}`;
+        document.getElementById('tac-a-val').style.color = '#34d399';
+        document.getElementById('tac-a-sub').textContent = T.tacASubSafe;
+        document.getElementById('tac-b-val').textContent = '0';
+        document.getElementById('tac-b-val').style.color = '#34d399';
+        document.getElementById('tac-b-sub').textContent = T.tacBSubSafe;
+      }
+      document.getElementById('tac-b-label').textContent = T.tacBLabel;
+      document.getElementById('term-rps').textContent = `${curr.recent_rps} req/s`;
+
+      // Terminal Log Lines (real HTTP events + phase marker banners)
+      const logsEl = document.getElementById('term-logs');
+      const transPhase = DATA.phases.find(p => p.id === 'transition');
+      const coolPhase = DATA.phases.find(p => p.id === 'cooldown');
+      const eventsToRender = [];
+      eventsToRender.push(`<div class="log-row" style="background:rgba(56,189,248,0.08);border-left-color:#38bdf8;color:#bae6fd;">
+        <span>[00.00s] [AEGIS-BENCH] Intel RAPL direct probe active • Target PHP-FPM 8.3</span>
+        <span class="log-badge" style="background:rgba(56,189,248,0.2);color:#38bdf8;">SHIELD ON</span>
+      </div>`);
+      for (const ev of feedUntilNow) {
+        const cls = ev.status === 403 || ev.status === 413 ? 'blocked' : 'exploited';
+        const label = cls === 'blocked' ? '403 BLOCKED' : '200 EXPLOITED';
+        const sec = (ev.elapsed_ms / 1000).toFixed(2).padStart(5, '0');
+        eventsToRender.push(`<div class="log-row ${cls}">
+          <span>[${sec}s] POST /index.php?%ADd+allow_url_include=1</span>
+          <span class="log-badge">${label} • ${ev.latency_ms}ms</span>
+        </div>`);
+      }
+      if (transPhase && elapsedMs >= transPhase.start_ms && (!coolPhase || elapsedMs < coolPhase.start_ms)) {
+        const idxInsert = eventsToRender.findIndex(h => h.includes('200 EXPLOITED'));
+        const banner = `<div class="log-row" style="background:rgba(245,158,11,0.14);border-left-color:#f59e0b;color:#fde68a;">
+          <span>[${(transPhase.start_ms/1000).toFixed(2).padStart(5,'0')}s] [CONTROL-PLANE] protection_enabled = false (Exposed mode)</span>
+          <span class="log-badge" style="background:rgba(245,158,11,0.25);color:#fbbf24;">SHIELD OFF</span>
+        </div>`;
+        if (idxInsert === -1) eventsToRender.push(banner);
+        else eventsToRender.splice(idxInsert, 0, banner);
+      }
+      if (coolPhase && elapsedMs >= coolPhase.start_ms) {
+        eventsToRender.push(`<div class="log-row" style="background:rgba(16,185,129,0.14);border-left-color:#10b981;color:#6ee7b7;">
+          <span>[${(coolPhase.start_ms/1000).toFixed(2).padStart(5,'0')}s] [CONTROL-PLANE] protection_enabled = true (Cooldown & Recovery)</span>
+          <span class="log-badge" style="background:rgba(16,185,129,0.25);color:#34d399;">RESTORED</span>
+        </div>`);
+      }
+      logsEl.innerHTML = eventsToRender.slice(-12).join('');
+
+      // Cockpit PiP switch (Overview when shielded, Live RAPL Telemetry when exposed)
+      const pipImg = document.getElementById('pip-img');
+      const pipUrl = document.getElementById('pip-url');
+      const pipTag = document.getElementById('pip-tag');
+      const pipHead = document.getElementById('pip-headline');
+      const pipDesc = document.getElementById('pip-desc');
+      if (isDanger) {
+        if (ASSETS.rapl) pipImg.src = ASSETS.rapl;
+        pipUrl.textContent = 'https://aegis.aivo.fr/app/actions/green';
+        pipTag.className = 'pip-tag danger mono';
+        pipTag.textContent = T.pipTagDanger;
+        pipHead.textContent = T.pipHeadDanger;
+        pipDesc.textContent = T.pipDescDanger;
+      } else {
+        if (ASSETS.overview) pipImg.src = ASSETS.overview;
+        pipUrl.textContent = 'https://aegis.aivo.fr/app/';
+        pipTag.className = 'pip-tag safe mono';
+        pipTag.textContent = T.pipTagSafe;
+        pipHead.textContent = T.pipHeadSafe;
+        pipDesc.textContent = T.pipDescSafe;
+      }
+
+      drawChart(elapsedMs);
+    };
+  </script>
+</body>
+</html>

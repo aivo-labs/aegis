@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aegis-gate-proxy
+  namespace: aegis-system
+  labels:
+    app: aegis-gate-proxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aegis-gate-proxy
+  template:
+    metadata:
+      labels:
+        app: aegis-gate-proxy
+    spec:
+      containers:
+        - name: gate-proxy
+          image: ghcr.io/aivo/aegis-gate-proxy:latest
+          ports:
+            - containerPort: 8000
+              name: http-waf
+          env:
+            - name: PORT
+              value: "8000"
+            - name: UPSTREAM_HOST
+              value: "target-service.default.svc.cluster.local"
+            - name: UPSTREAM_PORT
+              value: "80"
+          envFrom:
+            - configMapRef:
+                name: aegis-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aegis-gate-proxy
+  namespace: aegis-system
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    app: aegis-gate-proxy

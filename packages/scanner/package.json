@@ -1,0 +1,12 @@
+{
+  "name": "@aivo/aegis-scanner",
+  "version": "1.0.0",
+  "description": "Core Engine Scanner for Aegis par AIVO (Passive & Active Security, EcoIndex, CVE, DNS)",
+  "main": "src/index.mjs",
+  "type": "module",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "scan": "node src/index.mjs"
+  },
+  "dependencies": {}
+}
