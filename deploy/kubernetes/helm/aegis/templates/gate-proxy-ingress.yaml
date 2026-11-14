@@ -1,0 +1,83 @@
+{{- if .Values.ingressPep.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aegis-gate-proxy
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: aegis-gate-proxy
+    app.kubernetes.io/component: ingress-pep
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.ingressPep.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aegis-gate-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aegis-gate-proxy
+    spec:
+      containers:
+        - name: gate-proxy
+          image: "{{ .Values.ingressPep.image.repository }}:{{ .Values.ingressPep.image.tag }}"
+          imagePullPolicy: {{ .Values.ingressPep.image.pullPolicy }}
+          ports:
+            - name: http-pep
+              containerPort: 8000
+          env:
+            - name: PORT
+              value: "8000"
+            - name: UPSTREAM_HOST
+              value: "target-service.default.svc.cluster.local"
+            - name: UPSTREAM_PORT
+              value: "80"
+            - name: BLOCK_SCANNERS
+              value: {{ .Values.ingressPep.rules.blockScanners | quote }}
+            - name: BLOCK_SQLI
+              value: {{ .Values.ingressPep.rules.blockSqlInjection | quote }}
+            - name: BLOCK_PATH_TRAVERSAL
+              value: {{ .Values.ingressPep.rules.blockPathTraversal | quote }}
+            - name: BLOCK_RCE
+              value: {{ .Values.ingressPep.rules.blockRce | quote }}
+          envFrom:
+            - configMapRef:
+                name: aegis-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aegis-gate-proxy
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: aegis-gate-proxy
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: {{ .Values.ingressPep.service.type }}
+  ports:
+    - port: {{ .Values.ingressPep.service.port }}
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: aegis-gate-proxy
+{{- end }}

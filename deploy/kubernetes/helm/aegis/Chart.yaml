@@ -1,0 +1,20 @@
+apiVersion: v2
+name: aegis
+description: Helm Chart officiel pour la Suite Souveraine Aegis (Zero-Trust Security & Kepler eBPF ESG Telemetry)
+type: application
+version: 1.0.0
+appVersion: "5.2.0"
+keywords:
+  - security
+  - zero-trust
+  - esg
+  - kepler
+  - rgesn
+  - coredns
+  - waf
+maintainers:
+  - name: Nicolas BAUD (AIVO)
+    email: nicolas@aivo.fr
+    url: https://aivo.fr
+sources:
+  - https://github.com/aivo-labs/aegis

@@ -1,0 +1,128 @@
+{{- if .Values.energy.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: aegis-telemetry-kepler
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: aegis-telemetry
+    app.kubernetes.io/component: energy-attribution
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aegis-telemetry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aegis-telemetry
+    spec:
+      hostPID: true
+      hostNetwork: false
+      tolerations:
+        - operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        # Conteneur 1 : Sonde Kepler eBPF
+        - name: kepler
+          image: {{ .Values.energy.kepler.image | quote }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          ports:
+            - name: metrics
+              containerPort: 8888
+          volumeMounts:
+            - name: proc
+              mountPath: /proc
+              readOnly: true
+            - name: sys
+              mountPath: /sys
+              readOnly: true
+            - name: bpf
+              mountPath: /sys/fs/bpf
+
+        # Conteneur 2 : Connecteur Aegis Energy Forwarder (Attribution par Namespace)
+        - name: aegis-energy-forwarder
+          image: "alpine:3.20"
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              apk add --no-cache curl jq coreutils
+              echo "[Aegis K8s Forwarder] Démarrage du collecteur énergétique..."
+              while true; do
+                sleep 5
+                # Collecte des métriques Kepler par namespace
+                METRICS=$(curl -s http://localhost:8888/metrics || true)
+                if [ -n "$METRICS" ]; then
+                  # Extraction et sommation des Joules par namespace
+                  JOULES_REPORT=$(echo "$METRICS" | grep -E "^kepler_container_joules_total\{" | awk -F'[,}]' '{
+                    split($0, a, "kepler_container_joules_total{");
+                    for (i=1; i<=NF; i++) {
+                      if ($i ~ /container_namespace=/) {
+                        gsub(/.*container_namespace="/, "", $i);
+                        gsub(/".*/, "", $i);
+                        ns=$i;
+                      }
+                    }
+                    val=$NF;
+                    if (ns != "") sum[ns]+=val;
+                  } END {
+                    printf "{";
+                    first=1;
+                    for (k in sum) {
+                      if (!first) printf ",";
+                      printf "\"%s\":%f", k, sum[k];
+                      first=0;
+                    }
+                    printf "}";
+                  }')
+
+                  PAYLOAD=$(jq -n \
+                    --arg cluster "$AEGIS_CLUSTER_NAME" \
+                    --arg tenant "$AEGIS_TENANT_ID" \
+                    --argjson namespaces "$JOULES_REPORT" \
+                    '{
+                      cluster_id: $cluster,
+                      tenant_id: $tenant,
+                      timestamp: (now | todateiso8601),
+                      source: "kepler_ebpf",
+                      namespaces: $namespaces
+                    }')
+
+                  # Push sécurisé vers l'API Aegis
+                  curl -s -X POST "$AEGIS_CONTROL_PLANE_URL/api/v1/telemetry/push" \
+                    -H "Content-Type: application/json" \
+                    -H "X-Aegis-Tenant-Id: $AEGIS_TENANT_ID" \
+                    -d "$PAYLOAD" >/dev/null 2>&1 || true
+                fi
+              done
+          envFrom:
+            - configMapRef:
+                name: aegis-config
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: bpf
+          hostPath:
+            path: /sys/fs/bpf
+{{- end }}

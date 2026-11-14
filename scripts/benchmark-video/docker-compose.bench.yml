@@ -1,0 +1,43 @@
+# =============================================================================
+# AEGIS BENCHMARK VIDEO — STACK CIBLE LOCALE ISOLÉE (PHP-FPM 8.3 + NGINX + NODE)
+# S'attache au réseau existant 'aegis_default' sans perturber le Control Plane.
+# =============================================================================
+
+services:
+  bench-target:
+    image: aegis-target-app:local
+    build:
+      context: ../../deploy/oci-managed-demo/target-app
+      dockerfile: Dockerfile
+    container_name: aegis_bench_target
+    restart: "no"
+    environment:
+      - EGRESS_CHECK_URL=http://egress-gateway:5053/check
+    networks:
+      - aegis_default
+
+  bench-edge:
+    image: aegis-gate-proxy:latest
+    container_name: aegis_bench_edge
+    restart: "no"
+    ports:
+      - "8090:8000"
+    environment:
+      - GATE_PORT=8000
+      - AEGIS_NODE_MODE=edge
+      - AEGIS_NODE_HOSTNAME=local-php-benchmark-node
+      - WEB_URL=http://aegis_bench_target:80
+      - BACKEND_URL=http://backend:80
+      - AEGIS_GATE_API_URL=http://backend:80/api/v1/gate/telemetry/ingress
+      - EGRESS_GATEWAY_URL=http://egress-gateway:5053
+      - AEGIS_TENANT_ID=00000000-0000-0000-0000-000000000001
+      - AEGIS_PROTECTION_ENABLED=true
+      - AEGIS_MAX_PAYLOAD_BYTES=32768
+    depends_on:
+      - bench-target
+    networks:
+      - aegis_default
+
+networks:
+  aegis_default:
+    external: true
