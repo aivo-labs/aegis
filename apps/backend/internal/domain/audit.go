@@ -72,6 +72,17 @@ type DNSAnalysis struct {
 	ResolvedIPs []string `json:"resolved_ips"`
 }
 
+// PQCAnalysis contient l'audit de maturité cryptographique post-quantique (NIST FIPS 203 ML-KEM).
+type PQCAnalysis struct {
+	PostQuantumReady    bool              `json:"post_quantum_ready"`
+	TLSVersion          string            `json:"tls_version"`
+	CipherSuite         string            `json:"cipher_suite"`
+	NegotiatedCurve     string            `json:"negotiated_curve"`
+	Standard            string            `json:"standard"`
+	HNDLRisk            string            `json:"hndl_risk"`
+	RemediationSnippets map[string]string `json:"remediation_snippets,omitempty"`
+}
+
 // PassiveAuditResult est le résultat consolidé d'un audit de domaine.
 type PassiveAuditResult struct {
 	AuditID           string            `json:"audit_id"`
@@ -99,6 +110,7 @@ type PassiveAuditResult struct {
 	SecurityHeaders   map[string]bool   `json:"security_headers"`
 	DNS               DNSAnalysis       `json:"dns_analysis"`
 	DNSChecks         map[string]string `json:"dns_checks"`
+	PostQuantum       PQCAnalysis       `json:"post_quantum"`
 	PagesDetail       []PageEcoAudit    `json:"pages_detail"`
 	Pages             []PageEcoAudit    `json:"pages"`
 	DeepProbes        []map[string]any  `json:"deep_probes,omitempty"`
