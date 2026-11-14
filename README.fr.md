@@ -12,7 +12,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/License-AGPLv3-emerald?style=flat-square" alt="Licence AGPLv3" />
   <img src="https://img.shields.io/badge/Architecture-Zero--Trust-blue?style=flat-square" alt="Zero Trust" />
-  <img src="https://img.shields.io/badge/Go-1.22-00ADD8?style=flat-square&logo=go" alt="Go 1.22" />
+  <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go" alt="Go 1.25" />
   <img src="https://img.shields.io/badge/Rust-RAPL-orange?style=flat-square&logo=rust" alt="Rust RAPL" />
   <img src="https://img.shields.io/badge/Astro-5.x-purple?style=flat-square&logo=astro" alt="Astro 5" />
   <img src="https://img.shields.io/badge/NIS%202-Prêt-success?style=flat-square" alt="Conformité NIS 2" />
