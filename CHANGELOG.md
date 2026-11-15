@@ -31,6 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 - **Go 1.25 Toolchain Upgrade**:
   - Upgraded `apps/backend/go.mod`, `apps/backend/Dockerfile`, and `.github/workflows/ci.yml` from Go `1.22` to **Go `1.25`** to leverage native `crypto/tls` support for `tls.X25519MLKEM768` and `tls.ConnectionState.CurveID`.
+- **Technical Roadmap Alignment (Locks #5, #8, #10, and #11)**:
+  - Synchronized [`ROADMAP.md`](ROADMAP.md), [`ROADMAP.fr.md`](ROADMAP.fr.md), [`README.md`](README.md), and [`README.fr.md`](README.fr.md) with the delivered **NIST FIPS 203 `X25519MLKEM768`** passive probe (Lock #5), **Post-Quantum hybrid `mTLS`** endpoint telemetry channel (Lock #8), **"Two-Door & Zero-Secret Placeholder"** AI egress DLP pattern (Lock #10), and **Zero-Trust MCP Gateway (`tools/list`, `tools/call`) + `Ed25519 + ML-DSA` (FIPS 204)** EU AI Act audit ledger (Lock #11).
 
 ---
 
