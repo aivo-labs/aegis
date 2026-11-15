@@ -31,6 +31,8 @@ Le format suit le standard [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 ### Modifié (Changed)
 - **Mise à niveau de la chaîne de compilation Go vers `1.25`** :
   - Mise à jour de `apps/backend/go.mod`, `apps/backend/Dockerfile` et `.github/workflows/ci.yml` de Go `1.22` vers **Go `1.25`** afin d'exploiter nativement `tls.X25519MLKEM768` et l'inspection `tls.ConnectionState.CurveID` dans `crypto/tls`.
+- **Alignement de la Roadmap Technique (Verrous n°5, n°8, n°10 et n°11)** :
+  - Synchronisation de [`ROADMAP.fr.md`](ROADMAP.fr.md), [`ROADMAP.md`](ROADMAP.md), [`README.fr.md`](README.fr.md) et [`README.md`](README.md) intégrant la sonde passive **NIST FIPS 203 `X25519MLKEM768`** livrée (Verrou n°5), le canal **`mTLS` hybride post-quantique** de l'agent endpoint Rust (Verrou n°8), le pattern **« Two-Door & Zero-Secret Placeholder »** pour les agents IA (Verrou n°10) et la **Passerelle MCP Zero-Trust (`tools/list`, `tools/call`) + registre immuable signé `Ed25519 + ML-DSA` (FIPS 204)** conforme à l'EU AI Act (Verrou n°11).
 
 ---
 
