@@ -40,11 +40,26 @@ feature/*              ●──●          ●───●                    
      ```
 2. **`release/vX.Y.Z`** (ex. `release/v1.1.0`)
    * **Créée depuis** : `develop` lorsque les fonctionnalités ciblées sont prêtes.
-   * **Objectif** : Incrément de version, gel fonctionnel, alignement documentaire et tests finaux de pré-production.
-   * **Fusionnée vers** : `main` (avec tag `vX.Y.Z`) **puis reversée dans** `develop`.
+   * **Objectif** : Incrément de version sémantique (`SemVer 2.0.0`), bascule de la section `[Unreleased]` vers `[X.Y.Z] — AAAA-MM-JJ` dans [`CHANGELOG.fr.md`](CHANGELOG.fr.md) et [`CHANGELOG.md`](CHANGELOG.md), gel fonctionnel et tests finaux de pré-production.
+   * **Fusionnée vers** : `main` (avec création d'un **tag Git annoté `vX.Y.Z`**) **puis reversée dans** `develop` :
+     ```bash
+     # 1. Créer la branche de release depuis develop & mettre à jour CHANGELOG.fr.md / CHANGELOG.md
+     git checkout -b release/v1.1.0 develop
+     git commit -am "chore(release): prepare v1.1.0 changelog and version metadata"
+
+     # 2. Fusionner vers main & créer le tag SemVer annoté
+     git checkout main
+     git merge --no-ff release/v1.1.0 -m "Merge branch 'release/v1.1.0' into main"
+     git tag -a v1.1.0 -m "Release v1.1.0"
+
+     # 3. Reverser dans develop & supprimer la branche de release temporaire
+     git checkout develop
+     git merge --no-ff release/v1.1.0 -m "Merge branch 'release/v1.1.0' into develop"
+     git branch -d release/v1.1.0
+     ```
 3. **`hotfix/vX.Y.Z`** (ex. `hotfix/v1.0.1`)
    * **Créée depuis** : `main` pour corriger immédiatement une vulnérabilité ou anomalie critique en production.
-   * **Fusionnée vers** : `main` (avec tag `vX.Y.Z`) **et dans** `develop`.
+   * **Fusionnée vers** : `main` (avec tag annoté `git tag -a vX.Y.Z`) **et dans** `develop`, accompagnée d'une entrée dédiée dans [`CHANGELOG.fr.md`](CHANGELOG.fr.md) et [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
