@@ -22,18 +22,18 @@ Chaque chantier est suivi strictement par **statut d'implémentation (`✅ Livr�
 | **P0/P1** | **n°2 Normalisation Multi-Encodage (Base64 / HTML)** | **🚧 Partiel** | **P1 (Haute)** | `apps/gate-proxy/src/engine/canonicalizer.ts` | Décodage URL 3 passes & purge `/*...*/` **livrés** ; ajout décodage automatique Base64 / Hex / entités HTML |
 | **P0/P1** | **n°3 Rate-Limiting Volumétrique & Quarantaine IP** | **🚧 Partiel** | **P1 (Haute)** | `apps/gate-proxy/src/quarantine/ip-reputation.ts` | Blacklist SOC persistante **livrée** ; ajout fenêtre glissante (`60 req/10s`) & auto-bannissement (`< 0,1 ms`) |
 | **P0/P1** | **n°4 Durcissement Protocole (`431`) & Anti-Spawn Shell** | **🚧 Partiel** | **P1 (Haute)** | `apps/gate-proxy/src/`, `apps/telemetry-agent` | Virtual Patch `PHP2Shell` & `HTTP 413` **livrés** ; ajout plafonds en-têtes `431` (`8 Ko`), multipart RFC & alerte spawn `/bin/sh` |
-| **P0/P1** | **n°5 Audit Passif Continu & Remédiation Guidée** | **🚧 Partiel** | **P1 (Haute)** | `apps/backend/internal/scanner/` | Scanner passif Go à la demande & CVE Feed **livrés** ; ajout audits planifiés + snippets correctifs prêts à copier-coller |
+| **P0/P1** | **n°5 Audit Passif Continu, PQC (`ML-KEM`) & Remédiation** | **🚧 Partiel** | **P1 (Haute)** | `apps/backend/internal/scanner/` | Scanner passif Go, sonde **PQC `X25519MLKEM768` (FIPS 203)** + snippets TLS & CVE Feed **livrés** ; ajout audits cron planifiés |
 | **P2** | **n°6 Filtre Réseau `eBPF / XDP` L3/L4 & Veille Kernel** | **⏳ En conception** | **P2 (Moyenne)** | `apps/telemetry-agent/src/` | Rejet carte réseau `XDP_DROP` (`< 0,005 ms`) contre SYN forgés (LSRR/SSRR) + veille version `uname -r` |
 | **P2** | **n°7 Filtrage DNS Entreprise & Shadow IT (DoH/DoT)** | **⏳ À planifier** | **P2 (Moyenne)** | `apps/egress-gateway/src/` | Résolveur central DHCP/`:5053` + DoH/DoT nomade encadrant les outils RAT (TeamViewer, AnyDesk, RustDesk) en Prod/DMZ |
-| **P2** | **n°8 Agent Posture Endpoint Frugal Rust (`< 10 Mo`)** | **⏳ En conception** | **P2 (Moyenne)** | Nouveau `aegis-node-agent` (Rust) + `web` | Inventaire CVE local & hygiène poste multi-OS (`heartbeat mTLS` vers Cockpit + accès conditionnel `gate-proxy`) |
+| **P2** | **n°8 Agent Posture Endpoint Rust (`< 10 Mo`) & `mTLS` PQC** | **⏳ En conception** | **P2 (Moyenne)** | Nouveau `aegis-node-agent` (Rust) + `web` | Inventaire CVE local & hygiène poste multi-OS via **canal `mTLS` hybride post-quantique (`X25519MLKEM768`)** + accès conditionnel |
 | **P2** | **n°9 Micro-Segmentation ZTNA « Assume Breach »** | **⏳ En conception** | **P2 (Moyenne)** | Architecture réseau & PEP | Supprime les routes L3 bureautique → BDD et détecte les scans ARP/ports internes (Honeypot réseau) |
-| **P3** | **n°10 Protection Exfiltration IA & Guardrails LLM** | **⏳ En conception** | **P3 (R&D)** | `gate-proxy` (Ingress) & `egress-gateway` | Intercepte Prompt Injections / Jailbreaks en entrée et bloque la fuite de secrets / données sensibles en sortie LLM |
-| **P3** | **n°11 Sécurisation « Agent Harnesses » & AI Act** | **⏳ En conception** | **P3 (R&D)** | Sonde hôte (`seccomp`/eBPF) & `backend` | Sandboxing noyau éphémère des outils d'agents autonomes + journal cryptographique immuable conforme à l'**AI Act** |
+| **P3** | **n°10 Gouvernance IA « Two-Door » & Zero-Secret Egress** | **⏳ En conception** | **P3 (R&D)** | `gate-proxy` (Ingress) & `egress-gateway` | Garde-fous Prompt Injection en entrée + **Zero-Secret Placeholder** (zéro clé API dans l'agent, anonymisation PII & injection en bordure) |
+| **P3** | **n°11 Passerelle MCP Zero-Trust & Registre PQC AI Act** | **⏳ En conception** | **P3 (R&D)** | `gate-proxy`, sonde `seccomp`/eBPF & `backend` | Filtrage granulaire MCP (`tools/list`, `tools/call`) par identité, sandboxing noyau & registre immuable signé **`Ed25519 + ML-DSA` (FIPS 204)** |
 | **P3** | **n°12 CTI Collaborative P2P & Micro-SLM `< 1B` CPU** | **🚧 Partiel** | **P3 (R&D)** | `apps/egress-gateway/src/cti/blocklist.ts`, Ollama | Blocklist C2 statique + option **Nimble 9B** (Ollama) **livrés en v1** ; ajout flux Abuse.ch/CERT-FR/CISA KEV, partage P2P & SLM `< 1B` CPU-only |
 
 ---
 
-## ✅ Socle v1 Déjà Livré & Vérifié dans le Dépôt
+## ✅ Socle v1 / v1.1 Déjà Livré & Vérifié dans le Dépôt
 
 Avant les prochains verrous, les briques suivantes sont **opérationnelles et testées** dans les piles Docker actuelles :
 
@@ -43,7 +43,7 @@ Avant les prochains verrous, les briques suivantes sont **opérationnelles et te
 | **Pure BFF Token Handler** | [`apps/gate-proxy/src/bff/auth-handler.ts`](apps/gate-proxy/src/bff/auth-handler.ts), [`bff/session.ts`](apps/gate-proxy/src/bff/session.ts) | Zéro JWT dans le `localStorage`/JS navigateur ; cookies chiffrés AES-256-GCM (`HttpOnly`) ; compatible Keycloak, Authelia, Okta ou mode autonome |
 | **Egress DNS Sinkhole & SLM v1** | [`apps/egress-gateway/src/index.ts`](apps/egress-gateway/src/index.ts), [`dns/udp-server.ts`](apps/egress-gateway/src/dns/udp-server.ts), [`engine/system-one.ts`](apps/egress-gateway/src/engine/system-one.ts) | Sinkhole DNS `:5053` (`0.0.0.0`), entropie de Shannon anti-DGA (`H > 4.2`), blocklist CTI statique + SLM optionnel **Nimble 9B** (`ollama-nimble:11434`) air-gapped |
 | **Télémétrie RAPL & Certificat CSRD** | [`apps/telemetry-agent/src/main.rs`](apps/telemetry-agent/src/main.rs), `collector/rapl.rs`, `collector/cpu.rs`, TimescaleDB | Lecture directe `/sys/class/powercap` + `/proc/stat`, support Kepler eBPF sous Kubernetes, exports PDF & CSV conformes Scope 2 / CSRD |
-| **Cockpit SOC, Scanner & CVE Feed** | [`apps/backend/internal/scanner/engine.go`](apps/backend/internal/scanner/engine.go), [`internal/service/cve_service.go`](apps/backend/internal/service/cve_service.go), `apps/web` | Flux SSE temps réel, audit passif multi-pages (en-têtes, TLS, DNS, EcoIndex), matrice CVE Feed interactive, enrôlement multi-nœuds |
+| **Cockpit SOC, Scanner PQC & CVE Feed** | [`apps/backend/internal/scanner/engine.go`](apps/backend/internal/scanner/engine.go), [`scanner/pqc.go`](apps/backend/internal/scanner/pqc.go), [`internal/service/cve_service.go`](apps/backend/internal/service/cve_service.go), `apps/web` | Flux SSE temps réel, audit passif multi-pages (en-têtes, TLS, DNS, EcoIndex, **sonde Post-Quantique NIST FIPS 203 `X25519MLKEM768`**), matrice CVE Feed interactive |
 
 ---
 
@@ -91,14 +91,14 @@ Avant les prochains verrous, les briques suivantes sont **opérationnelles et te
   1. **Durcissement HTTP dans `gate-proxy`** : plafonnement strict des en-têtes HTTP (`> 8 Ko` global ou `> 4 Ko` par en-tête → `HTTP 431`), conformité stricte `multipart/form-data` (profondeur `<= 3`, bornes RFC valides) et contrôle de ratio anti-bombes de compression.
   2. **Détection de spawn de shell côté hôte** : étendre [`apps/telemetry-agent`](apps/telemetry-agent/src/main.rs) (inspection `/proc`) pour lever une alerte critique dès qu'un worker web (`php-fpm`, `node`, `nginx`) engendre un shell inattendu (`/bin/sh`, `/bin/bash`, `python`).
 
-### 🔒 Verrou n°5 : Supervision Continue des Postures & Remédiation Guidée
-- **Statut :** 🚧 Partiel (scanner passif Go à la demande & CVE Feed déjà opérationnels)
+### 🔒 Verrou n°5 : Supervision Continue des Postures, Sonde Post-Quantique (`ML-KEM`) & Remédiation Guidée
+- **Statut :** 🚧 Partiel (scanner passif Go 1.25, sonde **Post-Quantum Readiness `X25519MLKEM768`**, snippets TLS & CVE Feed déjà opérationnels)
 - **Priorité :** Haute (**P1**)
 - **État actuel :**
-  [`apps/backend/internal/scanner/engine.go`](apps/backend/internal/scanner/engine.go) et [`cve_service.go`](apps/backend/internal/service/cve_service.go) auditent déjà les domaines à la demande (en-têtes HTTP, TLS, DNS, EcoIndex sur 5 pages, correspondance CVE).
+  [`apps/backend/internal/scanner/engine.go`](apps/backend/internal/scanner/engine.go), [`scanner/pqc.go`](apps/backend/internal/scanner/pqc.go) et [`cve_service.go`](apps/backend/internal/service/cve_service.go) auditent déjà les domaines à la demande (en-têtes HTTP, DNS hiérarchique RFC 7489/7208, EcoIndex, correspondance CVE, et **handshake TLS 1.3 Post-Quantique NIST FIPS 203 `X25519MLKEM768` (`0x11ec`)** évaluant le risque *Harvest Now, Decrypt Later (HNDL)* avec génération des extraits correctifs Traefik, Nginx, Caddy et Go).
 - **Compléments à implémenter :**
-  1. **Audits passifs planifiés en continu** : exécution périodique automatisée avec alerte proactive dès détection d'une dérive (port ouvert imprévu, certificat TLS expirant sous 15 jours, en-tête de sécurité manquant).
-  2. **Snippets de remédiation guidée** : fournir directement dans l'interface Cockpit des extraits de configuration prêts à copier-coller (Nginx, Traefik, Apache, `php.ini`) pour corriger chaque anomalie sans expertise SecOps avancée.
+  1. **Audits passifs planifiés en continu** : exécution périodique automatisée avec alerte proactive dès détection d'une dérive (port ouvert imprévu, certificat TLS expirant sous 15 jours, régression PQC ou en-tête de sécurité manquant).
+  2. **Assistant de remédiation guidée dans le Cockpit** : étendre les snippets prêts au copier-coller (déjà livrés pour le TLS Post-Quantique) à l'ensemble des en-têtes HTTP et directives `php.ini` / Apache directement dans l'interface visuelle du Cockpit.
 
 ---
 
@@ -118,14 +118,14 @@ Avant les prochains verrous, les briques suivantes sont **opérationnelles et te
   1. Déployer [`apps/egress-gateway`](apps/egress-gateway/src/index.ts) (`:5053`) comme résolveur DNS d'entreprise (DHCP sur site + profils sécurisés **DoH / DoT** en télétravail), préservant la sobriété en évitant la rupture/inspection TLS lourde sur tout le trafic web.
   2. Catégoriser les outils de télémaintenance (**RAT** : TeamViewer, AnyDesk, RustDesk, LogMeIn, VNC) afin d'appliquer des règles par sous-réseau (ex. *interdiction de prise en main sortante depuis la DMZ et les bases de production*) et neutraliser les beacons C2 post-exploitation.
 
-### 🔒 Verrou n°8 : Agent de Posture Endpoint Frugal en Rust (`< 10 Mo RAM`)
+### 🔒 Verrou n°8 : Agent de Posture Endpoint Frugal en Rust (`< 10 Mo RAM`) & Canal `mTLS` Post-Quantique
 - **Statut :** ⏳ En conception
 - **Priorité :** Moyenne (**P2**)
 - **Philosophie :** Remplacer les EDR commerciaux lourds (`1–2 Go RAM` / jusqu'à `50 €/poste/mois`) par un binaire natif Rust (`aegis-node-agent`, `< 10 Mo RAM`, `0 % CPU` au repos).
 - **Plan d'action technique :**
-  1. Binaire multiplateforme autonome (`systemd` Linux, `launchd` macOS, service Windows).
+  1. Binaire multiplateforme autonome (`systemd` Linux, `launchd` macOS, service Windows) avec enrôlement automatisé par jeton éphémère à usage unique.
   2. Inventaire logiciel local & CVE (ex. détection TeamViewer vulnérable, OpenSSL/sudo/navigateurs obsolètes) + contrôles d'hygiène (chiffrement disque BitLocker/FileVault/LUKS, pare-feu actif, correctifs OS).
-  3. Heartbeat chiffré **mTLS** (`POST /api/v1/endpoints/posture`), vue Flotte dans `apps/web` et couplage d'accès conditionnel Zero-Trust dans `gate-proxy` (blocage d'accès aux apps critiques tant qu'une faille poste critique n'est pas patchée).
+  3. **Heartbeat chiffré `mTLS` hybride Post-Quantique (`X25519MLKEM768` — NIST FIPS 203)** (`POST /api/v1/endpoints/posture`) entre les sondes Rust (`rustls-post-quantum`) et le Control Plane Go 1.25 pour immuniser la télémétrie d'infrastructure contre toute collecte rétroactive *HNDL*, couplé à l'accès conditionnel Zero-Trust dans `gate-proxy`.
 
 ### 🔒 Verrou n°9 : Micro-Segmentation ZTNA « Assume Breach »
 - **Statut :** ⏳ En conception
@@ -137,23 +137,23 @@ Avant les prochains verrous, les briques suivantes sont **opérationnelles et te
 
 ---
 
-## 🤖 Phase P3 — Sécurité IA, Agent Harnesses & CTI Collaborative
+## 🤖 Phase P3 — Sécurité IA, Passerelle MCP « Two-Door » & CTI Collaborative
 
-### 🔒 Verrou n°10 : Protection contre l'Exfiltration de Données liée à l'IA & LLM Guardrails
+### 🔒 Verrou n°10 : Architecture « Two-Door » & Injection Sortante « Zero-Secret Placeholder » (DLP IA)
 - **Statut :** ⏳ En conception
 - **Priorité :** Évolution Stratégique (**P3 / R&D**)
-- **Contexte :** L'adoption rapide des assistants IA et agents connectés aux bases documentaires expose les organisations aux fuites involontaires de secrets et aux manipulations d'instructions.
+- **Contexte :** L'adoption rapide des assistants IA et agents connectés aux bases documentaires expose les organisations aux fuites involontaires de secrets, au vol de clés d'API par *Prompt Injection* et aux manipulations d'instructions.
 - **Plan d'action technique :**
-  1. **Garde-fous d'entrée (`gate-proxy`)** : détection en bordure de réseau des *Prompt Injections* et tentatives de *Jailbreak* ciblant les endpoints d'IA applicatifs avant passage aux modèles.
-  2. **Filtrage anti-exfiltration en sortie (`egress-gateway`)** : inspection DLP des flux sortants émis vers des API de LLM externes afin de bloquer l'envoi accidentel de clés d'API, données RH, code propriétaire ou données réglementées hors du périmètre souverain.
+  1. **Porte 1 — Garde-fous d'entrée (`gate-proxy`)** : détection en bordure de réseau des *Prompt Injections*, tentatives de *Jailbreak* et dépassements de quotas de jetons ciblant les endpoints d'IA applicatifs avant passage aux modèles.
+  2. **Porte 2 — Pattern « Zero-Secret Placeholder » & DLP Sortant (`egress-gateway`)** : l'environnement d'exécution de l'agent IA ne détient **aucune clé d'API réelle** en mémoire ou dans ses variables d'environnement (uniquement un jeton fantôme `AEGIS_PLACEHOLDER_KEY`). `egress-gateway` inspecte et anonymise les données personnelles (PII / RGPD), le code propriétaire et les secrets à la volée, puis injecte la véritable clé d'API externe uniquement à la frontière réseau sortante si la requête est conforme.
 
-### 🔒 Verrou n°11 : Sécurisation des « Agent Harnesses » & Traçabilité AI Act
+### 🔒 Verrou n°11 : Passerelle MCP Zero-Trust (Filtrage d'Outils par Identité) & Registre Post-Quantique AI Act
 - **Statut :** ⏳ En conception
 - **Priorité :** Évolution Stratégique (**P3 / R&D**)
-- **Contexte :** Les orchestrateurs multi-agents confient de plus en plus d'actions sensibles (accès SQL, exécution de scripts, appels API financiers) à des workflows autonomes.
+- **Contexte :** Les orchestrateurs multi-agents utilisent le protocole **MCP (*Model Context Protocol*)** pour invoquer des outils sensibles (accès SQL, exécution de scripts, appels API métiers), créant un risque majeur d'élévation de privilèges par injection indirecte.
 - **Plan d'action technique :**
-  1. **Sandboxing noyau des exécutions d'outils** : confinement strict des outils invoqués par les agents via des primitives Linux éphémères (`seccomp-bpf`, hooks `eBPF`, isolation `namespaces` dédiée) garantissant le moindre privilège par appel.
-  2. **Registre de traçabilité immuable** : journalisation cryptographique inaltérable dans TimescaleDB de chaque action déclenchée par un agent IA pour assurer auditabilité et conformité à l'**AI Act européen**.
+  1. **Filtrage granulaire MCP par identité (`tools/list` & `tools/call`)** : inspection native du flux JSON-RPC MCP dans `gate-proxy` pour filtrer dynamiquement la liste des outils exposés et valider chaque appel `tools/call` selon l'identité OIDC / SPIFFE de l'agent ou de l'utilisateur, combinée au *sandboxing* noyau éphémère (`seccomp-bpf`, hooks `eBPF`, `namespaces` Linux).
+  2. **Registre de traçabilité immuable à signature Post-Quantique (EU AI Act)** : journalisation cryptographique *append-only* dans TimescaleDB de chaque action d'agent IA, scellée par une **double signature hybride classique + post-quantique (`Ed25519 + ML-DSA-65` — NIST FIPS 204)** garantissant une non-répudiation à long terme conforme à l'**AI Act européen**.
 
 ### 🔒 Verrou n°12 : CTI Collaborative P2P & Micro-SLM Frugaux `< 1B` CPU-Only
 - **Statut :** 🚧 Partiel (blocklist C2 statique + option **Nimble 9B** Ollama actifs en v1)
