@@ -40,11 +40,26 @@ feature/*              ●──●          ●───●                    
      ```
 2. **`release/vX.Y.Z`** (e.g. `release/v1.1.0`)
    * **Branched from**: `develop` when features for the upcoming release are complete.
-   * **Purpose**: Version bumps, changelog updates, documentation alignment, and release stabilization (no new features).
-   * **Merged back into**: `main` (tagged `vX.Y.Z`) **and** `develop`.
+   * **Purpose**: Semantic Versioning (`SemVer 2.0.0`) bump, moving `[Unreleased]` entries into `[X.Y.Z] — YYYY-MM-DD` in [`CHANGELOG.md`](CHANGELOG.md) and [`CHANGELOG.fr.md`](CHANGELOG.fr.md), and release stabilization (no new features).
+   * **Merged back into**: `main` (with an **annotated Git tag `vX.Y.Z`**) **and** back-merged into `develop`:
+     ```bash
+     # 1. Cut release branch from develop & update CHANGELOG.md / CHANGELOG.fr.md
+     git checkout -b release/v1.1.0 develop
+     git commit -am "chore(release): prepare v1.1.0 changelog and version metadata"
+
+     # 2. Merge into main & create annotated SemVer tag
+     git checkout main
+     git merge --no-ff release/v1.1.0 -m "Merge branch 'release/v1.1.0' into main"
+     git tag -a v1.1.0 -m "Release v1.1.0"
+
+     # 3. Back-merge into develop & remove temporary release branch
+     git checkout develop
+     git merge --no-ff release/v1.1.0 -m "Merge branch 'release/v1.1.0' into develop"
+     git branch -d release/v1.1.0
+     ```
 3. **`hotfix/vX.Y.Z`** (e.g. `hotfix/v1.0.1`)
    * **Branched from**: `main` to resolve a critical security or production bug immediately.
-   * **Merged back into**: `main` (tagged `vX.Y.Z`) **and** `develop`.
+   * **Merged back into**: `main` (tagged `vX.Y.Z` via `git tag -a vX.Y.Z`) **and** `develop`, with a corresponding entry in [`CHANGELOG.md`](CHANGELOG.md) and [`CHANGELOG.fr.md`](CHANGELOG.fr.md).
 
 ---
 
