@@ -4,6 +4,7 @@
   <a href="README.md">English</a> | <strong>Français</strong> •
   <a href="VISION.fr.md">Vision & Principes</a> •
   <a href="ROADMAP.fr.md">Roadmap</a> •
+  <a href="CHANGELOG.fr.md">Changelog</a> •
   <a href="CONTRIBUTING.fr.md">Contribuer (Gitflow)</a> •
   <a href="SECURITY.md">Sécurité</a> •
   <a href="LICENSE">Licence (AGPLv3)</a>
