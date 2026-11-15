@@ -16,7 +16,11 @@ Le format suit le standard [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 
 ---
 
-## [Unreleased / En cours sur `develop`] — Cible `v1.1.0`
+## [Unreleased / En cours sur `develop`]
+
+---
+
+## [1.1.0] — 2026-11-15 (Tag `v1.1.0` sur `main`)
 
 ### Ajouté (Added)
 - **Sonde Passive de Maturité Post-Quantique (`X25519MLKEM768` — NIST FIPS 203)** :
