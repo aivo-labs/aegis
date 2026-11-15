@@ -66,6 +66,7 @@ export default defineConfig({
           items: [
             { label: 'Ingress PEP Gateway (WAF & Scanners)', translations: { fr: 'Passerelle Ingress PEP (WAF & Scanners)' }, slug: 'security/ingress-pep' },
             { label: 'Egress Gateway (CoreDNS & Nimble 9B)', translations: { fr: 'Passerelle Egress (CoreDNS & Nimble 9B)' }, slug: 'security/egress-gateway' },
+            { label: 'Passive Scanner, Legal Mandate & PQC (ML-KEM)', translations: { fr: 'Scanner Passif, Mandat Légal & PQC (ML-KEM)' }, slug: 'security/passive-scanner' },
           ],
         },
         {

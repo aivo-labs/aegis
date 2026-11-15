@@ -21,10 +21,10 @@ jobs:
       - name: Récupération du code source
         uses: actions/checkout@v4
 
-      - name: Configuration de Go 1.22
+      - name: Configuration de Go 1.25
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25'
 
       - name: Tests unitaires du Backend Go
         run: |

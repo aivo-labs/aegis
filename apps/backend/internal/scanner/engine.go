@@ -65,12 +65,17 @@ func RunPassiveDomainScan(db *database.PgClient, rawDomain string) domain.Passiv
 		}(idx+1, p)
 	}
 
-	// 3. Analyse DNS en parallèle
+	// 3. Analyse DNS et sonde TLS Post-Quantique (NIST FIPS 203 X25519MLKEM768) en parallèle
 	var dnsInfo domain.DNSAnalysis
-	wg.Add(1)
+	var pqcInfo domain.PQCAnalysis
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		dnsInfo = InspectDomainDNS(domainName)
+	}()
+	go func() {
+		defer wg.Done()
+		pqcInfo = InspectDomainPQC(domainName)
 	}()
 
 	wg.Wait()
@@ -97,6 +102,39 @@ func RunPassiveDomainScan(db *database.PgClient, rawDomain string) domain.Passiv
 
 	// 4. Fingerprinting Technologique & CVE
 	techStack, cveWarnings := DetectTechAndCVEs(client, finalBaseURL, domainName, homeHTML, homeHeaders)
+	if pqcInfo.PostQuantumReady {
+		techStack = append(techStack, domain.TechFingerprint{
+			Name:       "Cryptographie TLS Post-Quantique (NIST FIPS 203)",
+			Category:   "Cryptographie Souveraine",
+			Version:    pqcInfo.NegotiatedCurve,
+			Source:     "TLS 1.3 KeyShare",
+			Evidence:   fmt.Sprintf("Échange de clés hybride %s sur %s (%s)", pqcInfo.NegotiatedCurve, pqcInfo.TLSVersion, pqcInfo.CipherSuite),
+			Confidence: "100%",
+		})
+	} else if strings.HasPrefix(finalBaseURL, "https://") {
+		cveWarnings = append(cveWarnings, domain.CVEWarning{
+			ID:                  "PQC-HNDL-EXPOSURE",
+			CVEID:               "PQC-HNDL-EXPOSURE",
+			Name:                "Exposition Harvest Now, Decrypt Later (Absence d'encapsulation hybride NIST FIPS 203 ML-KEM)",
+			Severity:            "MEDIUM",
+			CVSS:                "5.9",
+			Component:           "TLS Key Exchange (" + pqcInfo.NegotiatedCurve + ")",
+			Title:               "Absence d'échange de clés hybride post-quantique X25519MLKEM768",
+			Description:         "Le serveur négocie un échange de clés elliptique classique (" + pqcInfo.NegotiatedCurve + ") sans encapsulation post-quantique hybride NIST FIPS 203 (X25519MLKEM768), exposant les flux TLS enregistrés à une compromission rétroactive 'Harvest Now, Decrypt Later' (HNDL).",
+			Remediation:         "Activer le groupe hybride X25519MLKEM768 (0x11ec) en priorité sur TLS 1.3 au niveau du reverse-proxy (Traefik, Nginx, Caddy) ou du démon Go 1.24+.",
+			BlockedByAegis:      true,
+			IsActiveDefense:     true,
+			CoverageStatus:      "COVERED_VIRTUAL_PATCH",
+			VirtualPatchRuleID:  "TLS-PQC-X25519MLKEM768",
+			VirtualPatchSummary: "Terminaison TLS 1.3 hybride X25519MLKEM768 (NIST FIPS 203) en frontale via Aegis Ingress-PEP (Go 1.24+) ou Traefik.",
+			RootFixProcedure: []string{
+				"Mettre à jour la terminaison TLS (Go 1.24+, OpenSSL 3.5+ ou Traefik v3.3+).",
+				"Configurer CurvePreferences / ssl_ecdh_curve avec X25519MLKEM768 (0x11ec) en première position.",
+				"Vérifier la négociation du groupe hybride via le scanner passif Aegis.",
+			},
+			VerificationProbe: "openssl s_client -connect " + domainName + ":443 -groups X25519MLKEM768",
+		})
+	}
 
 	// 5. En-têtes de sécurité
 	headersAnalysis, secScore := AnalyzeSecurityHeaders(homeHeaders, strings.HasPrefix(finalBaseURL, "https://"), dnsInfo, &cveWarnings)
@@ -128,6 +166,7 @@ func RunPassiveDomainScan(db *database.PgClient, rawDomain string) domain.Passiv
 		CVEWarnings:      cveWarnings,
 		HeadersAnalysis:  headersAnalysis,
 		DNS:              dnsInfo,
+		PostQuantum:      pqcInfo,
 		PagesDetail:      validPages,
 	}
 	enrichAuditResult(&res)

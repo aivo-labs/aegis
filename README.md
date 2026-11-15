@@ -4,6 +4,7 @@
   <strong>English</strong> | <a href="README.fr.md">Français</a> •
   <a href="VISION.md">Vision & Principles</a> •
   <a href="ROADMAP.md">Roadmap</a> •
+  <a href="CHANGELOG.md">Changelog</a> •
   <a href="CONTRIBUTING.md">Contributing (Gitflow)</a> •
   <a href="SECURITY.md">Security</a> •
   <a href="LICENSE">License (AGPLv3)</a>
@@ -12,7 +13,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/License-AGPLv3-emerald?style=flat-square" alt="AGPLv3 License" />
   <img src="https://img.shields.io/badge/Architecture-Zero--Trust-blue?style=flat-square" alt="Zero Trust" />
-  <img src="https://img.shields.io/badge/Go-1.22-00ADD8?style=flat-square&logo=go" alt="Go 1.22" />
+  <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go" alt="Go 1.25" />
   <img src="https://img.shields.io/badge/Rust-RAPL-orange?style=flat-square&logo=rust" alt="Rust RAPL" />
   <img src="https://img.shields.io/badge/Astro-5.x-purple?style=flat-square&logo=astro" alt="Astro 5" />
   <img src="https://img.shields.io/badge/NIS%202-Ready-success?style=flat-square" alt="NIS 2 Compliance" />
@@ -234,12 +235,12 @@ To connect remote servers, gateways, and telemetry probes to the Control Plane, 
 | **P0/P1** | **#2 Multi-Encoding Normalization (Base64 / HTML)** | **🚧 Partial** | **P1 (High)** | `apps/gate-proxy/src/engine/canonicalizer.ts` | Recursive 3-pass URL & SQL `/*...*/` canonicalization **done**; adds auto Base64/Hex/HTML decoding |
 | **P0/P1** | **#3 Volumetric Rate-Limiting & Auto IP Quarantine** | **🚧 Partial** | **P1 (High)** | `apps/gate-proxy/src/quarantine/ip-reputation.ts` | Persistent SOC blacklist **done**; adds sliding-window rate limits (`60 req/10s`) & auto-jail (`< 0.1 ms` drop) |
 | **P0/P1** | **#4 HTTP Protocol Hardening (`431`) & Shell-Spawn Watch** | **🚧 Partial** | **P1 (High)** | `apps/gate-proxy/src/`, `apps/telemetry-agent` | `PHP2Shell` & `HTTP 413` **done**; adds strict `431` header caps (`8 KB`), RFC multipart validation & runtime `/bin/sh` spawn alerts |
-| **P0/P1** | **#5 Continuous Passive Posture & Guided Remediation** | **🚧 Partial** | **P1 (High)** | `apps/backend/internal/scanner/` | On-demand Go passive domain/CVE scanner **done**; adds scheduled cron audits & copy-paste Nginx/Traefik/PHP fix snippets |
+| **P0/P1** | **#5 Continuous Passive Posture, PQC (`ML-KEM`) & Remediation** | **🚧 Partial** | **P1 (High)** | `apps/backend/internal/scanner/` | Go passive scanner, **PQC `X25519MLKEM768` (FIPS 203)** probe + TLS snippets & CVE Feed **done**; adds scheduled cron audits |
 | **P2** | **#6 L3/L4 eBPF / XDP Kernel Filter & CVE Audit** | **⏳ In Design** | **P2 (Medium)** | `apps/telemetry-agent/src/` | NIC-level `XDP_DROP` (`< 0.005 ms`) against malformed TCP SYN options (LSRR/SSRR) + `uname -r` alerts |
 | **P2** | **#7 Enterprise DNS Filtering & Shadow IT (DoH/DoT)** | **⏳ Planned** | **P2 (Medium)** | `apps/egress-gateway/src/` | Central DHCP/`:5053` + remote DoH/DoT resolver regulating RAT tools (TeamViewer, AnyDesk, RustDesk) in Prod/DMZ |
-| **P2** | **#8 Frugal Rust Endpoint Posture Agent (`< 10 MB RAM`)** | **⏳ In Design** | **P2 (Medium)** | New `aegis-node-agent` (Rust) + `web` | Cross-platform workstation CVE & hygiene probe (`mTLS` fleet view + conditional access via `gate-proxy`) |
+| **P2** | **#8 Frugal Rust Endpoint Agent (`< 10 MB`) & PQC `mTLS`** | **⏳ In Design** | **P2 (Medium)** | New `aegis-node-agent` (Rust) + `web` | Cross-platform workstation CVE & hygiene probe over **hybrid post-quantum `mTLS` (`X25519MLKEM768`)** + conditional access |
 | **P2** | **#9 "Assume Breach" ZTNA Micro-Segmentation** | **⏳ In Design** | **P2 (Medium)** | Network architecture & PEP | Eliminates direct L3 office-to-DB routes + adds internal ARP/port-scan honeypot alerting |
-| **P3** | **#10 AI Exfiltration Protection & LLM Guardrails** | **⏳ In Design** | **P3 (R&D)** | `gate-proxy` (Edge) & `egress-gateway` | Intercepts inbound Prompt Injections / Jailbreaks and blocks outbound confidential data leaks to non-sovereign APIs |
-| **P3** | **#11 Securing Agent Harnesses & AI Act Ledger** | **⏳ In Design** | **P3 (R&D)** | Host agent (`seccomp`/eBPF) & `backend` | Ephemeral Linux namespace/seccomp tool sandboxing for autonomous AI agents + immutable cryptographic AI Act audit trail |
+| **P3** | **#10 "Two-Door" AI Governance & Zero-Secret Egress** | **⏳ In Design** | **P3 (R&D)** | `gate-proxy` (Edge) & `egress-gateway` | Inbound Prompt Injection guardrails + **Zero-Secret Placeholder** (zero API keys in agent sandbox, PII scrubbing & boundary injection) |
+| **P3** | **#11 Zero-Trust MCP Gateway & PQC AI Act Ledger** | **⏳ In Design** | **P3 (R&D)** | `gate-proxy`, host `seccomp`/eBPF & `backend` | Per-identity MCP (`tools/list`, `tools/call`) filtering, kernel sandboxing & immutable **`Ed25519 + ML-DSA` (FIPS 204)** audit ledger |
 | **P3** | **#12 Collaborative P2P CTI & `< 1B` CPU Micro-SLMs** | **🚧 Partial** | **P3 (R&D)** | `apps/egress-gateway/src/cti/blocklist.ts`, Ollama | Static C2 blocklist + optional **Nimble 9B** (Ollama) **done in v1**; adds live Abuse.ch/CERT-FR/CISA KEV sync, P2P node sharing & `< 1B` CPU-only SLMs |
 
