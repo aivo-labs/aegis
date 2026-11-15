@@ -16,7 +16,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
-## [Unreleased] — Target `v1.1.0` (`develop`)
+## [Unreleased]
+
+---
+
+## [1.1.0] — 2026-11-15 (Tag `v1.1.0` on `main`)
 
 ### Added
 - **Post-Quantum Cryptography Readiness Probe (`X25519MLKEM768` — NIST FIPS 203)**:
