@@ -20,6 +20,21 @@
   <img src="https://img.shields.io/badge/RGESN%20%2F%20EFRAG-Conforme-brightgreen?style=flat-square" alt="Sobriété Énergétique" />
 </p>
 
+<p align="center">
+  <a href="https://demo.aegis.aivo.fr/fr/demo" target="_blank">
+    <img src="https://img.shields.io/badge/⚡%20Démonstrateur%20Live-demo.aegis.aivo.fr-00e5ff?style=for-the-badge&logo=cloudflare" alt="Démonstrateur Live Aegis" />
+  </a>
+  <a href="https://github.com/aivo-labs/aegis/releases/tag/v1.1.0-beta.1">
+    <img src="https://img.shields.io/badge/Version-v1.1.0--beta.1%20(Bêta%20Publique)-orange?style=for-the-badge" alt="Bêta Publique" />
+  </a>
+  <a href="https://aegis.aivo.fr/fr/" target="_blank">
+    <img src="https://img.shields.io/badge/Site%20Officiel-aegis.aivo.fr-emerald?style=for-the-badge" alt="Site Officiel" />
+  </a>
+</p>
+
+> [!TIP]
+> **Testez Aegis en 1 clic (Sans aucune installation)** : Vous pouvez expérimenter le Fuzzer d'entropie de Shannon en direct, le replayer d'impact matériel PHP2Shell et le Kanban SOC directement sur notre démonstrateur en ligne : **[demo.aegis.aivo.fr/fr/demo](https://demo.aegis.aivo.fr/fr/demo)**.
+
 **Centre de Contrôle Opérationnel (SOC), Protection In-Line (Ingress/Egress) & Pilotage Énergétique Conforme RGESN / ANSSI / EFRAG**
 
 Aegis est une suite logicielle unifiée conçue pour sécuriser le système d'information des PME/ETI et piloter sa sobriété numérique selon le modèle **Open-Core Éthique (AGPLv3)**. Développé en **Go et Rust**, Aegis fonctionne comme une surcouche transparente ultra-frugale (< 200 Mo RAM hors modèle LLM local) sans aucune taxe SaaS par siège.
@@ -123,6 +138,9 @@ Aegis est architecturé comme une suite Zero-Trust souveraine, autonome et sans 
 ---
 
 ## 🚀 Démarrage Rapide
+
+### 0. Ou testez directement le démonstrateur en ligne
+Sans aucune installation requise : **[demo.aegis.aivo.fr/fr/demo](https://demo.aegis.aivo.fr/fr/demo)** (Français) | **[demo.aegis.aivo.fr](https://demo.aegis.aivo.fr)** (English).
 
 ### 1. Cloner le dépôt
 ```bash
