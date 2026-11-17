@@ -20,6 +20,21 @@
   <img src="https://img.shields.io/badge/RGESN%20%2F%20EFRAG-Compliant-brightgreen?style=flat-square" alt="Green IT Sobriety" />
 </p>
 
+<p align="center">
+  <a href="https://demo.aegis.aivo.fr" target="_blank">
+    <img src="https://img.shields.io/badge/⚡%20Live%20Showcase-demo.aegis.aivo.fr-00e5ff?style=for-the-badge&logo=cloudflare" alt="Aegis Live Demo" />
+  </a>
+  <a href="https://github.com/aivo-labs/aegis/releases/tag/v1.1.0-beta.1">
+    <img src="https://img.shields.io/badge/Release-v1.1.0--beta.1%20(Public%20Beta)-orange?style=for-the-badge" alt="Public Beta" />
+  </a>
+  <a href="https://aegis.aivo.fr" target="_blank">
+    <img src="https://img.shields.io/badge/Official%20Site-aegis.aivo.fr-emerald?style=for-the-badge" alt="Official Website" />
+  </a>
+</p>
+
+> [!TIP]
+> **Test Aegis in 1 click (No installation required)**: You can explore the real-time Shannon entropy fuzzer, the comparative PHP2Shell hardware replay, and the SOC Kanban directly on our in-browser showcase: **[demo.aegis.aivo.fr](https://demo.aegis.aivo.fr)**.
+
 **Operational Control Center (SOC), In-Line Protection (Ingress/Egress) & Verifiable Hardware Energy Governance (RGESN / ANSSI / EFRAG)**
 
 Aegis is a unified software suite built to protect SMB and mid-market information systems while auditing and reducing their environmental footprint under the **Ethical Open-Core (AGPLv3)** model. Engineered in **native Go and Rust**, Aegis runs as an ultra-frugal, transparent overlay (< 200 MB RAM excluding local LLM weights) with zero per-seat SaaS tax.
@@ -123,6 +138,9 @@ Aegis is architected as an autonomous, sovereign Zero-Trust stack with zero depe
 ---
 
 ## 🚀 Quickstart
+
+### 0. Or test the live in-browser showcase instantly
+No installation required: **[demo.aegis.aivo.fr](https://demo.aegis.aivo.fr)** (English) | **[demo.aegis.aivo.fr/fr/demo](https://demo.aegis.aivo.fr/fr/demo)** (Français).
 
 ### 1. Clone the repository
 ```bash
