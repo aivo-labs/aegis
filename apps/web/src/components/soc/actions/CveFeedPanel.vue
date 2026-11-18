@@ -92,7 +92,7 @@
 
     <!-- SECTION 2 : CATALOGUE COMPLET DES PROTECTIONS, COUVERTURE & REMÉDIATION RACINE -->
     <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-800 font-mono">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-4 border-b border-slate-800 font-mono">
         <div>
           <h3 class="text-sm font-bold text-white">
             {{ cveT?.catalogSection?.title || '🛡️ Catalogue des CVE Surveillées, Statut de Couverture & Procédures de Remédiation Racine' }}
@@ -101,9 +101,21 @@
             {{ cveT?.catalogSection?.subtitle || 'Chaque faille indique sa règle de Virtual Patching en mémoire (gate-proxy / :5053), sa sonde de vérification et sa procédure de correction définitive.' }}
           </p>
         </div>
-        <span class="text-xs text-cyan-400 font-bold shrink-0">
-          {{ (cveT?.catalogSection?.cveReferenced || '{count} CVE référencées & vérifiées').replace('{count}', catalogCves.length.toString()) }}
-        </span>
+        <div class="flex items-center gap-3 shrink-0">
+          <span class="text-xs text-cyan-400 font-bold">
+            {{ (cveT?.catalogSection?.cveReferenced || '{count} CVE référencées & vérifiées').replace('{count}', catalogCves.length.toString()) }}
+          </span>
+          <button
+            type="button"
+            :disabled="isSyncing"
+            @click="emit('sync-certfr')"
+            class="px-2.5 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-200 text-[11px] font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <span v-if="isSyncing" class="inline-block animate-spin">⟳</span>
+            <span v-else>🔄</span>
+            <span>{{ isSyncing ? (cveT?.catalogSection?.syncingCertFr || 'Synchronisation...') : (cveT?.catalogSection?.syncCertFrBtn || 'Synchroniser CERT-FR') }}</span>
+          </button>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 font-mono text-xs">
@@ -129,14 +141,18 @@
                     ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                     : (cat as any).coverage_status === 'MITIGATED_EGRESS_ONLY'
                       ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
-                      : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                      : (cat as any).coverage_status === 'PENDING_VERIFICATION'
+                        ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+                        : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                 ]"
               >
                 {{ (cat as any).coverage_status === 'HOST_PATCH_REQUIRED'
                   ? (cveT?.catalogSection?.hostPatchRequired || '⚠️ Patch OS Hôte Requis (+ Egress)')
                   : (cat as any).coverage_status === 'MITIGATED_EGRESS_ONLY'
                     ? (cveT?.catalogSection?.mitigatedEgress || '🔒 Bloquée en Egress (Sinkhole C2)')
-                    : (cveT?.catalogSection?.coveredVirtualPatch || '🛡️ Couverte par Virtual Patch Aegis') }}
+                    : (cat as any).coverage_status === 'PENDING_VERIFICATION'
+                      ? (cveT?.catalogSection?.pendingVerification || '⏳ Procédure en cours de vérification (Aegis Lab)')
+                      : (cveT?.catalogSection?.coveredVirtualPatch || '🛡️ Couverte par Virtual Patch Aegis') }}
               </span>
             </div>
 
@@ -181,7 +197,16 @@
 
           <div class="pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
             <span>{{ cveT?.catalogSection?.versions || 'Versions :' }} {{ (cat as any).affected_versions || (cveT?.catalogSection?.multiVersions || 'Multi-versions') }}</span>
-            <span class="text-emerald-400 font-semibold">{{ cveT?.catalogSection?.procedureVerified || '✓ Procédure Vérifiée' }}</span>
+            <span 
+              :class="[
+                'font-semibold',
+                (cat as any).coverage_status === 'PENDING_VERIFICATION' ? 'text-purple-400' : 'text-emerald-400'
+              ]"
+            >
+              {{ (cat as any).coverage_status === 'PENDING_VERIFICATION'
+                ? (cveT?.catalogSection?.procedureUnderReview || '⏳ En cours de qualification')
+                : (cveT?.catalogSection?.procedureVerified || '✓ Procédure Vérifiée') }}
+            </span>
           </div>
         </div>
       </div>
@@ -201,10 +226,17 @@ const cveT = computed(() => {
   return (root as any).cveFeed || (root as any).cockpit?.cveFeed || {};
 });
 
-defineProps<{
+const emit = defineEmits<{
+  (e: 'sync-certfr'): void;
+}>();
+
+withDefaults(defineProps<{
   activeRulesCount: number;
   blockedByPatchCount: number;
   exposedCves: any[];
   catalogCves: CveItem[];
-}>();
+  isSyncing?: boolean;
+}>(), {
+  isSyncing: false,
+});
 </script>

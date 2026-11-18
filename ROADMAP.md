@@ -99,6 +99,9 @@ Before listing upcoming locks, the following capabilities are **already implemen
 - **Remaining Technical Action Plan:**
   1. Schedule **periodic continuous background scans** for enrolled tenant domains and alert immediately on regressions (expiring TLS certificates, PQC downgrade, newly exposed headers/ports, drifted EcoIndex grade).
   2. Expand the **guided copy-paste remediation wizard** inside the Cockpit Diagnostics & CVE Feed views (already delivered for Post-Quantum TLS) to cover all security headers and `php.ini` / Apache directives.
+  3. **Sovereign CERT-FR Ingestion & Continuous Vulnerability Qualification**:
+     - Sovereign on-demand sync connector (and controlled local cron) parsing the official **CERT-FR (ANSSI)** feed with zero data leakage to US third parties and no rate-limited API dependencies.
+     - Immediate labeling of newly ingested, uncurated alerts under **`"Procedure under verification (Aegis Lab)"`** (`PENDING_VERIFICATION`) status, ensuring cryptographic and technical integrity until a formal Virtual Patching rule or host remediation procedure is verified.
 
 ---
 
