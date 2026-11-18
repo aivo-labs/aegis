@@ -99,6 +99,9 @@ Avant les prochains verrous, les briques suivantes sont **opérationnelles et te
 - **Compléments à implémenter :**
   1. **Audits passifs planifiés en continu** : exécution périodique automatisée avec alerte proactive dès détection d'une dérive (port ouvert imprévu, certificat TLS expirant sous 15 jours, régression PQC ou en-tête de sécurité manquant).
   2. **Assistant de remédiation guidée dans le Cockpit** : étendre les snippets prêts au copier-coller (déjà livrés pour le TLS Post-Quantique) à l'ensemble des en-têtes HTTP et directives `php.ini` / Apache directement dans l'interface visuelle du Cockpit.
+  3. **Ingestion Souveraine CERT-FR & Qualification Continue des Vulnérabilités** :
+     - Connecteur de synchronisation souverain « à la demande » (et tâche d'arrière-plan maîtrisée) interrogeant le flux officiel du **CERT-FR (ANSSI)** sans aucune fuite vers des tiers américains ni dépendance à des API sous quotas.
+     - Marquage immédiat des alertes émergentes non encore qualifiées sous le statut **`« Procédure en cours de vérification (Aegis Lab) »`** (`PENDING_VERIFICATION`), garantissant l'intégrité de la chaîne de confiance tant qu'une règle de Virtual Patching ou qu'une procédure de remédiation d'hôte n'a pas été formellement certifiée.
 
 ---
 

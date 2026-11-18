@@ -89,3 +89,73 @@ func TestCveService_GetFeed(t *testing.T) {
 		t.Errorf("Expected French text for WAF-413-VOLUMETRIC, got %q", rulesFR["WAF-413-VOLUMETRIC"])
 	}
 }
+
+func TestCveService_SyncCertFrFromReader(t *testing.T) {
+	svc := NewCveService()
+
+	// Mock RSS 2.0 CERT-FR
+	mockXML := `<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Alertes de sécurité CERT-FR</title>
+    <lastBuildDate>Wed, 18 Nov 2026 18:00:00 +0100</lastBuildDate>
+    <item>
+      <title>[CERTFR-2026-ALE-016] Vulnérabilité dans Keycloak (Java4Shell CVE-2026-114938)</title>
+      <link>https://www.cert.cyber.gouv.fr/alerte/CERTFR-2026-ALE-016/</link>
+      <description>Une vulnérabilité critique CVE-2026-114938 a été identifiée.</description>
+      <pubDate>Wed, 18 Nov 2026 12:00:00 +0100</pubDate>
+    </item>
+    <item>
+      <title>[CERTFR-2026-ALE-099] Multiples vulnérabilités dans ExempleLib (CVE-2026-99999)</title>
+      <link>https://www.cert.cyber.gouv.fr/alerte/CERTFR-2026-ALE-099/</link>
+      <description>Exécution de code arbitraire critique dans ExempleLib sous condition réseau.</description>
+      <pubDate>Wed, 18 Nov 2026 14:00:00 +0100</pubDate>
+    </item>
+  </channel>
+</rss>`
+
+	report, err := svc.SyncCertFrFromReader(strings.NewReader(mockXML), "fr")
+	if err != nil {
+		t.Fatalf("SyncCertFrFromReader failed: %v", err)
+	}
+
+	if report.AlertsParsed != 2 {
+		t.Errorf("Expected 2 alerts parsed, got %d", report.AlertsParsed)
+	}
+	if report.AlreadyCurated < 1 {
+		t.Errorf("Expected at least 1 already curated CVE (CVE-2026-114938), got %d", report.AlreadyCurated)
+	}
+	if report.NewIngested != 1 {
+		t.Errorf("Expected 1 new ingested CVE (CVE-2026-99999), got %d", report.NewIngested)
+	}
+
+	// Vérifier l'apparition dans GetFeed
+	feed := svc.GetFeed("fr")
+	var newCve *domain.CVEWarning
+	for _, c := range feed {
+		if c.ID == "CVE-2026-99999" {
+			found := c
+			newCve = &found
+			break
+		}
+	}
+
+	if newCve == nil {
+		t.Fatalf("Expected CVE-2026-99999 in feed after sync")
+	}
+	if newCve.CoverageStatus != "PENDING_VERIFICATION" {
+		t.Errorf("Expected CoverageStatus PENDING_VERIFICATION, got %s", newCve.CoverageStatus)
+	}
+	if !strings.Contains(newCve.VirtualPatchSummary, "Procédure en cours de vérification") {
+		t.Errorf("Expected summary mentioning procedure en cours de vérification, got %q", newCve.VirtualPatchSummary)
+	}
+	if newCve.Severity != "CRITICAL" {
+		t.Errorf("Expected CRITICAL severity, got %s", newCve.Severity)
+	}
+
+	// Vérifier CoverageReport
+	covReport := svc.VerifyCoverage("fr")
+	if covReport.PendingVerificationCount != 1 {
+		t.Errorf("Expected 1 pending verification, got %d", covReport.PendingVerificationCount)
+	}
+}
