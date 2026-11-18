@@ -1,7 +1,9 @@
 package service
 
 import (
+	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aivo-labs/aegis/backend/internal/domain"
@@ -14,15 +16,32 @@ type CoverageVerificationReport struct {
 	CoveredVirtualPatchCount  int              `json:"covered_virtual_patch_count"`
 	MitigatedEgressOnlyCount  int              `json:"mitigated_egress_only_count"`
 	HostPatchRequiredCount    int              `json:"host_patch_required_count"`
+	PendingVerificationCount  int              `json:"pending_verification_count"`
 	AllProceduresDocumented   bool             `json:"all_procedures_documented"`
 	ActiveGateRulesRegistered []string         `json:"active_gate_rules_registered"`
 	RuleVerificationMatrix    []map[string]any `json:"rule_verification_matrix"`
 }
 
-type CveService struct{}
+type CveService struct {
+	mu             sync.RWMutex
+	dynamicCves    []domain.CVEWarning
+	certFrURL      string
+	httpClient     *http.Client
+	lastSyncReport *CertFrSyncReport
+}
 
 func NewCveService() *CveService {
-	return &CveService{}
+	return &CveService{
+		certFrURL:  DefaultCertFrFeedURL,
+		httpClient: &http.Client{Timeout: 8 * time.Second},
+	}
+}
+
+// GetLastSyncReport renvoie le rapport de la dernière synchronisation CERT-FR effectuée.
+func (s *CveService) GetLastSyncReport() *CertFrSyncReport {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.lastSyncReport
 }
 
 // ActiveAegisRules répertorie les règles chargées en mémoire dans Aegis Gate PEP et Aegis Egress Sinkhole (version par défaut).
@@ -61,9 +80,15 @@ func (s *CveService) GetFeed(lang ...string) []domain.CVEWarning {
 		l = strings.ToLower(strings.TrimSpace(lang[0]))
 	}
 
-	feed := make([]domain.CVEWarning, 0, len(CatalogDefinitions))
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	feed := make([]domain.CVEWarning, 0, len(CatalogDefinitions)+len(s.dynamicCves))
 	for _, def := range CatalogDefinitions {
 		feed = append(feed, def.ToWarning(l))
+	}
+	for _, dyn := range s.dynamicCves {
+		feed = append(feed, dyn)
 	}
 	return feed
 }
@@ -81,6 +106,7 @@ func (s *CveService) VerifyCoverage(lang ...string) CoverageVerificationReport {
 	coveredVP := 0
 	mitigatedEgress := 0
 	hostPatch := 0
+	pendingVerification := 0
 	allDocumented := true
 	var matrix []map[string]any
 
@@ -90,13 +116,15 @@ func (s *CveService) VerifyCoverage(lang ...string) CoverageVerificationReport {
 			coveredVP++
 		case "MITIGATED_EGRESS_ONLY":
 			mitigatedEgress++
+		case "PENDING_VERIFICATION":
+			pendingVerification++
 		default:
 			hostPatch++
 		}
 
 		hasRootSteps := len(cve.RootFixProcedure) > 0
 		hasProbe := cve.VerificationProbe != ""
-		if !hasRootSteps || !hasProbe {
+		if (!hasRootSteps || !hasProbe) && cve.CoverageStatus != "PENDING_VERIFICATION" {
 			allDocumented = false
 		}
 
@@ -107,7 +135,7 @@ func (s *CveService) VerifyCoverage(lang ...string) CoverageVerificationReport {
 			"virtual_patch_rule": cve.VirtualPatchRuleID,
 			"root_steps_count":   len(cve.RootFixProcedure),
 			"verification_probe": cve.VerificationProbe,
-			"procedure_complete": hasRootSteps && hasProbe,
+			"procedure_complete": hasRootSteps && hasProbe && cve.CoverageStatus != "PENDING_VERIFICATION",
 		})
 	}
 
@@ -122,6 +150,7 @@ func (s *CveService) VerifyCoverage(lang ...string) CoverageVerificationReport {
 		CoveredVirtualPatchCount:  coveredVP,
 		MitigatedEgressOnlyCount:  mitigatedEgress,
 		HostPatchRequiredCount:    hostPatch,
+		PendingVerificationCount:  pendingVerification,
 		AllProceduresDocumented:   allDocumented,
 		ActiveGateRulesRegistered: rulesList,
 		RuleVerificationMatrix:    matrix,

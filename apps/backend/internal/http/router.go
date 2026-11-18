@@ -58,6 +58,7 @@ func NewRouter(p RouterParams) *http.ServeMux {
 
 	// 6. Alertes & Renseignement CVE
 	mux.HandleFunc("/api/v1/cve/feed", p.CveHandler.Feed)
+	mux.HandleFunc("/api/v1/cve/sync/certfr", p.CveHandler.SyncCertFr)
 
 	// 7. Enrôlement Agent
 	mux.HandleFunc("/api/v1/dashboard/enroll/token", p.AgentHandler.Token)
