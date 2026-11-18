@@ -139,6 +139,70 @@ var LocalizedRules = map[string]LocalizedText{
 // CatalogDefinitions recense l'intégralité des CVEs du catalogue avec leurs textes bilingues FR et EN.
 var CatalogDefinitions = []CveDefinition{
 	{
+		ID:    "CVE-2026-114938",
+		CVEID: "CVE-2026-114938",
+		Name: LocalizedText{
+			FR: "Java4Shell — Corruption mémoire Base64 OpenJDK AVX-512 & RCE (Keycloak)",
+			EN: "Java4Shell — OpenJDK AVX-512 Base64 Memory Corruption RCE (Keycloak)",
+		},
+		Severity: "CRITICAL",
+		CVSS:     "9.8",
+		Component: LocalizedText{
+			FR: "Décodeur Base64 OpenJDK vectorisé (AVX-512 VBMI) / Serveur Keycloak",
+			EN: "OpenJDK Vectorized Base64 Decoder (AVX-512 VBMI) / Keycloak Server",
+		},
+		AffectedVersions: LocalizedText{
+			FR: "OpenJDK >= 17.0.6 (dont 21 & 25) sur CPU x86-64 avec avx512vbmi / Keycloak <= 26.8.2",
+			EN: "OpenJDK >= 17.0.6 (including 21 & 25) on x86-64 with avx512vbmi / Keycloak <= 26.8.2",
+		},
+		Title: LocalizedText{
+			FR: "Corruption mémoire pré-authentification dans les intrinsics Base64 menant à une RCE sur Keycloak",
+			EN: "Pre-authentication memory corruption in Base64 intrinsics leading to RCE on Keycloak",
+		},
+		Description: LocalizedText{
+			FR: "Une vulnérabilité critique dans le décodeur Base64 accéléré d'OpenJDK permet à un attaquant distant non authentifié de corrompre la mémoire heap de la JVM via un payload forgé, déclenchant l'exécution de code à distance (RCE) sur les instances Keycloak hébergées sur des CPU disposant du jeu d'instructions AVX-512 VBMI.",
+			EN: "A critical flaw in OpenJDK's accelerated Base64 decoder allows an unauthenticated remote attacker to corrupt JVM heap memory via a malformed value, enabling Remote Code Execution (RCE) on Keycloak instances running on x86-64 CPUs with AVX-512 VBMI instruction set.",
+		},
+		Vector: LocalizedText{
+			FR: "RÉSEAU / HTTP Ingress (Basic Auth, jetons SAML/OIDC) + RCE JVM + C2 sortant",
+			EN: "NETWORK / HTTP Ingress (Basic Auth, SAML/OIDC tokens) + JVM RCE + Outbound C2",
+		},
+		Remediation: LocalizedText{
+			FR: "1. [Atténuation Aegis] Rejet des payloads volumétriques (> 32 Ko) + Sinkhole DNS Egress. 2. [Mitigation JVM Immédiate] Définir JAVA_OPTS_APPEND=-XX:-UseBASE64Intrinsics. 3. [Racine] Mettre à jour OpenJDK.",
+			EN: "1. [Aegis Mitigation] 32 KB volumetric breaker + Egress DNS Sinkhole. 2. [Immediate JVM Mitigation] Set JAVA_OPTS_APPEND=-XX:-UseBASE64Intrinsics. 3. [Root Fix] Upgrade OpenJDK.",
+		},
+		BlockedByAegis:      false,
+		IsActiveDefense:     true,
+		CoverageStatus:      "HOST_PATCH_REQUIRED",
+		VirtualPatchRuleID:  "WAF-413-VOLUMETRIC + EGRESS-C2-SINKHOLE (Mitigation Post-RCE)",
+		VirtualPatchSummary: LocalizedText{
+			FR: "Aegis Gate bloque les charges volumétriques massives (> 32 Ko) et Aegis Egress sinkhole immédiatement les callbacks vers un C2. Cependant, un flag JVM d'hôte (-XX:-UseBASE64Intrinsics) est indispensable pour neutraliser le bogue interne OpenJDK.",
+			EN: "Aegis Gate drops oversized payloads (> 32 KB) and Aegis Egress severs outbound C2 callbacks. However, a JVM host flag (-XX:-UseBASE64Intrinsics) remains mandatory to neutralize the bug inside OpenJDK runtime.",
+		},
+		RootFixProcedure: LocalizedSteps{
+			FR: []string{
+				"Vérifier si le CPU de l'hôte expose le jeu d'instructions : grep -m1 '^flags' /proc/cpuinfo | grep -qw avx512vbmi && echo 'AVX-512 VBMI exposé' || echo 'Non vulnérable'",
+				"Si avx512vbmi est présent, ajouter la variable d'environnement sur Keycloak : JAVA_OPTS_APPEND=-XX:-UseBASE64Intrinsics",
+				"Redémarrer l'instance Keycloak : docker compose restart keycloak ou systemctl restart keycloak",
+				"Vérifier la désactivation dans la JVM en cours : docker exec <container> jcmd io.quarkus.bootstrap.runner.QuarkusEntryPoint VM.flags -all | grep UseBASE64Intrinsics (Attendu: bool UseBASE64Intrinsics = false)",
+				"Mettre à jour le runtime OpenJDK dès la parution des paquets correctifs de votre distribution.",
+			},
+			EN: []string{
+				"Check whether host CPU exposes vulnerable instructions: grep -m1 '^flags' /proc/cpuinfo | grep -qw avx512vbmi && echo 'AVX-512 VBMI exposed' || echo 'Not vulnerable'",
+				"If avx512vbmi is present, inject environment variable into Keycloak: JAVA_OPTS_APPEND=-XX:-UseBASE64Intrinsics",
+				"Restart Keycloak instance: docker compose restart keycloak or systemctl restart keycloak",
+				"Verify effective flag on running JVM: docker exec <container> jcmd io.quarkus.bootstrap.runner.QuarkusEntryPoint VM.flags -all | grep UseBASE64Intrinsics (Expected: bool UseBASE64Intrinsics = false)",
+				"Deploy distribution OpenJDK security update once available.",
+			},
+		},
+		VerificationProbe: LocalizedText{
+			FR: "docker exec <keycloak> jcmd io.quarkus.bootstrap.runner.QuarkusEntryPoint VM.flags -all | grep UseBASE64Intrinsics  # Attendu: bool UseBASE64Intrinsics = false",
+			EN: "docker exec <keycloak> jcmd io.quarkus.bootstrap.runner.QuarkusEntryPoint VM.flags -all | grep UseBASE64Intrinsics  # Expected: bool UseBASE64Intrinsics = false",
+		},
+		CISAKEV:     false,
+		PublishedAt: "2026-11-18",
+	},
+	{
 		ID:    "CVE-2026-109618",
 		CVEID: "CVE-2026-109618",
 		Name: LocalizedText{
