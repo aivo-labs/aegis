@@ -1,9 +1,22 @@
 @import "tailwindcss";
 
-/* Densité d'affichage optimale & typographie compacte haute lisibilité (~81% du standard) */
+/* =============================================================================
+   AEGIS SOVEREIGN PRECISION DESIGN SYSTEM (v1.2)
+   Typographie haute densité, alignement tabulaire des métriques & sobriété SOC
+   ============================================================================= */
+:root {
+  color-scheme: dark;
+  --aegis-bg-base: #090d16;
+  --aegis-bg-surface: #0f172a;
+  --aegis-bg-elevated: #1e293b;
+  --aegis-border-subtle: rgba(148, 163, 184, 0.14);
+  --aegis-accent: #10b981;
+}
+
 html {
   font-size: 13px;
   -webkit-text-size-adjust: 100%;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 @media (min-width: 1536px) {
@@ -12,13 +25,27 @@ html {
   }
 }
 
-/* =============================================================================
-   AEGIS DESIGN SYSTEM — MODE CLAIR PREMIUM & HAUTE LISIBILITÉ
-   Harmonisation complète pour toutes les pages (Landing & Cockpit SOC)
-   ============================================================================= */
+/* Alignement tabulaire strict pour toutes les métriques, latences, Watts et compteurs */
+.font-mono,
+.tabular-nums,
+code,
+pre,
+table td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Barres de défilement techniques fines */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+}
 
 html.theme-light {
   color-scheme: light;
+  --aegis-bg-base: #f8fafc;
+  --aegis-bg-surface: #ffffff;
+  --aegis-bg-elevated: #f1f5f9;
+  --aegis-border-subtle: #e2e8f0;
 }
 
 /* 1. Surfaces Globales & Document */

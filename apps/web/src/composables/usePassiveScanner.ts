@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { auditApi, type AuditReport, type DnsChallengeResponse } from '../services/api/auditApi';
+import { auditApi, type AuditReport, type DnsChallengeResponse, type PostureSchedule } from '../services/api/auditApi';
 
 export function usePassiveScanner(initialDomain = '') {
   const scanDomain = ref(initialDomain || 'localhost');
@@ -13,6 +13,9 @@ export function usePassiveScanner(initialDomain = '') {
   const deepFindings = ref<any[]>([]);
   const contractSha256 = ref('');
   const scanError = ref('');
+  const postureSchedules = ref<PostureSchedule[]>([]);
+  const scheduleIntervalHours = ref<number>(24);
+  const isSavingSchedule = ref(false);
 
   async function fetchLatestAudit(domain?: string) {
     const res = await auditApi.getLatestAudit(domain || scanDomain.value);
@@ -23,6 +26,31 @@ export function usePassiveScanner(initialDomain = '') {
         scanDomain.value = audit.domain;
       }
     }
+    fetchSchedules();
+  }
+
+  async function fetchSchedules() {
+    const res = await auditApi.getPostureSchedules();
+    if (res.ok && res.data && Array.isArray((res.data as any).schedules)) {
+      postureSchedules.value = (res.data as any).schedules;
+    }
+  }
+
+  async function saveSchedule(intervalHours?: number): Promise<string> {
+    const targetDomain = auditResult.value?.domain || scanDomain.value;
+    if (!targetDomain || isSavingSchedule.value) return '';
+    if (intervalHours) scheduleIntervalHours.value = intervalHours;
+    isSavingSchedule.value = true;
+    const res = await auditApi.upsertPostureSchedule(targetDomain, scheduleIntervalHours.value, true);
+    isSavingSchedule.value = false;
+    if (res.ok && res.data) {
+      if ((res.data as any).audit) {
+        auditResult.value = (res.data as any).audit;
+      }
+      await fetchSchedules();
+      return `Audit périodique continu (${scheduleIntervalHours.value}h) activé pour ${targetDomain}.`;
+    }
+    return res.error || "Erreur lors de l'activation de l'audit continu.";
   }
 
   async function runPassiveScan(): Promise<string> {
@@ -71,7 +99,7 @@ export function usePassiveScanner(initialDomain = '') {
       if (res.data.audit) auditResult.value = res.data.audit;
       deepFindings.value = res.data.deep_findings || [];
       contractSha256.value = res.data.contract_sha256 || '';
-      return `✓ Domaine ${auditResult.value.domain} homologué (${res.data.verification_method}) et Audit Niveau 2 débloqué !`;
+      return `Domaine ${auditResult.value.domain} homologué (${res.data.verification_method}) et Audit Niveau 2 débloqué.`;
     }
     return res.error || 'Échec de la vérification DNS.';
   }
@@ -106,7 +134,12 @@ export function usePassiveScanner(initialDomain = '') {
     deepFindings,
     contractSha256,
     scanError,
+    postureSchedules,
+    scheduleIntervalHours,
+    isSavingSchedule,
     fetchLatestAudit,
+    fetchSchedules,
+    saveSchedule,
     runPassiveScan,
     requestDnsToken,
     verifyAndUnlockDeepAudit,

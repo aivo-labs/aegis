@@ -33,6 +33,24 @@ export interface AuditReport {
   dns_analysis: Record<string, any>;
   pages: PageScanResult[];
   verification_token?: string;
+  guided_remediation_snippets?: Record<string, string>;
+  posture_drift?: {
+    has_drift: boolean;
+    previous_score: number;
+    current_score: number;
+    delta: number;
+    drifted_reasons?: string[];
+  };
+}
+
+export interface PostureSchedule {
+  domain: string;
+  interval_hours: number;
+  enabled: boolean;
+  last_run_at?: string;
+  next_run_at?: string;
+  last_score?: number;
+  drift_detected?: boolean;
 }
 
 export interface DnsChallengeResponse {
@@ -63,6 +81,19 @@ export const auditApi = {
     return apiRequest<{ status: string; audit: AuditReport }>('/api/v1/audit/passive-scan', {
       method: 'POST',
       body: JSON.stringify({ domain }),
+    }, 60000);
+  },
+
+  async getPostureSchedules() {
+    return apiRequest<{ status: string; schedules: PostureSchedule[] }>('/api/v1/audit/schedule', {
+      method: 'GET',
+    });
+  },
+
+  async upsertPostureSchedule(domain: string, intervalHours: number, enabled = true) {
+    return apiRequest<{ status: string; schedule: PostureSchedule; audit?: AuditReport }>('/api/v1/audit/schedule', {
+      method: 'POST',
+      body: JSON.stringify({ domain, interval_hours: intervalHours, enabled }),
     }, 60000);
   },
 
