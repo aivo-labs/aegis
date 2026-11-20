@@ -42,4 +42,16 @@ func TestAnalyzeSecurityHeaders(t *testing.T) {
 	if len(emptyCVEs) == 0 {
 		t.Errorf("AnalyzeSecurityHeaders() expected CVE warnings for missing SPF/DMARC and CSP")
 	}
+
+	// Test 3: Site avec en-têtes parfaits mais 3 CVEs critiques (cas homebox.fr)
+	// Doit déduire 3 * 15 = 45 points -> score 55/100
+	cveWarnings := []domain.CVEWarning{
+		{ID: "CVE-2024-4577", Severity: "CRITICAL", CVSS: "9.8"},
+		{ID: "CVE-2026-109618", Severity: "CRITICAL", CVSS: "9.8"},
+		{ID: "CVE-2025-29927", Severity: "CRITICAL", CVSS: "9.1"},
+	}
+	_, cveScore := AnalyzeSecurityHeaders(headers, true, dns, &cveWarnings)
+	if cveScore != 55 {
+		t.Errorf("AnalyzeSecurityHeaders() expected score 55 with 3 CRITICAL CVEs, got %d", cveScore)
+	}
 }
