@@ -10,7 +10,7 @@ const sharedSelectedHost = ref<string>('all');
 const sharedSelectedDate = ref<string>('');
 const sharedSearchQuery = ref<string>('');
 const sharedIsSimulatingProbes = ref(false);
-const sharedIsLoading = ref(true);
+const sharedIsLoading = ref(false);
 
 // 24h Totals from Backend / Database
 const sharedTotalIngress24h = ref<number>(0);
@@ -426,6 +426,11 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
       isLoading.value = false;
       return;
     }
+
+    if (isLoading.value && (ingressStream.value.length > 0 || egressStream.value.length > 0)) {
+      return;
+    }
+    isLoading.value = true;
 
     try {
       const reqDate = params?.date !== undefined ? params.date : selectedDate.value;

@@ -237,9 +237,10 @@ onMounted(() => {
   fetchControls();
 
   pollTimer = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
     fetchLiveStreams();
     if (activeTab.value === 'cve') fetchCveFeed();
-  }, 3000);
+  }, 6000);
 });
 
 onUnmounted(() => {

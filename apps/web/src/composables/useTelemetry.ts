@@ -295,6 +295,10 @@ export function useTelemetry(options?: { isDemo?: boolean }) {
       return;
     }
 
+    if (isLoading.value && timeseries.value.length > 0) {
+      return;
+    }
+
     isLoading.value = true;
     try {
       const params: EnergyQueryParams = {

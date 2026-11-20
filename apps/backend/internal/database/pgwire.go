@@ -358,6 +358,13 @@ func (c *PgClient) handleSCRAMAuth(conn net.Conn, mechanisms []byte) error {
 }
 
 func (c *PgClient) execSimpleQueryLocked(sql string) ([]PgRow, error) {
+	_ = c.conn.SetDeadline(time.Now().Add(12 * time.Second))
+	defer func() {
+		if c.conn != nil {
+			_ = c.conn.SetDeadline(time.Time{})
+		}
+	}()
+
 	packet := prependType('Q', append([]byte(sql), 0x00))
 	if _, err := c.conn.Write(packet); err != nil {
 		return nil, fmt.Errorf("envoi simple query: %w", err)

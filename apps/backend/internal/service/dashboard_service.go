@@ -9,6 +9,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aivo-labs/aegis/backend/internal/database"
@@ -18,6 +19,16 @@ type DashboardService struct {
 	db                *database.PgClient
 	protectionService *ProtectionService
 	defaultTenantID   string
+
+	cacheMu             sync.RWMutex
+	summaryCache        map[string]any
+	summaryCacheTime    time.Time
+	liveStreamsCache    map[string]any
+	liveStreamsCacheKey string
+	liveStreamsTime     time.Time
+	threatsFeedCache    []map[string]any
+	threatsFeedKey      string
+	threatsFeedTime     time.Time
 }
 
 type EnergyTimePoint struct {
@@ -43,6 +54,14 @@ func (s *DashboardService) GetSummary() map[string]any {
 	protectionEnabled := s.protectionService.IsProtectionEnabled()
 	maxPayloadBytes := s.protectionService.GetMaxPayloadBytes()
 
+	s.cacheMu.RLock()
+	if s.summaryCache != nil && time.Since(s.summaryCacheTime) < 3*time.Second {
+		cached := s.summaryCache
+		s.cacheMu.RUnlock()
+		return cached
+	}
+	s.cacheMu.RUnlock()
+
 	if s.db == nil {
 		return map[string]any{
 			"status":             "success",
@@ -57,7 +76,7 @@ func (s *DashboardService) GetSummary() map[string]any {
 		SELECT COUNT(*) AS total,
 		       COUNT(*) FILTER (WHERE decision = 'BLOCK') AS blocked,
 		       COUNT(*) FILTER (WHERE decision = 'BYPASS') AS bypassed,
-		       COUNT(*) FILTER (WHERE request_uri ~* '(wp-login|wp-content|xmlrpc|\.env|\.git|phpinfo|phpmyadmin)') AS bot_probes,
+		       COUNT(*) FILTER (WHERE timestamp >= NOW() - INTERVAL '24 hours' AND request_uri ~* '(wp-login|wp-content|xmlrpc|\.env|\.git|phpinfo|phpmyadmin)') AS bot_probes,
 		       COALESCE(AVG(latency_ms), 0) AS avg_lat
 		FROM security_audit_logs
 		WHERE tenant_id = %s;`, database.QuoteLiteral(s.defaultTenantID)))
@@ -303,7 +322,7 @@ func (s *DashboardService) GetSummary() map[string]any {
 		inspectionEngine = "⚠️ BOUCLIER DÉSACTIVÉ (Mode Sans Protection)"
 	}
 
-	return map[string]any{
+	res := map[string]any{
 		"status":             "success",
 		"tenant_id":          s.defaultTenantID,
 		"protection_enabled": protectionEnabled,
@@ -378,6 +397,13 @@ func (s *DashboardService) GetSummary() map[string]any {
 			},
 		},
 	}
+
+	s.cacheMu.Lock()
+	s.summaryCache = res
+	s.summaryCacheTime = time.Now()
+	s.cacheMu.Unlock()
+
+	return res
 }
 
 func (s *DashboardService) GetLiveStreams() (map[string]any, error) {
@@ -388,6 +414,16 @@ func (s *DashboardService) GetLiveStreamsFiltered(dateFilter, hostFilter string,
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
+
+	cacheKey := fmt.Sprintf("%s:%s:%d", dateFilter, hostFilter, limit)
+	s.cacheMu.RLock()
+	if s.liveStreamsCache != nil && s.liveStreamsCacheKey == cacheKey && time.Since(s.liveStreamsTime) < 3*time.Second {
+		cached := s.liveStreamsCache
+		s.cacheMu.RUnlock()
+		return cached, nil
+	}
+	s.cacheMu.RUnlock()
+
 	if s.db == nil {
 		return map[string]any{
 			"status":              "success",
@@ -541,7 +577,7 @@ func (s *DashboardService) GetLiveStreamsFiltered(dateFilter, hostFilter string,
 	totalEg24h := totalEg24hRow.Int("total_24h")
 	blockedEg24h := totalEg24hRow.Int("blocked_24h")
 
-	return map[string]any{
+	res := map[string]any{
 		"status":              "success",
 		"ingress_stream":      ingressStream,
 		"egress_stream":       egressStream,
@@ -550,7 +586,15 @@ func (s *DashboardService) GetLiveStreamsFiltered(dateFilter, hostFilter string,
 		"total_egress_24h":    totalEg24h,
 		"blocked_egress_24h":  blockedEg24h,
 		"timestamp":           time.Now().UTC().Format(time.RFC3339),
-	}, nil
+	}
+
+	s.cacheMu.Lock()
+	s.liveStreamsCache = res
+	s.liveStreamsCacheKey = cacheKey
+	s.liveStreamsTime = time.Now()
+	s.cacheMu.Unlock()
+
+	return res, nil
 }
 
 func (s *DashboardService) SimulatePentestProbes(customHost string) (map[string]any, error) {
@@ -674,6 +718,15 @@ func (s *DashboardService) SimulatePentestProbes(customHost string) (map[string]
 }
 
 func (s *DashboardService) GetThreatsFeed(includeCompliant bool) ([]map[string]any, error) {
+	key := strconv.FormatBool(includeCompliant)
+	s.cacheMu.RLock()
+	if s.threatsFeedCache != nil && s.threatsFeedKey == key && time.Since(s.threatsFeedTime) < 3*time.Second {
+		cached := s.threatsFeedCache
+		s.cacheMu.RUnlock()
+		return cached, nil
+	}
+	s.cacheMu.RUnlock()
+
 	events := make([]map[string]any, 0)
 	if s.db == nil {
 		return events, nil
@@ -784,6 +837,12 @@ func (s *DashboardService) GetThreatsFeed(includeCompliant bool) ([]map[string]a
 			"metadata": map[string]any{"engine": "SYSTEMONE_EGRESS"},
 		})
 	}
+
+	s.cacheMu.Lock()
+	s.threatsFeedCache = events
+	s.threatsFeedKey = key
+	s.threatsFeedTime = time.Now()
+	s.cacheMu.Unlock()
 
 	return events, nil
 }

@@ -274,6 +274,8 @@ function handleNodeConnected() {
 }
 
 async function fetchSummary() {
+  if (isLoadingSummary.value) return;
+  isLoadingSummary.value = true;
   try {
     const res = await fetch('/api/v1/dashboard/summary', { credentials: 'include' });
     if (res.ok) {
@@ -335,14 +337,20 @@ async function toggleProtectionMode() {
   }
 }
 
+let isFetchingThreats = false;
 async function fetchThreats() {
+  if (isFetchingThreats) return;
+  isFetchingThreats = true;
   try {
     const res = await fetch('/api/v1/dashboard/egress-threats', { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       threats.value = Array.isArray(data.threats) ? data.threats : [];
     }
-  } catch (e) {}
+  } catch (e) {
+  } finally {
+    isFetchingThreats = false;
+  }
 }
 
 async function exportVSReport() {
@@ -418,11 +426,12 @@ onMounted(async () => {
   fetchThreats();
 
   pollTimer = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
     if (isAuthenticated.value) {
       fetchSummary();
       fetchThreats();
     }
-  }, 2500);
+  }, 6000);
 });
 
 onUnmounted(() => {
