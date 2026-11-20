@@ -910,10 +910,11 @@ onMounted(() => {
   if (!props.isDemo) {
     // Polling automatique si en direct (1h ou 24h)
     pollTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       if (selectedRange.value === '1h' || selectedRange.value === '24h') {
         fetchEnergyTelemetry();
       }
-    }, 3500);
+    }, 8000);
   }
 });
 
