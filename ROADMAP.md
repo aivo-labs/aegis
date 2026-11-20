@@ -102,6 +102,9 @@ Before listing upcoming locks, the following capabilities are **already implemen
   3. **Sovereign CERT-FR Ingestion & Continuous Vulnerability Qualification**:
      - Sovereign on-demand sync connector (and controlled local cron) parsing the official **CERT-FR (ANSSI)** feed with zero data leakage to US third parties and no rate-limited API dependencies.
      - Immediate labeling of newly ingested, uncurated alerts under **`"Procedure under verification (Aegis Lab)"`** (`PENDING_VERIFICATION`) status, ensuring cryptographic and technical integrity until a formal Virtual Patching rule or host remediation procedure is verified.
+  4. **Composite Security Scoring & Software Vulnerability Weighting (Zero Fake-Positive)**:
+     - Unified global security scoring combining transport headers (HSTS, CSP, X-Frame-Options, nosniff), DNS resilience (SPF/DMARC), and software exposition penalties weighted by CVSS severity (`-15 pts` per CRITICAL CVE, `-10 pts` per HIGH CVE, etc.).
+     - Eliminates misleading "100/100 (A)" scores on domains exposing critical unmitigated vulnerabilities (e.g. PHP-CGI RCE, volumetric buffer overflow, Next.js middleware authorization bypass).
 
 ---
 
