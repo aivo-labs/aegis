@@ -1,5 +1,6 @@
 pub mod composite;
 pub mod cpu;
+pub mod process_spawn;
 pub mod rapl;
 pub mod scaphandre;
 pub mod vps;

@@ -27,8 +27,10 @@ func (h *AuditHandler) PassiveScan(w http.ResponseWriter, r *http.Request) {
 	}
 	res := h.auditService.RunScan(rawDomain)
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{
-		"status": "success",
-		"audit":  res,
+		"status":               "success",
+		"audit":                res,
+		"remediation_snippets": service.GenerateGuidedRemediationSnippets(res),
+		"schedule":             h.auditService.GetScheduleConfig(),
 	})
 }
 
@@ -44,10 +46,43 @@ func (h *AuditHandler) Latest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hasAudit := res != nil && res.Domain != ""
+	var snippets map[string]string
+	if res != nil {
+		snippets = service.GenerateGuidedRemediationSnippets(*res)
+	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]any{
-		"status":    "success",
-		"has_audit": hasAudit,
-		"audit":     res,
+		"status":               "success",
+		"has_audit":            hasAudit,
+		"audit":                res,
+		"remediation_snippets": snippets,
+		"schedule":             h.auditService.GetScheduleConfig(),
+	})
+}
+
+func (h *AuditHandler) Schedule(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		httputil.WriteJSON(w, http.StatusNoContent, nil)
+		return
+	}
+	if r.Method == http.MethodPost {
+		body := httputil.ReadJSONBody(r)
+		cur := h.auditService.GetScheduleConfig()
+		enabled := httputil.AsBool(body, "enabled", cur.Enabled)
+		domainName := httputil.AsString(body, "target_domain", cur.TargetDomain)
+		if domainName == "" {
+			domainName = httputil.AsString(body, "domain", cur.TargetDomain)
+		}
+		intervalHours := httputil.AsInt(body, "interval_hours", cur.IntervalHours)
+		updated := h.auditService.UpdateScheduleConfig(enabled, domainName, intervalHours)
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{
+			"status":   "success",
+			"schedule": updated,
+		})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{
+		"status":   "success",
+		"schedule": h.auditService.GetScheduleConfig(),
 	})
 }
 
