@@ -1,8 +1,10 @@
 package scanner
 
 import (
+	"context"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/aivo-labs/aegis/backend/internal/domain"
 )
@@ -15,8 +17,11 @@ func InspectDomainDNS(domainName string) domain.DNSAnalysis {
 		ResolvedIPs: []string{},
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	// 1. Résolution des adresses IP (A / AAAA)
-	if ips, err := net.LookupHost(domainName); err == nil {
+	if ips, err := net.DefaultResolver.LookupHost(ctx, domainName); err == nil {
 		for i, ip := range ips {
 			if i >= 4 {
 				break
@@ -26,7 +31,7 @@ func InspectDomainDNS(domainName string) domain.DNSAnalysis {
 	}
 
 	// 2. Recherche SPF direct sur le domaine
-	if txts, err := net.LookupTXT(domainName); err == nil {
+	if txts, err := net.DefaultResolver.LookupTXT(ctx, domainName); err == nil {
 		for _, t := range txts {
 			if strings.HasPrefix(strings.ToLower(t), "v=spf1") {
 				res.HasSPF = true
@@ -37,7 +42,7 @@ func InspectDomainDNS(domainName string) domain.DNSAnalysis {
 	}
 
 	// 3. Recherche DMARC direct sur _dmarc.<domaine>
-	if dmarcs, err := net.LookupTXT("_dmarc." + domainName); err == nil {
+	if dmarcs, err := net.DefaultResolver.LookupTXT(ctx, "_dmarc."+domainName); err == nil {
 		for _, t := range dmarcs {
 			if strings.HasPrefix(strings.ToLower(t), "v=dmarc1") {
 				res.HasDMARC = true
@@ -53,7 +58,7 @@ func InspectDomainDNS(domainName string) domain.DNSAnalysis {
 	for _, parent := range parents {
 		// Fallback SPF : Vérifier si le parent publie un enregistrement SPF wildcard (*.parent)
 		if !res.HasSPF {
-			if wildTxts, err := net.LookupTXT("*." + parent); err == nil {
+			if wildTxts, err := net.DefaultResolver.LookupTXT(ctx, "*."+parent); err == nil {
 				for _, t := range wildTxts {
 					if strings.HasPrefix(strings.ToLower(t), "v=spf1") {
 						res.HasSPF = true
@@ -67,7 +72,7 @@ func InspectDomainDNS(domainName string) domain.DNSAnalysis {
 		// Fallback DMARC (RFC 7489 Section 6.6.3) :
 		// Si le sous-domaine n'a pas de DMARC propre, interroger le domaine organisationnel parent (_dmarc.parent)
 		if !res.HasDMARC {
-			if parentDmarcs, err := net.LookupTXT("_dmarc." + parent); err == nil {
+			if parentDmarcs, err := net.DefaultResolver.LookupTXT(ctx, "_dmarc."+parent); err == nil {
 				for _, t := range parentDmarcs {
 					lower := strings.ToLower(t)
 					if strings.HasPrefix(lower, "v=dmarc1") {

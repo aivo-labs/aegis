@@ -152,6 +152,31 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 		`INSERT INTO system_retention_config (id, hot_window_days, anssi_forensic_days, rgpd_clean_ip_days, max_payload_bytes, auto_ban_threshold)
 		VALUES (1, 30, 180, 7, 32768, 3)
 		ON CONFLICT (id) DO NOTHING;`,
+
+		`CREATE TABLE IF NOT EXISTS dynamic_cve_catalog (
+			id VARCHAR(64) PRIMARY KEY,
+			cve_id VARCHAR(64) NOT NULL,
+			name TEXT NOT NULL,
+			severity VARCHAR(20) NOT NULL,
+			cvss VARCHAR(10) NOT NULL,
+			component VARCHAR(100) NOT NULL,
+			affected_versions TEXT NOT NULL DEFAULT '',
+			title TEXT NOT NULL,
+			description TEXT NOT NULL,
+			vector TEXT NOT NULL DEFAULT '',
+			remediation TEXT NOT NULL,
+			blocked_by_aegis BOOLEAN NOT NULL DEFAULT FALSE,
+			is_active_defense BOOLEAN NOT NULL DEFAULT FALSE,
+			coverage_status VARCHAR(40) NOT NULL DEFAULT 'PENDING_VERIFICATION',
+			virtual_patch_rule_id VARCHAR(100) NOT NULL DEFAULT '',
+			virtual_patch_summary TEXT NOT NULL DEFAULT '',
+			root_fix_procedure JSONB NOT NULL DEFAULT '[]'::jsonb,
+			verification_probe TEXT NOT NULL DEFAULT '',
+			cisakev BOOLEAN NOT NULL DEFAULT FALSE,
+			published_at VARCHAR(40) NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`ALTER TABLE dynamic_cve_catalog ADD COLUMN IF NOT EXISTS published_at VARCHAR(40) NOT NULL DEFAULT '';`,
 	}
 
 	for _, stmt := range statements {

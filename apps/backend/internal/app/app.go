@@ -38,7 +38,7 @@ func Run() {
 	)
 	telemetrySvc := service.NewTelemetryService(db, protectionSvc, cfg.DefaultTenantID)
 	auditSvc := service.NewAuditService(db)
-	cveSvc := service.NewCveService()
+	cveSvc := service.NewCveService(db)
 	dashboardSvc := service.NewDashboardService(db, protectionSvc, cfg.DefaultTenantID)
 
 	// Initialisation des contrôleurs HTTP

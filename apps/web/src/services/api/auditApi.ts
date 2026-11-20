@@ -63,20 +63,20 @@ export const auditApi = {
     return apiRequest<{ status: string; audit: AuditReport }>('/api/v1/audit/passive-scan', {
       method: 'POST',
       body: JSON.stringify({ domain }),
-    });
+    }, 60000);
   },
 
   async requestVerification(domain: string, email: string, company?: string) {
     return apiRequest<DnsChallengeResponse>('/api/v1/audit/request-verification', {
       method: 'POST',
       body: JSON.stringify({ domain, email, company }),
-    });
+    }, 15000);
   },
 
   async verifyOwnership(domain: string, email: string, contractAccepted: boolean) {
     return apiRequest<VerifyOwnershipResponse>('/api/v1/audit/verify-ownership', {
       method: 'POST',
       body: JSON.stringify({ domain, email, contract_accepted: contractAccepted }),
-    });
+    }, 60000);
   },
 };
