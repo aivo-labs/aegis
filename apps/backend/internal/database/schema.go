@@ -177,6 +177,14 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`ALTER TABLE dynamic_cve_catalog ADD COLUMN IF NOT EXISTS published_at VARCHAR(40) NOT NULL DEFAULT '';`,
+		`CREATE INDEX IF NOT EXISTS idx_security_audit_logs_tenant_ts ON security_audit_logs(tenant_id, timestamp DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_security_audit_logs_ts ON security_audit_logs(timestamp DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_egress_security_logs_tenant_ts ON egress_security_logs(tenant_id, timestamp DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_egress_security_logs_ts ON egress_security_logs(timestamp DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_telemetry_energy_metrics_tenant_ts ON telemetry_energy_metrics(tenant_id, timestamp DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_telemetry_energy_metrics_node_ts ON telemetry_energy_metrics(node_id, timestamp DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_infrastructure_nodes_tenant ON infrastructure_nodes(tenant_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_ip_ban_list_expires ON ip_ban_list(expires_at);`,
 	}
 
 	for _, stmt := range statements {

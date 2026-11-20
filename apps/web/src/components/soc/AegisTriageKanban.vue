@@ -568,8 +568,12 @@ async function triggerAction(action, target) {
   }, 4000);
 }
 
+let isFetchingTriage = false;
+
 // Fetch Backend Triage (100% Real Data - Zero Mock)
 async function fetchTriage() {
+  if (isFetchingTriage) return;
+  isFetchingTriage = true;
   try {
     const res = await fetch('/api/v1/dashboard/triage?include_compliant=true');
     if (res.ok) {
@@ -601,6 +605,8 @@ async function fetchTriage() {
     }
   } catch (e) {
     // Erreur réseau temporaire
+  } finally {
+    isFetchingTriage = false;
   }
 }
 
@@ -610,7 +616,10 @@ function refreshFeed() {
 
 onMounted(() => {
   fetchTriage();
-  pollTimer = setInterval(fetchTriage, 2000);
+  pollTimer = setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return;
+    fetchTriage();
+  }, 6000);
 });
 
 onUnmounted(() => {
