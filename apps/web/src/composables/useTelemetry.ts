@@ -289,15 +289,17 @@ export function useTelemetry(options?: { isDemo?: boolean }) {
     isSimulatedHistory.value = true;
   }
 
+  let isFetchingTelemetry = false;
   async function fetchEnergyTelemetry(customParams?: EnergyQueryParams) {
     if (options?.isDemo) {
       loadSandboxData();
       return;
     }
 
-    if (isLoading.value && timeseries.value.length > 0) {
+    if (isFetchingTelemetry) {
       return;
     }
+    isFetchingTelemetry = true;
 
     isLoading.value = true;
     try {
@@ -350,6 +352,7 @@ export function useTelemetry(options?: { isDemo?: boolean }) {
     } catch (e) {
       // Tolérance réseau en arrière-plan
     } finally {
+      isFetchingTelemetry = false;
       isLoading.value = false;
     }
   }

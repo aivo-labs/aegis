@@ -273,9 +273,10 @@ function handleNodeConnected() {
   fetchSummary();
 }
 
+let isFetchingSummary = false;
 async function fetchSummary() {
-  if (isLoadingSummary.value) return;
-  isLoadingSummary.value = true;
+  if (isFetchingSummary) return;
+  isFetchingSummary = true;
   try {
     const res = await fetch('/api/v1/dashboard/summary', { credentials: 'include' });
     if (res.ok) {
@@ -316,6 +317,7 @@ async function fetchSummary() {
     }
   } catch (e) {
   } finally {
+    isFetchingSummary = false;
     isLoadingSummary.value = false;
   }
 }
