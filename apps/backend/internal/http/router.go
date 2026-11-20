@@ -53,6 +53,7 @@ func NewRouter(p RouterParams) *http.ServeMux {
 	// 5. Diagnostic Passif & Mandat Légal
 	mux.HandleFunc("/api/v1/audit/passive-scan", p.AuditHandler.PassiveScan)
 	mux.HandleFunc("/api/v1/audit/latest", p.AuditHandler.Latest)
+	mux.HandleFunc("/api/v1/audit/schedule", p.AuditHandler.Schedule)
 	mux.HandleFunc("/api/v1/audit/request-verification", p.AuditHandler.RequestVerification)
 	mux.HandleFunc("/api/v1/audit/verify-ownership", p.AuditHandler.VerifyOwnership)
 

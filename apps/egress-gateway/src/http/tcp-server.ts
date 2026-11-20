@@ -28,9 +28,42 @@ export function createEgressHttpServer(
           udp_port: listenPort,
           tcp_port: listenPort,
           protection_enabled: evaluator.isProtectionEnabled(),
+          dns_ip_allowlist_entries: evaluator.getIpAllowlist().size(),
           engine: `System One (${systemOneModelName})`
         })
       );
+      return;
+    }
+
+    if (req.url === '/api/v1/egress/verify-connection' && req.method === 'POST') {
+      const vChunks: Buffer[] = [];
+      req.on('data', c => vChunks.push(c));
+      req.on('end', async () => {
+        try {
+          const body = JSON.parse(Buffer.concat(vChunks).toString('utf8') || '{}');
+          const destIp = String(body.dest_ip || body.ip || '').trim();
+          const destPort = Number(body.dest_port || body.port || 4444);
+          const clientIp =
+            body.client_ip || req.socket.remoteAddress?.replace(/^::ffff:/, '') || '127.0.0.1';
+
+          const verdict = await evaluator.verifyIpConnection(destIp, clientIp, destPort);
+          const isBlocked = verdict.action === 'BLOCK' || verdict.action === 'QUARANTINE';
+
+          res.writeHead(isBlocked ? 403 : 200, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              status: isBlocked ? 'blocked' : 'allowed',
+              dest_ip: destIp,
+              dest_port: destPort,
+              ...verdict
+            })
+          );
+        } catch (err: unknown) {
+          const error = err as Error;
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'error', message: error.message }));
+        }
+      });
       return;
     }
 
@@ -85,7 +118,7 @@ export function createEgressHttpServer(
         const bodyStr = Buffer.concat(chunks).toString('utf8');
         const data = bodyStr ? JSON.parse(bodyStr) : {};
         const urlObj = new URL(req.url || '/', `http://localhost:${listenPort}`);
-        const fqdn = data.fqdn || urlObj.searchParams.get('fqdn') || 'revshell-callback.darknet-c2.top';
+        const fqdn = data.fqdn || data.dest_ip || urlObj.searchParams.get('fqdn') || 'revshell-callback.darknet-c2.top';
         const protocolContext = data.protocol || urlObj.searchParams.get('protocol') || 'tcp_egress';
         const clientIp =
           data.client_ip || req.socket.remoteAddress?.replace(/^::ffff:/, '') || '127.0.0.1';

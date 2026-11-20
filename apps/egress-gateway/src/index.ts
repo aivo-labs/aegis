@@ -20,6 +20,7 @@ export * from './types.js';
 export * from './config.js';
 export * from './cti/blocklist.js';
 export * from './engine/entropy.js';
+export * from './engine/ip-allowlist.js';
 export * from './engine/system-one.js';
 export * from './engine/evaluator.js';
 export * from './dns/packet.js';

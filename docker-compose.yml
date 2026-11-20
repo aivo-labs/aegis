@@ -20,6 +20,8 @@ services:
     ports:
       # ⚠️ AVERTISSEMENT : Ne pas exposer publiquement le port 5432 sur Internet en production.
       - "127.0.0.1:5432:5432"
+    networks:
+      - aegis-internal
     volumes:
       - aegis_pgdata:/var/lib/postgresql/data
       - ./apps/backend/migrations/schema-database-postgresql-aegis.sql:/docker-entrypoint-initdb.d/01-schema.sql
@@ -29,7 +31,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. BACKEND API CONTROL PLANE (GO 1.22 STANDARD LIBRARY - ZERO DEPENDENCY)
+  # 2. BACKEND API CONTROL PLANE (GO 1.25 STANDARD LIBRARY - ZERO DEPENDENCY)
   backend:
     build:
       context: ./apps/backend
@@ -44,6 +46,9 @@ services:
       APP_SECRET: ${APP_SECRET:-4f88631b14a9a08990b7e452a32bf}
     ports:
       - "8080:80"
+    networks:
+      - aegis-internal
+      - aegis-edge
     depends_on:
       timescaledb:
         condition: service_healthy
@@ -64,6 +69,9 @@ services:
     ports:
       - "5053:5053/udp"
       - "5053:5053/tcp"
+    networks:
+      - aegis-internal
+      - aegis-edge
     depends_on:
       - backend
 
@@ -84,6 +92,8 @@ services:
       AEGIS_SERVER_ID: "aegis-sovereign-node"
       AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/energy"
       POLL_INTERVAL_SECS: "5"
+    networks:
+      - aegis-internal
     depends_on:
       - backend
 
@@ -94,6 +104,9 @@ services:
     restart: always
     ports:
       - "11434:11434"
+    networks:
+      - aegis-internal
+      - aegis-edge
     volumes:
       - aegis_ollama_data:/root/.ollama
     entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && (ollama pull nimble || true) && wait"]
@@ -107,6 +120,8 @@ services:
     restart: always
     ports:
       - "4321:80"
+    networks:
+      - aegis-internal
     depends_on:
       - backend
 
@@ -132,6 +147,9 @@ services:
       OIDC_REDIRECT_URI: "${OIDC_REDIRECT_URI:-}"
     ports:
       - "8000:8000"
+    networks:
+      - aegis-internal
+      - aegis-edge
     depends_on:
       - backend
       - web
@@ -145,6 +163,9 @@ services:
     restart: always
     ports:
       - "4322:80"
+    networks:
+      - aegis-internal
+      - aegis-edge
     profiles:
       - docs
       - all
@@ -152,3 +173,11 @@ services:
 volumes:
   aegis_pgdata:
   aegis_ollama_data:
+
+networks:
+  # Verrou n°1 (P0) : Réseau interne confiné sans route par défaut vers Internet
+  aegis-internal:
+    driver: bridge
+    internal: true
+  aegis-edge:
+    driver: bridge

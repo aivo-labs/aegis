@@ -43,6 +43,18 @@ impl TelemetryDaemon {
 
         let (power_watts, engine_source) = self.sensor.read_measurement(&ctx).await;
 
+        // Verrou n°4 (P1) : Détection temps réel de spawn de shell par un worker web (/proc)
+        let shell_spawns = crate::collector::process_spawn::scan_proc_for_shell_spawns(&[
+            "/host/proc",
+            "/proc",
+        ]);
+        for alert in &shell_spawns {
+            eprintln!(
+                "🚨 [ALERT P1 HOST_SHELL_SPAWN] Worker '{}' (PID {}) spawned '{}' (PID {}) -> cmd='{}'",
+                alert.parent_comm, alert.parent_pid, alert.child_comm, alert.child_pid, alert.cmdline
+            );
+        }
+
         let payload = EnergyPayload::new(
             &self.config.tenant_id,
             &self.config.server_id,
@@ -54,11 +66,12 @@ impl TelemetryDaemon {
         match self.publisher.publish(&payload).await {
             Ok(()) => {
                 println!(
-                    "✅ [Ingest OK] Total: {:.2}W ({}) | CPU: {:.1}% | Delta Joules: {:.2}J",
+                    "✅ [Ingest OK] Total: {:.2}W ({}) | CPU: {:.1}% | Delta Joules: {:.2}J | ShellSpawns: {}",
                     payload.power_watts,
                     engine_source,
                     payload.cpu_usage_percent,
-                    payload.energy_joules_delta
+                    payload.energy_joules_delta,
+                    shell_spawns.len()
                 );
             }
             Err(e) => {
