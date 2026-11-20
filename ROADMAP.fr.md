@@ -102,6 +102,9 @@ Avant les prochains verrous, les briques suivantes sont **opérationnelles et te
   3. **Ingestion Souveraine CERT-FR & Qualification Continue des Vulnérabilités** :
      - Connecteur de synchronisation souverain « à la demande » (et tâche d'arrière-plan maîtrisée) interrogeant le flux officiel du **CERT-FR (ANSSI)** sans aucune fuite vers des tiers américains ni dépendance à des API sous quotas.
      - Marquage immédiat des alertes émergentes non encore qualifiées sous le statut **`« Procédure en cours de vérification (Aegis Lab) »`** (`PENDING_VERIFICATION`), garantissant l'intégrité de la chaîne de confiance tant qu'une règle de Virtual Patching ou qu'une procédure de remédiation d'hôte n'a pas été formellement certifiée.
+  4. **Scoring Composite & Pondération des Vulnérabilités Applicatives (Zero Fake-Positive)** :
+     - Unification de la notation de sécurité globale combinant la conformité des en-têtes (HSTS, CSP, X-Frame-Options, nosniff), la robustesse DNS (SPF/DMARC) et les pénalités d'exposition logicielle indexées sur la sévérité CVSS des CVEs détectées (`-15 pts` par faille CRITICAL, `-10 pts` par faille HIGH, etc.).
+     - Élimination des scores « 100/100 (A) » paradoxaux sur des domaines exposant des vulnérabilités critiques non mitigées (ex. RCE PHP-CGI, buffer overflow volumétrique, bypass d'autorisation Next.js).
 
 ---
 

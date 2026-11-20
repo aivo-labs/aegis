@@ -69,8 +69,31 @@ func AnalyzeSecurityHeaders(headers http.Header, isHTTPS bool, dns domain.DNSAna
 		})
 	}
 
-	if score < 15 {
-		score = 15
+	// 3. Pénalisation composite des vulnérabilités applicatives et logicielles (CVEs)
+	// Déduction proportionnelle à la sévérité CVSS pour refléter le risque réel (RCE, buffer overflow, bypass...).
+	// On ignore DNS-SPOOFING-RISK et OWASP-A03-XSS-CSP pour ne pas doubler les pénalités d'en-têtes/DNS déjà déduites ci-dessus.
+	if cves != nil {
+		for _, cve := range *cves {
+			if cve.ID == "DNS-SPOOFING-RISK" || cve.ID == "OWASP-A03-XSS-CSP" {
+				continue
+			}
+			switch cve.Severity {
+			case "CRITICAL":
+				score -= 15
+			case "HIGH":
+				score -= 10
+			case "MEDIUM":
+				score -= 5
+			case "LOW":
+				score -= 2
+			default:
+				score -= 5
+			}
+		}
+	}
+
+	if score < 0 {
+		score = 0
 	}
 	return checks, score
 }
