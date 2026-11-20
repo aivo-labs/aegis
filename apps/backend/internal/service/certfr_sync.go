@@ -71,7 +71,6 @@ func (s *CveService) SyncCertFrFromReader(r io.Reader, lang string) (*CertFrSync
 	}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	existingDynamic := make(map[string]bool, len(s.dynamicCves))
 	for _, d := range s.dynamicCves {
@@ -81,6 +80,7 @@ func (s *CveService) SyncCertFrFromReader(r io.Reader, lang string) (*CertFrSync
 
 	newIngested := 0
 	alreadyCurated := 0
+	var newIngestedList []domain.CVEWarning
 
 	for _, item := range rss.Channel.Items {
 		cves := cveRegex.FindAllString(item.Title+" "+item.Description, -1)
@@ -180,6 +180,7 @@ func (s *CveService) SyncCertFrFromReader(r io.Reader, lang string) (*CertFrSync
 			s.dynamicCves = append(s.dynamicCves, newWarn)
 			existingDynamic[cveID] = true
 			newIngested++
+			newIngestedList = append(newIngestedList, newWarn)
 		}
 	}
 
@@ -193,6 +194,15 @@ func (s *CveService) SyncCertFrFromReader(r io.Reader, lang string) (*CertFrSync
 	}
 
 	s.lastSyncReport = report
+	s.mu.Unlock()
+
+	// Persistance asynchrone / post-verrou en base de données
+	for _, warn := range newIngestedList {
+		if err := s.PersistDynamicCve(warn); err != nil {
+			log.Printf("⚠️ [CVE Service] Erreur de persistance SQL pour %s: %v", warn.ID, err)
+		}
+	}
+
 	return report, nil
 }
 
