@@ -420,6 +420,7 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
     },
   ];
 
+  let isFetchingStreams = false;
   async function fetchLiveStreams(params?: { date?: string; host?: string; limit?: number }) {
     if (options?.isDemo) {
       loadSandboxStreams();
@@ -427,9 +428,8 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
       return;
     }
 
-    if (isLoading.value && (ingressStream.value.length > 0 || egressStream.value.length > 0)) {
-      return;
-    }
+    if (isFetchingStreams) return;
+    isFetchingStreams = true;
     isLoading.value = true;
 
     try {
@@ -464,6 +464,7 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
     } catch (e) {
       // Tolérance réseau en arrière-plan : ne jamais vider les flux existants
     } finally {
+      isFetchingStreams = false;
       isLoading.value = false;
     }
   }
