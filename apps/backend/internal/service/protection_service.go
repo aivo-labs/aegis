@@ -116,7 +116,7 @@ func (s *ProtectionService) ListBans() ([]domain.IPBanEntry, error) {
 	if s.db == nil {
 		return []domain.IPBanEntry{}, nil
 	}
-	rows, err := s.db.Query("SELECT ip_address, reason, risk_score, source, blocked_hits, created_at, expires_at FROM ip_ban_list ORDER BY created_at DESC;")
+	rows, err := s.db.Query("SELECT ip_address, reason, risk_score, source, blocked_hits, created_at, expires_at FROM ip_ban_list WHERE expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC;")
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (s *ProtectionService) ListBans() ([]domain.IPBanEntry, error) {
 	return bans, nil
 }
 
-func (s *ProtectionService) AddBan(ip, reason, source string, riskScore int) error {
+func (s *ProtectionService) AddBan(ip, reason, source string, riskScore int, ttlMinutes ...int) error {
 	if s.db == nil {
 		return nil
 	}
@@ -155,18 +155,28 @@ func (s *ProtectionService) AddBan(ip, reason, source string, riskScore int) err
 	if riskScore <= 0 {
 		riskScore = 95
 	}
+	expiresExpr := "NULL"
+	if len(ttlMinutes) > 0 && ttlMinutes[0] > 0 {
+		expiresExpr = fmt.Sprintf("CURRENT_TIMESTAMP + INTERVAL '%d minutes'", ttlMinutes[0])
+	} else if source == "AUTO_JAIL_WAF" {
+		expiresExpr = "CURRENT_TIMESTAMP + INTERVAL '15 minutes'"
+	}
+
 	err := s.db.Exec(fmt.Sprintf(`
-		INSERT INTO ip_ban_list (ip_address, reason, risk_score, source, created_at)
-		VALUES (%s, %s, %d, %s, CURRENT_TIMESTAMP)
+		INSERT INTO ip_ban_list (ip_address, reason, risk_score, source, expires_at, created_at)
+		VALUES (%s, %s, %d, %s, %s, CURRENT_TIMESTAMP)
 		ON CONFLICT (ip_address) DO UPDATE SET
 			reason = EXCLUDED.reason,
 			risk_score = EXCLUDED.risk_score,
 			source = EXCLUDED.source,
+			expires_at = EXCLUDED.expires_at,
+			blocked_hits = ip_ban_list.blocked_hits + 1,
 			created_at = CURRENT_TIMESTAMP;`,
 		database.QuoteLiteral(ip),
 		database.QuoteLiteral(reason),
 		riskScore,
 		database.QuoteLiteral(source),
+		expiresExpr,
 	))
 	if err == nil {
 		s.Propagate()
