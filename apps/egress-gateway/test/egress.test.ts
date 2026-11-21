@@ -125,4 +125,21 @@ describe('Aegis Egress — Evaluator & Protection Modes', () => {
     const internalResult = await evaluator.verifyIpConnection('172.18.0.5', '172.18.0.2', 5432);
     assert.strictEqual(internalResult.action, 'ALLOW');
   });
+
+  it('should sinkhole OAST blind exploit callback domains and LOTC exfiltration tunnels (Verrou n°5-Bis v1.3 Anti-Artex)', async () => {
+    const evaluator = new EgressEvaluator(mockSystemOne, mockTelemetry, cti, 'tenant-1', true);
+
+    const oastInteract = await evaluator.processQuery('c72k9a1v00001.interact.sh');
+    assert.strictEqual(oastInteract.action, 'BLOCK');
+    assert.strictEqual(oastInteract.threat_type, 'OAST_BLIND_EXPLOIT_CALLBACK_BLOCKED');
+
+    const oastPro = await evaluator.processQuery('artex-ssrf-probe.oast.pro');
+    assert.strictEqual(oastPro.action, 'BLOCK');
+    assert.strictEqual(oastPro.threat_type, 'OAST_BLIND_EXPLOIT_CALLBACK_BLOCKED');
+
+    const lotcNgrok = await evaluator.processQuery('a8f1-92-157.ngrok-free.app');
+    assert.strictEqual(lotcNgrok.action, 'BLOCK');
+    assert.strictEqual(lotcNgrok.threat_type, 'LOTC_TUNNEL_EXFILTRATION_BLOCKED');
+  });
 });
+

@@ -24,7 +24,7 @@ Chaque chantier est suivi strictement par **statut d'implémentation (`✅ Livr�
 | **P0/P1** | **n°4 Durcissement Protocole (`431`), Multipart RFC & Anti-Spawn Shell** | **✅ Livré (v1.2)** | **P1 (Haute)** | `apps/gate-proxy/src/`, `apps/telemetry-agent/src/collector/` | Plafonds en-têtes `HTTP 431` (`8 Ko` total / `4 Ko` unitaire / `64` max), validation RFC multipart, anti-compression bomb & sonde Rust `/proc` anti-spawn shell |
 | **P0/P1** | **n°5 Audit Passif Continu, PQC (`ML-KEM`), CERT-FR & Remédiation** | **✅ Livré (v1.2)** | **P1 (Haute)** | `apps/backend/internal/scanner/`, `service/audit_service.go`, `web` | Audits périodiques planifiés (`6h`/`12h`/`24h`), détection de dérive, snippets guidés Traefik/Nginx/Caddy/PHP, sonde PQC `X25519MLKEM768` & scoring pondéré CVSS |
 | **Durcissement** | **v1.2.1/v1.2.2 Failover TimescaleDB, Filtre Spawn Worker & UI Précision Souveraine** | **✅ Livré (v1.2.2)** | **P1 (Haute)** | `apps/backend/internal/database/`, `telemetry-agent`, `web`, `aegis-cloud` | Lien Docker `/etc/hosts` & failover `lastGoodIP` (zéro 500), filtre spawn workers légitimes, clamp CPU `[0, 100]%`, résilience micro-SLM Ollama & refonte UI/UX anti-vibe |
-| **v1.3 (P1.5)** | **n°5-Bis Bouclier « Anti-Artex » (Défense Contre le Pentest IA Autonome)** | **⏳ En conception (v1.3)** | **P1.5 (Haute)** | `gate-proxy`, `egress-gateway`, `telemetry-agent` | Mode `403` opaque, Tarpit & Canary Honeypot anti-LLM, Sinkhole OAST/LOTC (`interact.sh`), bouclier API BOLA/IDOR/Swagger, détection faux UA & Context-Binding BFF |
+| **v1.3 (P1.5)** | **n°5-Bis Bouclier « Anti-Artex » (Défense Contre le Pentest IA Autonome)** | **✅ Livré (v1.3)** | **P1.5 (Haute)** | `gate-proxy`, `egress-gateway` | Mode `403` opaque, Tarpit & Canary Honeypot anti-LLM, Sinkhole OAST/LOTC (`interact.sh`), bouclier API BOLA/IDOR/Swagger, détection faux UA & Context-Binding BFF |
 | **P2** | **n°6 Filtre Réseau `eBPF / XDP` L3/L4, Kill-Switch `SIGKILL` & Veille Kernel** | **⏳ En conception** | **P2 (Moyenne)** | `apps/telemetry-agent/src/` | Rejet carte réseau `XDP_DROP` (`< 0,005 ms`) contre SYN forgés, `SIGKILL < 10 ms` actif sur spawn shell illégitime + veille version `uname -r` |
 | **P2** | **n°7 Filtrage DNS Entreprise & Shadow IT (DoH/DoT)** | **⏳ À planifier** | **P2 (Moyenne)** | `apps/egress-gateway/src/` | Résolveur central DHCP/`:5053` + DoH/DoT nomade encadrant les outils RAT (TeamViewer, AnyDesk, RustDesk) en Prod/DMZ |
 | **P2** | **n°8 Agent Posture Endpoint Rust (`< 10 Mo`) & `mTLS` PQC** | **⏳ En conception** | **P2 (Moyenne)** | Nouveau `aegis-node-agent` (Rust) + `web` | Inventaire CVE local & hygiène poste multi-OS via **canal `mTLS` hybride post-quantique (`X25519MLKEM768`)** + accès conditionnel |
@@ -104,10 +104,10 @@ Avant les prochains verrous P2/P3, les briques suivantes sont **opérationnelles
 
 ---
 
-## ⚔️ Phase P1.5 (v1.3) — Bouclier Souverain « Anti-Artex » (Défense Contre le Pentest IA Autonome)
+## ⚔️ Phase P1.5 (v1.3) — Bouclier Souverain « Anti-Artex » (Défense Contre le Pentest IA Autonome — ✅ Livré)
 
 ### 🔒 Verrou n°5-Bis : Neutralisation des Orchestrateurs Offensifs Multi-Agents (ARTEX, Hexstrike, CyberStrikeAI)
-- **Statut :** ⏳ En conception (`v1.3`)
+- **Statut :** ✅ Livré (`v1.3.0`)
 - **Priorité :** Haute (**P1.5** — Réponse directe aux frameworks de pentest IA autonomes pilotés par LLM)
 - **Contexte & Menace :** Les orchestrateurs offensifs agentiques (tels qu'**ARTEX**) décomposent un objectif d'intrusion en sous-tâches exécutées à vitesse machine (*Machine-Speed Kill Chain* `< 3h`) par des *Agent Workers* autonomes. Contrairement aux scanners classiques, ils analysent les réponses HTTP `403` pour adapter leurs payloads, attaquent la logique métier des API (**BOLA / IDOR**, schémas OpenAPI/GraphQL), valident leurs exploits à l'aveugle via des relais **OAST** (`interact.sh`) et chaînent les jetons volés.
 - **Plan d'action technique (6 Briques « Anti-Artex ») :**

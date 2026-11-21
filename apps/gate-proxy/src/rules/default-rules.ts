@@ -1,5 +1,6 @@
 import { WafRuleRegistry } from './registry.js';
 import { ScannerRule } from './scanner.rule.js';
+import { AntiArtexRule } from './anti-artex.rule.js';
 import { ZeroDayRule } from './zeroday.rule.js';
 import { RceRule } from './rce.rule.js';
 import { SsrfRule } from './ssrf.rule.js';
@@ -12,6 +13,7 @@ import { XssRule } from './xss.rule.js';
 export function createDefaultRuleRegistry(): WafRuleRegistry {
   const registry = new WafRuleRegistry();
   registry.register(new ScannerRule());
+  registry.register(new AntiArtexRule());
   registry.register(new ZeroDayRule());
   registry.register(new RceRule());
   registry.register(new SsrfRule());
