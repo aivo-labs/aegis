@@ -24,8 +24,8 @@
   <a href="https://demo.aegis.aivo.fr/fr/demo" target="_blank">
     <img src="https://img.shields.io/badge/⚡%20Démonstrateur%20Live-demo.aegis.aivo.fr-00e5ff?style=for-the-badge&logo=cloudflare" alt="Démonstrateur Live Aegis" />
   </a>
-  <a href="https://github.com/aivo-labs/aegis/releases/tag/v1.2.2">
-    <img src="https://img.shields.io/badge/Version-v1.2.2%20(Bêta%20Publique)-orange?style=for-the-badge" alt="Bêta Publique" />
+  <a href="https://github.com/aivo-labs/aegis/releases/tag/v1.2.2-beta">
+    <img src="https://img.shields.io/badge/Version-v1.2.2--beta%20(Bêta%20Publique)-orange?style=for-the-badge" alt="Bêta Publique" />
   </a>
   <a href="https://aegis.aivo.fr/fr/" target="_blank">
     <img src="https://img.shields.io/badge/Site%20Officiel-aegis.aivo.fr-emerald?style=for-the-badge" alt="Site Officiel" />
