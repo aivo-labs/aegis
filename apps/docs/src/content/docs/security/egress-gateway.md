@@ -63,12 +63,19 @@ Autonomous AI systems (code agents, multi-agent frameworks, task runners) introd
 * **Exfiltration via Indirect Prompt Injection**: Malicious instructions embedded in untrusted web pages can trick an AI agent into transmitting confidential API keys or source code snippets to external URLs.
 * **Rogue Tool Calls**: Aegis Egress restricts outbound container traffic strictly to whitelisted APIs, providing a bulletproof sandbox for experimental AI agents.
 
+### 5. Lock #1 : Strict Egress Network Confinement & Raw IP Socket Neutralization
+To prevent attackers or compromised agents from bypassing DNS entirely by connecting directly to raw IP addresses:
+* **DNS-to-IP Dynamic Allowlist (`DnsToIpAllowlist`)**: Any IP address contacted by an outbound socket must correspond to a legitimate domain resolved and authorized by CoreDNS within the last 60 seconds (TTL cache).
+* **Raw IP Socket Interception**: Direct TCP/UDP socket creation towards untrusted raw external IPs without prior legitimate DNS resolution is instantly terminated with a high-priority SOC alert: `RAW_IP_REVERSE_SHELL_BLOCKED`.
+
 ---
 
-## ⚡ Sovereign Local Inference: Nimble 9B Model
+## ⚡ Sovereign Local Inference: Nimble 9B & Micro-SLM Engine
 
-To evaluate unknown domains without leaking proprietary DNS telemetry to foreign cloud providers, Aegis embeds the compact **Nimble 9B** small language model:
+To evaluate unknown domains without leaking proprietary DNS telemetry to foreign cloud providers, Aegis embeds a local sovereign language model:
 * **Fully sovereign & self-hosted**: Runs on-premise or in your private cloud via the bundled `ollama-nimble` container.
+* **Resilient Model Resolution**: Automatically initializes with `qwen2.5:0.5b` aliased to `nimble`, ensuring instant readiness across all Ollama engine releases without version schema breakages.
+* **Fail-Closed Zero-Trust Fallback**: In the event of micro-SLM downtime or initialization delay, the engine immediately falls back to high-speed Shannon entropy filtering and heuristic reputation scoring without opening unfiltered egress.
 * **Zero US cloud dependency**: Data never leaves the host server, maintaining strict compliance with sovereign European data protection standards.
 * **Low-latency execution**: Yields verdicts in under 50 ms backed by an in-memory LRU cache.
 
