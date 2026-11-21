@@ -13,7 +13,7 @@ export interface ApiResponse<T = any> {
 export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {},
-  timeoutMs = 6000
+  timeoutMs = 15000
 ): Promise<ApiResponse<T>> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);

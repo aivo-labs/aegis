@@ -81,52 +81,41 @@ html.theme-light .bg-\[\#090e1a\]\/90,
 html.theme-light .bg-\[\#080d1a\],
 html.theme-light .bg-\[\#080d18\],
 html.theme-light .bg-\[\#070b14\],
-html.theme-light .bg-\[\#060a12\] {
+html.theme-light .bg-\[\#060a12\],
+html.theme-light [class*="bg-[#0a0f1d]"],
+html.theme-light [class*="bg-[#090e1a]"] {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
 }
 
-/* 4. Cartes Principales & Panneaux Élevés (Cartes blanches épurées) */
+/* 4. Cartes Principales & Panneaux Élevés (Cartes blanches épurées haute lisibilité) */
+html.theme-light [class*="bg-slate-900"],
+html.theme-light [class*="bg-slate-950"],
 html.theme-light .bg-slate-900,
-html.theme-light .bg-slate-900\/95,
-html.theme-light .bg-slate-900\/90,
-html.theme-light .bg-slate-900\/85,
-html.theme-light .bg-slate-900\/80,
-html.theme-light .bg-slate-900\/70,
-html.theme-light .bg-slate-900\/60,
-html.theme-light .bg-slate-900\/55,
-html.theme-light .bg-slate-900\/50,
-html.theme-light .bg-slate-900\/45,
-html.theme-light .bg-slate-900\/40,
-html.theme-light .bg-slate-950\/95,
-html.theme-light .bg-slate-950\/90,
-html.theme-light .bg-slate-950\/80,
-html.theme-light .bg-slate-950\/70,
-html.theme-light .bg-slate-950\/60,
-html.theme-light .bg-slate-950\/50,
-html.theme-light .bg-slate-950\/40 {
+html.theme-light .bg-slate-950 {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
 }
 
-/* 5. Surfaces en Creux, Puits, Lignes de Tableau & Encadrés Internes (Slate-100) */
-html.theme-light .bg-slate-950,
-html.theme-light .bg-slate-850,
+/* 5. Surfaces en Creux, Puits, Lignes de Tableau & Encadrés Internes (Slate-50 / Slate-100) */
+html.theme-light [class*="bg-slate-900"] [class*="bg-slate-950"],
+html.theme-light [class*="bg-slate-950"] [class*="bg-slate-950"],
+html.theme-light [class*="bg-slate-900"] [class*="bg-slate-900"],
+html.theme-light [class*="bg-slate-950"] [class*="bg-slate-900"],
+html.theme-light [class*="bg-slate-800"],
+html.theme-light [class*="bg-slate-850"],
 html.theme-light .bg-slate-800,
-html.theme-light .bg-slate-800\/90,
-html.theme-light .bg-slate-800\/80,
-html.theme-light .bg-slate-800\/40,
-html.theme-light .bg-slate-800\/30 {
-  background-color: #f1f5f9 !important; /* slate-100 */
-  border-color: #cbd5e1 !important; /* slate-300 */
+html.theme-light .bg-slate-850 {
+  background-color: #f8fafc !important; /* slate-50 */
+  border-color: #e2e8f0 !important; /* slate-200 */
   color: #0f172a !important;
 }
 
 html.theme-light .bg-slate-700 {
-  background-color: #e2e8f0 !important; /* slate-200 */
-  border-color: #cbd5e1 !important;
+  background-color: #f1f5f9 !important; /* slate-100 */
+  border-color: #cbd5e1 !important; /* slate-300 */
   color: #0f172a !important;
 }
 
@@ -283,15 +272,25 @@ html.theme-light tr:hover td {
   background-color: #f8fafc !important;
 }
 
-/* 11. Terminaux, Blocs de Code & Schémas ASCII (Style Terminal Développeur Pro) */
-html.theme-light pre,
-html.theme-light .bg-\[\#090d16\],
-html.theme-light .bg-slate-950\/90.font-mono {
+/* 11. Terminaux, Blocs de Code & Schémas ASCII */
+html.theme-light pre {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+html.theme-light pre * {
+  color: #0f172a !important;
+}
+
+html.theme-light .terminal-window,
+html.theme-light .terminal-box,
+html.theme-light .bg-\[\#090d16\] {
   background-color: #0c1322 !important; /* Dark slate terminal */
   color: #f8fafc !important;
   border-color: #334155 !important;
 }
-html.theme-light pre *,
+html.theme-light .terminal-window *,
+html.theme-light .terminal-box *,
 html.theme-light .bg-\[\#090d16\] * {
   color: #38bdf8 !important; /* Vibrant cyan */
 }
