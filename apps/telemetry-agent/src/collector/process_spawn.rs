@@ -89,6 +89,81 @@ pub fn parse_proc_stat_line(stat_content: &str) -> Option<(u32, u32, String)> {
     Some((pid, ppid, comm))
 }
 
+/// Vérifie si la commande exécutée par le processus enfant est une sous-commande bénigne
+/// d'orchestration ou de build légitime (ex: node exécutant npm, pnpm, yarn, dotenv, dist/).
+pub fn is_benign_worker_child_cmd(parent_comm: &str, _child_comm: &str, cmdline: &str) -> bool {
+    let lower_parent = parent_comm.trim().to_lowercase();
+    let lower_cmd = cmdline.trim().to_lowercase();
+
+    // Signatures d'attaques avérées qui NE DOIVENT JAMAIS être ignorées (reverse shell, webshell, exfiltration)
+    let attack_patterns = &[
+        "id",
+        "whoami",
+        "cat /etc",
+        "/etc/passwd",
+        "/etc/shadow",
+        "nc ",
+        "ncat",
+        "netcat",
+        "socat",
+        "/dev/tcp",
+        "mkfifo",
+        "curl ",
+        "wget ",
+        "bash -i",
+        "sh -i",
+        "python -c",
+        "perl -e",
+        "php -r",
+        "chmod +x",
+    ];
+
+    let has_attack_pattern = attack_patterns.iter().any(|pat| {
+        if *pat == "id" {
+            // "id" isolé en commande shell : "; id" ou "&& id" ou "id " ou "id;"
+            lower_cmd.contains("id;") || lower_cmd.contains("; id") || lower_cmd.contains("&& id") || lower_cmd.ends_with(" id") || lower_cmd.starts_with("id ")
+        } else {
+            lower_cmd.contains(pat)
+        }
+    });
+
+    if has_attack_pattern {
+        return false;
+    }
+
+    // Cas spécifique Node.js : wrappers de déploiement et d'exécution standard
+    if lower_parent == "node" || lower_parent.starts_with("node:") || lower_parent.starts_with("node-") {
+        let benign_node_tools = &[
+            "dotenv",
+            "npm",
+            "pnpm",
+            "yarn",
+            "npx",
+            "turbo",
+            "lerna",
+            "nodemon",
+            "pm2",
+            "node dist/",
+            "node build/",
+            "node ./",
+            "esbuild",
+            "tsc",
+            "next",
+            "astro",
+            "nuxt",
+            "vite",
+            "prisma",
+            "which ",
+        ];
+
+        if benign_node_tools.iter().any(|tool| lower_cmd.contains(tool)) {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Évalue un instantané d'arbre de processus et retourne les spawns suspects (worker web -> shell)
 pub fn evaluate_process_tree(entries: &[ProcEntry]) -> Vec<SuspiciousSpawnEvent> {
     let mut by_pid: HashMap<u32, &ProcEntry> = HashMap::with_capacity(entries.len());
@@ -101,14 +176,16 @@ pub fn evaluate_process_tree(entries: &[ProcEntry]) -> Vec<SuspiciousSpawnEvent>
         if is_suspicious_shell_child(&entry.comm) {
             if let Some(parent) = by_pid.get(&entry.ppid) {
                 if is_web_worker(&parent.comm) {
-                    alerts.push(SuspiciousSpawnEvent {
-                        child_pid: entry.pid,
-                        child_comm: entry.comm.clone(),
-                        parent_pid: parent.pid,
-                        parent_comm: parent.comm.clone(),
-                        cmdline: entry.cmdline.clone(),
-                        threat_type: "HOST_SHELL_SPAWN_DETECTED".to_string(),
-                    });
+                    if !is_benign_worker_child_cmd(&parent.comm, &entry.comm, &entry.cmdline) {
+                        alerts.push(SuspiciousSpawnEvent {
+                            child_pid: entry.pid,
+                            child_comm: entry.comm.clone(),
+                            parent_pid: parent.pid,
+                            parent_comm: parent.comm.clone(),
+                            cmdline: entry.cmdline.clone(),
+                            threat_type: "HOST_SHELL_SPAWN_DETECTED".to_string(),
+                        });
+                    }
                 }
             }
         }
@@ -230,4 +307,26 @@ mod tests {
         assert_eq!(alerts[0].parent_comm, "php-fpm");
         assert_eq!(alerts[0].threat_type, "HOST_SHELL_SPAWN_DETECTED");
     }
+
+    #[test]
+    fn test_ignores_benign_node_dotenv_spawn() {
+        let tree = vec![
+            ProcEntry {
+                pid: 3768777,
+                ppid: 1,
+                comm: "node".to_string(),
+                cmdline: "node ./dist/server.js".to_string(),
+            },
+            ProcEntry {
+                pid: 3768827,
+                ppid: 3768777,
+                comm: "sh".to_string(),
+                cmdline: "sh -c dotenv -e ../../.env node dist/index.js".to_string(),
+            },
+        ];
+
+        let alerts = evaluate_process_tree(&tree);
+        assert!(alerts.is_empty(), "benign node dotenv launcher must not trigger an alert");
+    }
 }
+
