@@ -152,7 +152,7 @@
             </svg>
 
             <div class="absolute right-2.5 top-2 px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono tabular-nums text-emerald-400">
-              {{ t.cockpit.columns.liveDirect }} {{ instantWatts.toFixed(2) }} W
+              {{ t.cockpit.columns.liveDirect }} {{ (instantWatts || 0).toFixed(2) }} W
             </div>
           </div>
         </div>
