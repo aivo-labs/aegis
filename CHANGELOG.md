@@ -20,6 +20,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [1.3.0-beta] — 2026-11-21 (Tag `v1.3.0-beta` on `main`)
+
+### Added
+- **Lock #5-Bis (P1.5 High) — Sovereign "Anti-Artex" Shield (Autonomous Offensive AI Defense)**:
+  - **Egress OAST & LOTC Sinkhole (`apps/egress-gateway`)**: Sub-`0.5 ms` interception of 19 out-of-band blind exploit callback domains (*Blind SSRF/RCE/XXE*: `*.interact.sh`, `*.oast.*`, `*.burpcollaborator.net`, `*.oastify.com`, `*.webhook.site`, `*.canarytokens.com`) and exfiltration tunnels (`*.ngrok-free.app`, `*.trycloudflare.com`, `transfer.sh`).
+  - **API Business Logic & Anti-BOLA/IDOR Shield (`apps/gate-proxy/src/rules/anti-artex.rule.ts`, `ip-reputation.ts`)**: Production lockdown of `/swagger*`, `/openapi.json`, `/api-docs*`, `/actuator*`, and GraphQL introspection (`__schema`); sliding-window sequential object ID enumeration detection (`API_BOLA_IDOR_ENUMERATION`); *Mass Assignment* & prototype pollution blocking (`is_admin`, `user_role`, `__proto__`).
+  - **Disguised AI Worker Detection (`scanner.rule.ts`)**: Signatures for autonomous AI pentesting agents (`artex`, `hexstrike`, `cyberstrike`, `pentestgpt`, `xbow`, `cairn`) and browser header fingerprint mismatch detection (`AI_AGENT_SPOOFED_BROWSER_FINGERPRINT` on fake Chrome/Edge `User-Agent` headers lacking `Sec-Ch-Ua` / `Sec-Fetch-Mode`).
+  - **Anti-LLM Cognitive Deception (`server.ts`)**: `STEALTH_BLOCK` opaque `403` mode (depriving LLM *Planners* of error-feedback oracles), **Adaptive Tarpit** (`3s` $\rightarrow$ `10s` $\rightarrow$ `25s`), and **Canary Honeypot (`/.env.canary`)** with immediate ban on token replay (`CANARY_TOKEN_TRIPWIRE_TRIGGERED`).
+  - **Pure BFF Cryptographic Context-Binding (`bff/session.ts`)**: Seals client context fingerprint (`User-Agent` + `/24` or `/64` IP subnet) inside the `AES-256-GCM` session cookie to prevent stolen session replay.
+
+### Fixed
+- **Traefik ForwardAuth (`/_aegis/verify`) Full Parity & Docker Bridge Gateway Auto-Jail Safety**:
+  - Decoupled Auto-Jail exemption (SOC admin IPs and Docker internal bridge gateways `172.16.0.0/12` ending in `.1`) from WAF threat inspection so pentest probes consistently trigger `HTTP 403` blocks without collateral auto-banning.
+  - Full ForwardAuth telemetry parity (`BLOCK`, `BYPASS`, `ALLOW` with `X-Aegis-Verified` deduplication) and TimescaleDB Auto-Jail persistence.
+  - Extended static `/etc/hosts` `links` across all internal services in all `docker-compose*.yml` manifests.
+
+---
+
 ## [1.2.2-beta] — 2026-11-21 (Tag `v1.2.2-beta` on `main`)
 
 ### Fixed
