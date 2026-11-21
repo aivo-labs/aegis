@@ -7,7 +7,7 @@
 Ce document constitue la **source de vérité unique** de la feuille de route d'ingénierie d'Aegis, partagée entre le dépôt open source et l'[étude de cas architecturale AIVO](https://aivo.fr/realisations/aegis-sovereign-gate).
 
 Chaque chantier est suivi strictement par **statut d'implémentation (`✅ Livré`, `🚧 Partiel`, `⏳ Planifié / En conception`)** et **priorité technique (`P0` à `P3`)** — sans dates calendaires fictives — autour de trois objectifs mesurables :
-1. Porter le taux de neutralisation face aux techniques d'évasion manuelles (Red Team / Pentest) et failles mémoire de **~78 % à > 95 %**.
+1. Porter le taux de neutralisation face aux techniques d'évasion manuelles (Red Team / Pentest), aux **orchestrateurs de pentest IA autonomes (type ARTEX / Hexstrike)** et aux failles mémoire de **~78 % à > 95 %**.
 2. Déployer une **défense en profondeur « Assume Breach »** couvrant conteneurs, noyau Linux et postes bureautiques (`agent Rust < 10 Mo RAM`), sans taxe SaaS par siège.
 3. Étendre le filtrage souverain aux **charges d'IA générative et agentique** (garde-fous anti-exfiltration LLM, sandboxing d'Agent Harnesses, CTI collaborative P2P et micro-SLM `< 1B` sur CPU).
 
@@ -24,7 +24,8 @@ Chaque chantier est suivi strictement par **statut d'implémentation (`✅ Livr�
 | **P0/P1** | **n°4 Durcissement Protocole (`431`), Multipart RFC & Anti-Spawn Shell** | **✅ Livré (v1.2)** | **P1 (Haute)** | `apps/gate-proxy/src/`, `apps/telemetry-agent/src/collector/` | Plafonds en-têtes `HTTP 431` (`8 Ko` total / `4 Ko` unitaire / `64` max), validation RFC multipart, anti-compression bomb & sonde Rust `/proc` anti-spawn shell |
 | **P0/P1** | **n°5 Audit Passif Continu, PQC (`ML-KEM`), CERT-FR & Remédiation** | **✅ Livré (v1.2)** | **P1 (Haute)** | `apps/backend/internal/scanner/`, `service/audit_service.go`, `web` | Audits périodiques planifiés (`6h`/`12h`/`24h`), détection de dérive, snippets guidés Traefik/Nginx/Caddy/PHP, sonde PQC `X25519MLKEM768` & scoring pondéré CVSS |
 | **Durcissement** | **v1.2.1/v1.2.2 Failover TimescaleDB, Filtre Spawn Worker & UI Précision Souveraine** | **✅ Livré (v1.2.2)** | **P1 (Haute)** | `apps/backend/internal/database/`, `telemetry-agent`, `web`, `aegis-cloud` | Lien Docker `/etc/hosts` & failover `lastGoodIP` (zéro 500), filtre spawn workers légitimes, clamp CPU `[0, 100]%`, résilience micro-SLM Ollama & refonte UI/UX anti-vibe |
-| **P2** | **n°6 Filtre Réseau `eBPF / XDP` L3/L4 & Veille Kernel** | **⏳ En conception** | **P2 (Moyenne)** | `apps/telemetry-agent/src/` | Rejet carte réseau `XDP_DROP` (`< 0,005 ms`) contre SYN forgés (LSRR/SSRR) + veille version `uname -r` |
+| **v1.3 (P1.5)** | **n°5-Bis Bouclier « Anti-Artex » (Défense Contre le Pentest IA Autonome)** | **⏳ En conception (v1.3)** | **P1.5 (Haute)** | `gate-proxy`, `egress-gateway`, `telemetry-agent` | Mode `403` opaque, Tarpit & Canary Honeypot anti-LLM, Sinkhole OAST/LOTC (`interact.sh`), bouclier API BOLA/IDOR/Swagger, détection faux UA & Context-Binding BFF |
+| **P2** | **n°6 Filtre Réseau `eBPF / XDP` L3/L4, Kill-Switch `SIGKILL` & Veille Kernel** | **⏳ En conception** | **P2 (Moyenne)** | `apps/telemetry-agent/src/` | Rejet carte réseau `XDP_DROP` (`< 0,005 ms`) contre SYN forgés, `SIGKILL < 10 ms` actif sur spawn shell illégitime + veille version `uname -r` |
 | **P2** | **n°7 Filtrage DNS Entreprise & Shadow IT (DoH/DoT)** | **⏳ À planifier** | **P2 (Moyenne)** | `apps/egress-gateway/src/` | Résolveur central DHCP/`:5053` + DoH/DoT nomade encadrant les outils RAT (TeamViewer, AnyDesk, RustDesk) en Prod/DMZ |
 | **P2** | **n°8 Agent Posture Endpoint Rust (`< 10 Mo`) & `mTLS` PQC** | **⏳ En conception** | **P2 (Moyenne)** | Nouveau `aegis-node-agent` (Rust) + `web` | Inventaire CVE local & hygiène poste multi-OS via **canal `mTLS` hybride post-quantique (`X25519MLKEM768`)** + accès conditionnel |
 | **P2** | **n°9 Micro-Segmentation ZTNA « Assume Breach »** | **⏳ En conception** | **P2 (Moyenne)** | Architecture réseau & PEP | Supprime les routes L3 bureautique → BDD et détecte les scans ARP/ports internes (Honeypot réseau) |
@@ -103,14 +104,43 @@ Avant les prochains verrous P2/P3, les briques suivantes sont **opérationnelles
 
 ---
 
+## ⚔️ Phase P1.5 (v1.3) — Bouclier Souverain « Anti-Artex » (Défense Contre le Pentest IA Autonome)
+
+### 🔒 Verrou n°5-Bis : Neutralisation des Orchestrateurs Offensifs Multi-Agents (ARTEX, Hexstrike, CyberStrikeAI)
+- **Statut :** ⏳ En conception (`v1.3`)
+- **Priorité :** Haute (**P1.5** — Réponse directe aux frameworks de pentest IA autonomes pilotés par LLM)
+- **Contexte & Menace :** Les orchestrateurs offensifs agentiques (tels qu'**ARTEX**) décomposent un objectif d'intrusion en sous-tâches exécutées à vitesse machine (*Machine-Speed Kill Chain* `< 3h`) par des *Agent Workers* autonomes. Contrairement aux scanners classiques, ils analysent les réponses HTTP `403` pour adapter leurs payloads, attaquent la logique métier des API (**BOLA / IDOR**, schémas OpenAPI/GraphQL), valident leurs exploits à l'aveugle via des relais **OAST** (`interact.sh`) et chaînent les jetons volés.
+- **Plan d'action technique (6 Briques « Anti-Artex ») :**
+  1. **Déception Cognitive Anti-LLM, Mode Opaque `403`, Tarpit Adaptatif & Canary Honeypot ([`apps/gate-proxy/src/server.ts`](apps/gate-proxy/src/server.ts))** :
+     - **Mode `STEALTH_BLOCK` en production** : masquage complet du nom de la règle (`threat_detected`) et du motif (`pattern`) dans la réponse HTTP externe (ne renvoyant qu'un `event_id` opaque tandis que le détail est enregistré dans TimescaleDB), privant le *Planner* LLM d'ARTEX de tout oracle d'apprentissage.
+     - **Tarpit Adaptatif** : injection d'une latence progressive (`3s` $\rightarrow$ `10s` $\rightarrow$ `25s`) sur les IP cumulant des anomalies pour paralyser les boucles d'orchestration synchrones et épuiser les budgets de timeouts des *Workers* IA.
+     - **Canary Honeypot & Pièges Contextuels (`/.env` piégé)** : distribution optionnelle sur des routes pièges de jetons *Canary* factices traçables ; toute réutilisation d'un jeton Canary dans une requête ultérieure prouve mathématiquement un chaînage automatisé et déclenche un bannissement immédiat (`CANARY_TOKEN_TRIPWIRE_TRIGGERED`).
+  2. **Neutralisation Egress des Serveurs OAST & Relais « Living-off-the-Trusted-Cloud » (LOTC) ([`apps/egress-gateway/src/cti/blocklist.ts`](apps/egress-gateway/src/cti/blocklist.ts))** :
+     - **Blocklist OAST native dans le Sinkhole DNS (`:5053`)** : blocage par défaut des infrastructures de callback d'outils de pentest (`*.interact.sh`, `*.interactsh.com`, `*.oast.pro`, `*.oast.live`, `*.oast.site`, `*.oast.online`, `*.oast.fun`, `*.oast.me`, `*.burpcollaborator.net`, `*.oastify.com`, `*.canarytokens.com`, `*.webhook.site`, `*.requestbin.com`, `*.pipedream.net`), rendant ARTEX **100 % aveugle** sur les vulnérabilités asynchrones (*Blind SSRF, Blind RCE, Blind XXE*).
+     - **Politique LOTC Serveur** : blocage optionnel des tunnels et relais d'exfiltration publics (`*.ngrok-free.app`, `*.ngrok.io`, `*.trycloudflare.com`, `*.loca.lt`, `transfer.sh`, `pastebin.com`) depuis les conteneurs de production.
+  3. **Bouclier de Logique Métier API : Anti-BOLA / IDOR, Anti-Mass Assignment & Masquage OpenAPI/GraphQL ([`apps/gate-proxy/src/rules/`](apps/gate-proxy/src/rules/default-rules.ts))** :
+     - **Verrouillage des schémas de découverte d'API** : blocage en production de l'accès public non authentifié aux spécifications (`/swagger*`, `/openapi.json`, `/api-docs*`, `/v2/api-docs`, `/v3/api-docs`, `/redoc`, `/actuator*`) ainsi qu'aux requêtes d'introspection GraphQL (`__schema`, `__type`).
+     - **Détecteur d'énumération séquentielle (Anti-BOLA / IDOR)** : suivi par fenêtre glissante de la cardinalité des identifiants interrogés sur une même route paramétrée (`/api/v1/resource/{id}`) pour bloquer l'extraction automatisée d'objets métiers (`API_BOLA_ENUMERATION_DETECTED`).
+     - **Filtre Anti-Mass Assignment & Prototype Pollution** : inspection des corps JSON (`POST`/`PUT`/`PATCH`) contre l'injection de champs d'élévation de privilèges (`"role":"admin"`, `"is_admin":true`, `"permissions"`, `"__proto__"`, `"constructor.prototype"`).
+  4. **Détection Comportementale « Low-and-Slow » & Incohérence d'Empreinte Navigateur (`Header Fingerprint Mismatch`) ([`apps/gate-proxy/src/engine/inspector.ts`](apps/gate-proxy/src/engine/inspector.ts))** :
+     - **Démasquage des Workers Go/Python déguisés** : détection des requêtes déclarant un `User-Agent` de navigateur moderne (Chrome/Edge/Firefox) mais dépourvues des en-têtes structurels obligatoires (`Sec-Ch-Ua`, `Sec-Fetch-Mode`, `Sec-Fetch-Site`, `Accept-Language`).
+     - **Mémoire de suspicion longue (24h)** : accumulation des rafales lentes d'erreurs `404` / `401` / `403` sous le seuil volumétrique (`60 req/10s`) pour neutraliser les scans *Low-and-Slow* distribués.
+  5. **Context-Binding Cryptographique des Sessions Pure BFF (Anti-Token Replay) ([`apps/gate-proxy/src/bff/session.ts`](apps/gate-proxy/src/bff/session.ts))** :
+     - Scellement de l'empreinte client (hash `User-Agent` + préfixe sous-réseau IP `/24` ou `/64`) directement dans le jeton chiffré `AES-256-GCM` du cookie `HttpOnly` `aegis_session`. Tout rejeu d'un cookie volé depuis un Worker ARTEX ou une autre IP révoque instantanément la session et lève une alerte critique `SESSION_HIJACK_REPLAY_DETECTED`.
+  6. **Auto-Audit « Purple Team » Souverain ([`apps/backend/internal/scanner/`](apps/backend/internal/scanner/engine.go))** :
+     - Enrichissement du scanner continu (Verrou n°5) pour vérifier proactivement l'absence de fichiers sensibles (`.env`, `.git`, backups), de schémas Swagger/GraphQL ouverts ou de sous-domaines non protégés, offrant aux entreprises la visibilité défensive que promettait initialement ARTEX sans jamais exposer d'outil offensif détournable.
+
+---
+
 ## 🛡️ Phase P2 — Défense Noyau Linux, Agent Endpoint Rust & ZTNA
 
-### 🔒 Verrou n°6 : Filtre Réseau `eBPF / XDP` L3/L4 & Veille Kernel Hôte
+### 🔒 Verrou n°6 : Filtre Réseau `eBPF / XDP` L3/L4, Kill-Switch Processus `SIGKILL` & Veille Kernel Hôte
 - **Statut :** ⏳ En conception
 - **Priorité :** Moyenne (**P2** — Hôte Linux / Bare-Metal)
 - **Plan d'action technique :**
   1. Charger via [`apps/telemetry-agent`](apps/telemetry-agent/src/main.rs) un programme eBPF `XDP` au niveau du pilote réseau pour jeter (`XDP_DROP` en `< 0,005 ms`) tout paquet IPv4 `TCP SYN` porteur d'options IP obsolètes/malveillantes (`IPOPT_LSRR`, `IPOPT_SSRR`, `IPOPT_RR` — ex. failles kernel TCP UAF telles que CVE-2026-98432).
-  2. Remonter automatiquement `uname -r` dans le Cockpit avec alerte de mise à jour noyau lorsque la version hôte est vulnérable.
+  2. **Kill-Switch Processus Sub-Seconde (`SIGKILL < 10 ms`) contre l'exécution post-exploitation à vitesse machine** : faire évoluer [`apps/telemetry-agent/src/collector/process_spawn.rs`](apps/telemetry-agent/src/collector/process_spawn.rs) de la détection passive `/proc` vers un mode `ACTIVE_CONTAINMENT` capable d'envoyer instantanément `SIGKILL` (`kill -9`) à tout processus shell enfant illégitime (`sh`, `bash`, `nc`, `python`, `socat`) engendré par un worker web avant même que le Worker d'un agent IA (ARTEX) ne reçoive le résultat de sa commande.
+  3. Remonter automatiquement `uname -r` dans le Cockpit avec alerte de mise à jour noyau lorsque la version hôte est vulnérable.
 
 ### 🔒 Verrou n°7 : Filtrage DNS Entreprise Centralisé & Gouvernance Shadow IT
 - **Statut :** ⏳ À planifier
