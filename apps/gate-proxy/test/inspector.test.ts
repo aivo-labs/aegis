@@ -257,4 +257,111 @@ describe('Aegis Gate PEP — Full WafInspector Pipeline & Protocol Hardening (Ve
     assert.strictEqual(verdict.http_status, 200);
     assert.strictEqual(verdict.threat_type, 'CLEAN_TRAFFIC');
   });
+
+  it('should block ARTEX / Hexstrike AI pentest User-Agents and disguised Chrome workers without browser headers (Verrou n°5-Bis v1.3)', () => {
+    const artexVerdict = inspector.inspect('/api/v1/users', 'GET', { 'user-agent': 'ARTEX-Agent-Worker/1.0' }, '', 0, '203.0.113.10');
+    assert.strictEqual(artexVerdict.blocked, true);
+    assert.strictEqual(artexVerdict.threat_type, 'PENTEST_SCANNER_DETECTED');
+
+    // Spoofed Chrome User-Agent with raw Accept: */* and no Sec-Ch-Ua / Sec-Fetch-Mode / Accept-Language
+    const spoofedUaVerdict = inspector.inspect(
+      '/api/v1/orders',
+      'GET',
+      {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36',
+        accept: '*/*'
+      },
+      '',
+      0,
+      '203.0.113.11'
+    );
+    assert.strictEqual(spoofedUaVerdict.blocked, true);
+    assert.strictEqual(spoofedUaVerdict.threat_type, 'AI_AGENT_SPOOFED_BROWSER_FINGERPRINT');
+
+    // Genuine browser with Accept-Language should pass
+    const genuineBrowserVerdict = inspector.inspect(
+      '/api/v1/orders',
+      'GET',
+      {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36',
+        accept: 'application/json',
+        'accept-language': 'fr-FR,fr;q=0.9'
+      },
+      '',
+      0,
+      '203.0.113.12'
+    );
+    assert.strictEqual(genuineBrowserVerdict.blocked, false);
+  });
+
+  it('should block API Schema Discovery (/swagger.json, /openapi.json, GraphQL __schema) and Mass Assignment (Verrou n°5-Bis v1.3)', () => {
+    const swaggerVerdict = inspector.inspect('/v3/api-docs', 'GET', {}, '', 0, '203.0.113.20');
+    assert.strictEqual(swaggerVerdict.blocked, true);
+    assert.strictEqual(swaggerVerdict.threat_type, 'API_SCHEMA_RECON_BLOCKED');
+
+    const graphqlVerdict = inspector.inspect(
+      '/graphql',
+      'POST',
+      { 'content-type': 'application/json' },
+      '{"query":"{ __schema { types { name } } }"}',
+      42,
+      '203.0.113.21'
+    );
+    assert.strictEqual(graphqlVerdict.blocked, true);
+    assert.strictEqual(graphqlVerdict.threat_type, 'API_SCHEMA_RECON_BLOCKED');
+
+    const massAssignVerdict = inspector.inspect(
+      '/api/v1/profile',
+      'PATCH',
+      { 'content-type': 'application/json' },
+      '{"name":"attacker","is_admin":true}',
+      35,
+      '203.0.113.22'
+    );
+    assert.strictEqual(massAssignVerdict.blocked, true);
+    assert.strictEqual(massAssignVerdict.threat_type, 'MASS_ASSIGNMENT_PRIVILEGE_ESCALATION');
+  });
+
+  it('should block inbound OAST blind callback payloads and Canary Token Tripwire replays (Verrou n°5-Bis v1.3)', () => {
+    const oastVerdict = inspector.inspect(
+      '/api/v1/webhook?callback=https://c72k9a1v.oast.pro/leak',
+      'GET',
+      {},
+      '',
+      0,
+      '203.0.113.30'
+    );
+    assert.strictEqual(oastVerdict.blocked, true);
+    assert.strictEqual(oastVerdict.threat_type, 'OAST_BLIND_CALLBACK_INJECTION');
+
+    const canaryVerdict = inspector.inspect(
+      '/api/v1/admin/export',
+      'GET',
+      { authorization: 'Bearer ak_live_aegis_canary_9f8e7d6c5b4a3210' },
+      '',
+      0,
+      '203.0.113.31'
+    );
+    assert.strictEqual(canaryVerdict.blocked, true);
+    assert.strictEqual(canaryVerdict.threat_type, 'CANARY_TOKEN_TRIPWIRE_TRIGGERED');
+    assert.strictEqual(canaryVerdict.risk_score, 100);
+  });
+
+  it('should detect and block sequential BOLA / IDOR object enumeration and compute Adaptive Tarpit delays (Verrou n°5-Bis v1.3)', () => {
+    const attackerIp = '198.51.100.188';
+    ipReputation.unban(attackerIp);
+
+    for (let id = 1001; id <= 1010; id++) {
+      const v = inspector.inspect(`/api/v1/invoices/${id}`, 'GET', {}, '', 0, attackerIp);
+      assert.strictEqual(v.blocked, false, `ID ${id} within threshold should be allowed`);
+    }
+
+    // 11th distinct object ID on the same parameterized route within 60s triggers API_BOLA_IDOR_ENUMERATION
+    const bolaBlocked = inspector.inspect('/api/v1/invoices/1011', 'GET', {}, '', 0, attackerIp);
+    assert.strictEqual(bolaBlocked.blocked, true);
+    assert.strictEqual(bolaBlocked.threat_type, 'API_BOLA_IDOR_ENUMERATION');
+    assert.ok((ipReputation.getTarpitDelayMs?.(attackerIp) ?? 0) >= 3000, 'Tarpit delay should be >= 3000ms after critical offense');
+    ipReputation.unban(attackerIp);
+  });
 });
+

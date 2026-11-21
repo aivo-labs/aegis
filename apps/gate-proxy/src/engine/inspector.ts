@@ -217,6 +217,26 @@ export class WafInspector implements IWafInspector {
       }
     }
 
+    // Règle -0.7 : Détection d'énumération séquentielle Anti-BOLA / IDOR (Verrou n°5-Bis v1.3 « Anti-Artex »)
+    if (clientIp && !this.isStaticAsset(url) && this.ipReputation.checkBolaEnumeration) {
+      const bolaCheck = this.ipReputation.checkBolaEnumeration(clientIp, url);
+      if (bolaCheck.enumerated) {
+        if (this.ipReputation.recordOffense) {
+          this.ipReputation.recordOffense(clientIp, 94, 'API_BOLA_IDOR_ENUMERATION');
+        }
+        return {
+          blocked: true,
+          http_status: 403,
+          decision: 'BLOCK',
+          threat_type: 'API_BOLA_IDOR_ENUMERATION',
+          severity: 'HIGH',
+          risk_score: 94,
+          entropy,
+          pattern: `Énumération séquentielle BOLA/IDOR détectée sur '${bolaCheck.routeTemplate}' (${bolaCheck.distinctIdsCount} identifiants distincts > plafond ${bolaCheck.limit} / 60s — Bouclier Anti-Artex v1.3)`
+        };
+      }
+    }
+
     // Règle -0.5 : Durcissement Protocole HTTP 431 & Anti-Compression Bomb (Verrou n°4 P1)
     const headerVerdict = this.inspectHeadersHardening(headers, entropy);
     if (headerVerdict) {
