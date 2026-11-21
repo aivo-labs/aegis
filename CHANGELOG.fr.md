@@ -20,7 +20,7 @@ Le format suit le standard [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 
 ---
 
-## [1.2.2] — 2026-11-21 (Tag `v1.2.2` sur `main`)
+## [1.2.2-beta] — 2026-11-21 (Tag `v1.2.2-beta` sur `main`)
 
 ### Corrigé (Fixed)
 - **Failover DNS & Résolution `/etc/hosts` pour l'Ingestion TimescaleDB** :
