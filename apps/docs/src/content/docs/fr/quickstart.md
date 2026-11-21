@@ -13,8 +13,9 @@ Ce guide vous permet de déployer et de tester immédiatement la suite souverain
   * `4321` : Cockpit Opérationnel SOC & ESG
   * `8000` : Passerelle Ingress PEP (WAF)
   * `5053` : Passerelle Egress (DNS UDP)
-  * `8080` : API Backend Control Plane (Symfony / TimescaleDB)
+  * `8080` : API Backend Control Plane (Go / TimescaleDB)
   * `5432` : Base de données TimescaleDB
+  * `11434` : Moteur IA local souverain (Micro-SLM Nimble / Ollama)
 
 ---
 
@@ -27,10 +28,10 @@ Sur un serveur ou une machine de test, exécutez le script d'installation offici
 curl -sSL https://aegis.aivo.fr/install.sh | sudo bash -s -- --profile vps
 ```
 
-Le script installe automatiquement les dépendances manquantes, configure l'arborescence dans `/opt/aegis` et démarre l'ensemble des conteneurs.
+Le script installe automatiquement les dépendances, configure `/opt/aegis` et démarre l'ensemble des conteneurs avec le profil frugal (< 200 Mo RAM).
 
 > [!TIP]
-> Si vous déployez sur un **serveur dédié physique**, utilisez le profil Bare-Metal pour activer la captation directe des registres matériels Intel/AMD RAPL :
+> Sur un **serveur dédié physique**, utilisez le profil Bare-Metal pour activer la captation directe des registres matériels processeur Intel/AMD RAPL :
 > ```bash
 > curl -sSL https://aegis.aivo.fr/install.sh | sudo bash -s -- --profile baremetal
 > ```
@@ -39,7 +40,7 @@ Le script installe automatiquement les dépendances manquantes, configure l'arbo
 
 ## 🛠️ Méthode 2 : Clonage Git & Banc d'Essai Manuel
 
-Si vous préférez cloner le monorepo et inspecter le code source avant de le lancer :
+Si vous préférez cloner le monorepo et inspecter le code source :
 
 ```bash
 # 1. Cloner le monorepo officiel
@@ -50,13 +51,16 @@ cd aegis
 docker compose up -d --build
 ```
 
+> [!NOTE]
+> Depuis la version **v1.2.2**, la composition Docker injecte automatiquement un lien `/etc/hosts` et un mécanisme de reconnexion dynamique multi-niveaux (`lastGoodIP`) entre le backend Go et TimescaleDB, garantissant une résilience absolue face aux latences du résolveur DNS interne Docker.
+
 ---
 
 ## 🧭 Accéder aux Interfaces en Direct
 
 Dès que les conteneurs sont opérationnels (`docker compose ps`) :
 
-* 📊 **Cockpit Opérationnel SOC & ESG** : [`http://localhost:4321/app`](http://localhost:4321/app)
+* 📊 **Cockpit Opérationnel SOC & ESG** : [`http://localhost:4321/app`](http://localhost:4321/app) (Interface « Précision Souveraine » avec bascule mode sombre/clair haute lisibilité)
 * 🗂️ **File de Triage des Flux en Direct (Kanban)** : [`http://localhost:4321/app/triage`](http://localhost:4321/app/triage)
 * 🛡️ **Centre de Remédiation Cybersécurité** : [`http://localhost:4321/app/actions/security`](http://localhost:4321/app/actions/security)
 * 🌿 **Pilotage Énergétique & Mode Frugal** : [`http://localhost:4321/app/actions/green`](http://localhost:4321/app/actions/green)

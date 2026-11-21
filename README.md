@@ -24,8 +24,8 @@
   <a href="https://demo.aegis.aivo.fr" target="_blank">
     <img src="https://img.shields.io/badge/⚡%20Live%20Showcase-demo.aegis.aivo.fr-00e5ff?style=for-the-badge&logo=cloudflare" alt="Aegis Live Demo" />
   </a>
-  <a href="https://github.com/aivo-labs/aegis/releases/tag/v1.1.0-beta.1">
-    <img src="https://img.shields.io/badge/Release-v1.1.0--beta.1%20(Public%20Beta)-orange?style=for-the-badge" alt="Public Beta" />
+  <a href="https://github.com/aivo-labs/aegis/releases/tag/v1.2.2-beta">
+    <img src="https://img.shields.io/badge/Release-v1.2.2--beta%20(Public%20Beta)-orange?style=for-the-badge" alt="Public Beta" />
   </a>
   <a href="https://aegis.aivo.fr" target="_blank">
     <img src="https://img.shields.io/badge/Official%20Site-aegis.aivo.fr-emerald?style=for-the-badge" alt="Official Website" />
@@ -249,16 +249,19 @@ To connect remote servers, gateways, and telemetry probes to the Control Plane, 
 | Phase | Lock / Module | Status | Priority | Codebase Scope | Major Security & GreenOps Gain |
 | :--- | :--- | :---: | :---: | :--- | :--- |
 | **v1 Base** | **Ingress WAF, PHP2Shell VP, Pure BFF & RAPL Cockpit** | **✅ Delivered** | **v1 Core** | `gate-proxy`, `backend`, `telemetry-agent`, `web` | `< 1.5 ms` idle edge PEP, HTTP `413` (`32 KB`), `100%` PHP2Shell mitigation (`0%` app CPU), OIDC Pure BFF & live CSRD RAPL PDF/CSV |
-| **P0/P1** | **#1 Strict Egress Network Confinement** | **⏳ Planned** | **P0 (Critical)** | `docker-compose*.yml`, `egress-gateway`, eBPF | Blocks raw-IP TCP reverse shells bypassing DNS (`internal: true` bridge + `cgroup/connect4`) |
-| **P0/P1** | **#2 Multi-Encoding Normalization (Base64 / HTML)** | **🚧 Partial** | **P1 (High)** | `apps/gate-proxy/src/engine/canonicalizer.ts` | Recursive 3-pass URL & SQL `/*...*/` canonicalization **done**; adds auto Base64/Hex/HTML decoding |
-| **P0/P1** | **#3 Volumetric Rate-Limiting & Auto IP Quarantine** | **🚧 Partial** | **P1 (High)** | `apps/gate-proxy/src/quarantine/ip-reputation.ts` | Persistent SOC blacklist **done**; adds sliding-window rate limits (`60 req/10s`) & auto-jail (`< 0.1 ms` drop) |
-| **P0/P1** | **#4 HTTP Protocol Hardening (`431`) & Shell-Spawn Watch** | **🚧 Partial** | **P1 (High)** | `apps/gate-proxy/src/`, `apps/telemetry-agent` | `PHP2Shell` & `HTTP 413` **done**; adds strict `431` header caps (`8 KB`), RFC multipart validation & runtime `/bin/sh` spawn alerts |
-| **P0/P1** | **#5 Continuous Passive Posture, PQC (`ML-KEM`) & Remediation** | **🚧 Partial** | **P1 (High)** | `apps/backend/internal/scanner/` | Go passive scanner, **PQC `X25519MLKEM768` (FIPS 203)** probe + TLS snippets & CVE Feed **done**; adds scheduled cron audits |
+| **P0/P1** | **#1 Strict Egress Network Confinement** | **✅ Delivered** | **P0 (Critical)** | `docker-compose*.yml`, `egress-gateway`, eBPF | Blocks raw-IP TCP reverse shells bypassing DNS (`internal: true` bridge + dynamic `DnsToIpAllowlist`) |
+| **P0/P1** | **#2 Multi-Encoding Normalization (Base64 / HTML)** | **✅ Delivered** | **P1 (High)** | `apps/gate-proxy/src/engine/canonicalizer.ts` | Recursive 3-pass URL canonicalization, HTML entity decoding, Hex/Unicode escapes & Base64 payload decoding |
+| **P0/P1** | **#3 Volumetric Rate-Limiting & Auto IP Quarantine** | **✅ Delivered** | **P1 (High)** | `apps/gate-proxy/src/quarantine/ip-reputation.ts` | Sliding-window rate limiting (`60 req/10s`) & automated 15-minute Auto-Jail after 3 critical WAF blocks |
+| **P0/P1** | **#4 HTTP Protocol Hardening (`431`) & Shell-Spawn Watch** | **✅ Delivered** | **P1 (High)** | `apps/gate-proxy/src/`, `apps/telemetry-agent` | Strict `HTTP 431` header budgets (`8 KB`), RFC multipart validation & runtime shell spawn filtering (`is_benign_worker_child_cmd`) |
+| **P0/P1** | **#5 Continuous Passive Posture, PQC (`ML-KEM`) & Remediation** | **✅ Delivered** | **P1 (High)** | `apps/backend/internal/scanner/` | Go passive scanner, **PQC `X25519MLKEM768` (FIPS 203)** probe, scheduled audits, drift detection & remediation wizard |
 | **P2** | **#6 L3/L4 eBPF / XDP Kernel Filter & CVE Audit** | **⏳ In Design** | **P2 (Medium)** | `apps/telemetry-agent/src/` | NIC-level `XDP_DROP` (`< 0.005 ms`) against malformed TCP SYN options (LSRR/SSRR) + `uname -r` alerts |
 | **P2** | **#7 Enterprise DNS Filtering & Shadow IT (DoH/DoT)** | **⏳ Planned** | **P2 (Medium)** | `apps/egress-gateway/src/` | Central DHCP/`:5053` + remote DoH/DoT resolver regulating RAT tools (TeamViewer, AnyDesk, RustDesk) in Prod/DMZ |
 | **P2** | **#8 Frugal Rust Endpoint Agent (`< 10 MB`) & PQC `mTLS`** | **⏳ In Design** | **P2 (Medium)** | New `aegis-node-agent` (Rust) + `web` | Cross-platform workstation CVE & hygiene probe over **hybrid post-quantum `mTLS` (`X25519MLKEM768`)** + conditional access |
 | **P2** | **#9 "Assume Breach" ZTNA Micro-Segmentation** | **⏳ In Design** | **P2 (Medium)** | Network architecture & PEP | Eliminates direct L3 office-to-DB routes + adds internal ARP/port-scan honeypot alerting |
 | **P3** | **#10 "Two-Door" AI Governance & Zero-Secret Egress** | **⏳ In Design** | **P3 (R&D)** | `gate-proxy` (Edge) & `egress-gateway` | Inbound Prompt Injection guardrails + **Zero-Secret Placeholder** (zero API keys in agent sandbox, PII scrubbing & boundary injection) |
 | **P3** | **#11 Zero-Trust MCP Gateway & PQC AI Act Ledger** | **⏳ In Design** | **P3 (R&D)** | `gate-proxy`, host `seccomp`/eBPF & `backend` | Per-identity MCP (`tools/list`, `tools/call`) filtering, kernel sandboxing & immutable **`Ed25519 + ML-DSA` (FIPS 204)** audit ledger |
-| **P3** | **#12 Collaborative P2P CTI & `< 1B` CPU Micro-SLMs** | **🚧 Partial** | **P3 (R&D)** | `apps/egress-gateway/src/cti/blocklist.ts`, Ollama | Static C2 blocklist + optional **Nimble 9B** (Ollama) **done in v1**; adds live Abuse.ch/CERT-FR/CISA KEV sync, P2P node sharing & `< 1B` CPU-only SLMs |
+| **P3** | **#12 Collaborative P2P CTI & `< 1B` CPU Micro-SLMs** | **🚧 Partial** | **P3 (R&D)** | `apps/egress-gateway/src/cti/blocklist.ts`, Ollama | Static C2 blocklist + resilient **Nimble 9B / Qwen 0.5B** SLM **done**; adds live Abuse.ch/CERT-FR/CISA KEV sync, P2P node sharing |
+
+> [!NOTE]
+> **Lifecycle & Production Hardening**: Aegis operates under an active **Public Beta** lifecycle. While all frontline perimeter locks (P0/P1) are operational and hardened, the platform will formally graduate to **General Availability (GA / Production LTS)** upon field validation of milestones P2 and P3.
 

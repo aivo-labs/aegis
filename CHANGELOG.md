@@ -20,7 +20,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
-## [1.2.0] — 2026-11-21 (Tag `v1.2.0` on `main`)
+## [1.2.2-beta] — 2026-11-21 (Tag `v1.2.2-beta` on `main`)
+
+### Fixed
+- **TimescaleDB Ingestion DNS Failover & `/etc/hosts` Resolution**:
+  - Resolved intermittent Docker embedded DNS (`127.0.0.11:53`) SERVFAIL errors in the Go backend (`apps/backend/internal/database/pgwire.go`) via direct `/etc/hosts` parsing, 30s TCP KeepAlive, and runtime failover to the last-known-good IP address.
+  - Added `links: - timescaledb:timescaledb` in `docker-compose.yml`, `docker-compose.dokploy.yml`, and `deploy/docker-compose/docker-compose.yml`.
+- **Zero-Metrics Fallback & Conditional Cache Locking**:
+  - Resolved blank overview cockpit metrics by adding global fallback queries in `DashboardService` (`dashboard_service.go`) when tenant-scoped queries return empty sets, preventing persistent 0-metric cache states.
+- **Telemetry Agent Process Spawn Filtering & CPU Clamping**:
+  - Implemented `is_benign_worker_child_cmd` in `apps/telemetry-agent` to eliminate false-positive P1 host shell spawn alerts on legitimate development/runtime wrappers (`node`, `npm`, `dotenv`), while retaining real-time interception for hostile shells (`nc`, `bash -i`).
+  - Clamped CPU utilization mathematically to `[0.0, 100.0]%` to ensure rock-solid energy Joules calculations.
+- **Ollama Micro-SLM Resilience**:
+  - Added fallback alias to `qwen2.5:0.5b` for `nimble`, resolving HTTP 412 model manifest pull failures across older and newer Ollama engine builds.
+- **Light Theme Contrast & Sovereign Precision Polish**:
+  - Fixed low-contrast elements (grey-on-grey card text, CVE feed cards) in Cockpit and harmonized the vector SVG design system across all pages.
+
+---
 
 ### Added
 - **Lock #1 (P0 Critical) — Strict Egress Network Confinement & Anti-Reverse Shell DNS-to-IP Allowlist**:
