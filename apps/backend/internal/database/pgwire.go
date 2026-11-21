@@ -14,6 +14,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -105,11 +106,12 @@ func (r PgRow) Bool(col string) bool {
 	return s == "t" || s == "true" || s == "1"
 }
 
-// PgClient gère un pool léger de connexions TCP PostgreSQL thread-safe.
+// PgClient gère un pool léger de connexions TCP PostgreSQL thread-safe avec secours DNS.
 type PgClient struct {
-	cfg  PgConfig
-	mu   sync.Mutex
-	conn net.Conn
+	cfg        PgConfig
+	mu         sync.Mutex
+	conn       net.Conn
+	lastGoodIP string
 }
 
 // NewPgClient initialise un client PostgreSQL.
@@ -125,16 +127,77 @@ func QuoteLiteral(s string) string {
 	return "'" + escaped + "'"
 }
 
-// ensureConnected ouvre et authentifie une connexion TCP vers PostgreSQL si nécessaire.
+func lookupHostsFile(hostname string) string {
+	data, err := os.ReadFile("/etc/hosts")
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) >= 2 {
+			ip := fields[0]
+			for _, name := range fields[1:] {
+				if strings.EqualFold(name, hostname) {
+					return ip
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// ensureConnected ouvre et authentifie une connexion TCP vers PostgreSQL avec failover DNS automatique.
 func (c *PgClient) ensureConnected() error {
 	if c.conn != nil {
 		return nil
 	}
-	addr := net.JoinHostPort(c.cfg.Host, c.cfg.Port)
-	conn, err := net.DialTimeout("tcp", addr, 4*time.Second)
-	if err != nil {
-		return fmt.Errorf("dial postgres %s: %w", addr, err)
+
+	dialer := &net.Dialer{
+		Timeout:   4 * time.Second,
+		KeepAlive: 30 * time.Second,
 	}
+
+	targets := make([]string, 0, 3)
+
+	// 1. Essai avec le nom d'hôte direct configuré
+	targets = append(targets, net.JoinHostPort(c.cfg.Host, c.cfg.Port))
+
+	// 2. Si le nom d'hôte est mappé dans /etc/hosts (ex: Docker link ou entry)
+	if hostsIP := lookupHostsFile(c.cfg.Host); hostsIP != "" && hostsIP != c.cfg.Host {
+		targets = append(targets, net.JoinHostPort(hostsIP, c.cfg.Port))
+	}
+
+	// 3. Secours : Dernière adresse IP réussie (contourne tout bug DNS 127.0.0.11 Docker)
+	if c.lastGoodIP != "" && c.lastGoodIP != c.cfg.Host {
+		targets = append(targets, net.JoinHostPort(c.lastGoodIP, c.cfg.Port))
+	}
+
+	var conn net.Conn
+	var lastErr error
+
+	for _, addr := range targets {
+		cConn, err := dialer.Dial("tcp", addr)
+		if err == nil {
+			conn = cConn
+			lastErr = nil
+			break
+		}
+		lastErr = err
+	}
+
+	if conn == nil {
+		return fmt.Errorf("dial postgres %s (fallback IP %s): %w", c.cfg.Host, c.lastGoodIP, lastErr)
+	}
+
+	if tcpAddr, ok := conn.RemoteAddr().(*net.TCPAddr); ok && tcpAddr.IP != nil {
+		c.lastGoodIP = tcpAddr.IP.String()
+	}
+
 	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 
 	if err := c.handshake(conn); err != nil {
