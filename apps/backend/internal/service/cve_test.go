@@ -159,3 +159,54 @@ func TestCveService_SyncCertFrFromReader(t *testing.T) {
 		t.Errorf("Expected 1 pending verification, got %d", covReport.PendingVerificationCount)
 	}
 }
+
+func TestAuditService_DriftAndRemediation(t *testing.T) {
+	prev := domain.PassiveAuditResult{
+		Domain:        "aegis.aivo.fr",
+		SecurityScore: 95,
+		SecurityGrade: "A",
+		PostQuantum: domain.PQCAnalysis{
+			PostQuantumReady: true,
+			NegotiatedCurve:  "X25519MLKEM768 (0x11ec)",
+		},
+		HeadersAnalysis: []domain.HeaderCheck{
+			{Header: "Strict-Transport-Security", Present: true},
+			{Header: "Content-Security-Policy", Present: true},
+		},
+	}
+
+	curr := domain.PassiveAuditResult{
+		Domain:        "aegis.aivo.fr",
+		SecurityScore: 68,
+		SecurityGrade: "C",
+		PostQuantum: domain.PQCAnalysis{
+			PostQuantumReady: false,
+			NegotiatedCurve:  "X25519",
+		},
+		HeadersAnalysis: []domain.HeaderCheck{
+			{Header: "Strict-Transport-Security", Present: true},
+			{Header: "Content-Security-Policy", Present: false},
+		},
+		CVEWarnings: []domain.CVEWarning{
+			{ID: "CVE-2026-109618", Severity: "CRITICAL"},
+		},
+	}
+
+	drifts := EvaluatePostureDrift(prev, curr)
+	if len(drifts) < 3 {
+		t.Fatalf("Expected at least 3 drift alerts (score, PQC, header, CVE), got %d: %+v", len(drifts), drifts)
+	}
+
+	snippets := GenerateGuidedRemediationSnippets(curr)
+	for _, key := range []string{"traefik", "nginx", "caddy", "apache_php"} {
+		if !strings.Contains(snippets[key], "X-Content-Type-Options") && !strings.Contains(snippets[key], "contentTypeNosniff") {
+			t.Errorf("Expected security headers in snippet %s", key)
+		}
+	}
+
+	auditSvc := NewAuditService(nil)
+	cfg := auditSvc.UpdateScheduleConfig(true, "aegis.aivo.fr", 6)
+	if !cfg.Enabled || cfg.IntervalHours != 6 || cfg.TargetDomain != "aegis.aivo.fr" {
+		t.Errorf("Unexpected schedule config: %+v", cfg)
+	}
+}

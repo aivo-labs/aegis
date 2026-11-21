@@ -63,6 +63,9 @@ func (h *ProtectionHandler) Bans(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		body := httputil.ReadJSONBody(r)
 		ip := httputil.AsString(body, "ip_address", "")
+		if ip == "" {
+			ip = httputil.AsString(body, "ip", "")
+		}
 		maxBytes := httputil.AsInt(body, "max_payload_bytes", 0)
 
 		if ip == "" && maxBytes >= 1024 {
@@ -83,10 +86,12 @@ func (h *ProtectionHandler) Bans(w http.ResponseWriter, r *http.Request) {
 		reason := httputil.AsString(body, "reason", "Bannissement manuel SOC")
 		source := httputil.AsString(body, "source", "MANUAL_SOC")
 		risk := httputil.AsInt(body, "risk_score", 95)
-		_ = h.protectionService.AddBan(ip, reason, source, risk)
+		ttlMinutes := httputil.AsInt(body, "ttl_minutes", 0)
+		_ = h.protectionService.AddBan(ip, reason, source, risk, ttlMinutes)
 		httputil.WriteJSON(w, http.StatusOK, map[string]any{
 			"status":     "success",
 			"ip_address": ip,
+			"source":     source,
 			"message":    "Adresse IP ajoutée à la liste noire et synchronisée avec Gate Proxy",
 		})
 		return

@@ -352,7 +352,10 @@ export function createGateServer(
             status: 'success',
             protection_enabled: state.protectionEnabled,
             max_payload_bytes: state.maxPayloadBytes,
-            banned_ips: ipReputation.getAll()
+            banned_ips: ipReputation.getAll(),
+            quarantine_entries: ipReputation.getQuarantineEntries
+              ? ipReputation.getQuarantineEntries()
+              : []
           })
         );
         return;
@@ -372,11 +375,12 @@ export function createGateServer(
             if (typeof body.max_payload_bytes === 'number' && body.max_payload_bytes >= 1024) {
               state.maxPayloadBytes = body.max_payload_bytes;
             }
-            if (Array.isArray(body.banned_ips)) {
+            if (body.reset === true) {
               ipReputation.clear();
-              for (const ip of body.banned_ips) {
-                if (ip && typeof ip === 'string') ipReputation.ban(ip.trim());
-              }
+            } else if (Array.isArray(body.banned_ips)) {
+              ipReputation.setAll(
+                body.banned_ips.filter((ip: unknown) => typeof ip === 'string').map((ip: string) => ip.trim())
+              );
             }
             console.log(
               `⚡ [Aegis Gate PEP] Mode: ${state.protectionEnabled ? '🛡️ ACTIF' : '⚠️ DÉSACTIVÉ'} | Seuil 413: ${state.maxPayloadBytes}B | Bans: ${ipReputation.size()}`
@@ -488,13 +492,32 @@ export function createGateServer(
           }
         });
 
+        // Si l'IP vient de passer en Auto-Jail suite à cette infraction critique, synchroniser avec le Control Plane
+        if (verdict.threat_type !== 'BANNED_IP_BLACKLIST' && ipReputation.isBanned(clientIp)) {
+          fetch(`${config.backendUrl}/api/v1/dashboard/bans`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ip: clientIp,
+              reason: `Auto-Jail WAF (15 min) suite à répétition d'alertes critiques (${verdict.threat_type})`,
+              source: 'AUTO_JAIL_WAF',
+              risk_score: 98,
+              ttl_minutes: 15
+            })
+          }).catch(() => {});
+        }
+
         const responsePayload = JSON.stringify(
           {
             status: statusCode,
             error:
               statusCode === 413
                 ? 'Payload Too Large — Blocked by Aegis Gate Virtual Patching'
-                : 'Access Denied by Aegis Gate Zero-Trust PEP',
+                : statusCode === 429
+                  ? 'Too Many Requests — Volumetric Sliding-Window Rate Limit Exceeded'
+                  : statusCode === 431
+                    ? 'Request Header Fields Too Large — Blocked by Aegis Protocol Hardening'
+                    : 'Access Denied by Aegis Gate Zero-Trust PEP',
             verdict: 'BLOCKED',
             threat_detected: verdict.threat_type,
             severity: verdict.severity,
@@ -511,7 +534,7 @@ export function createGateServer(
           2
         );
 
-        res.writeHead(statusCode, {
+        const blockHeaders: Record<string, string> = {
           'Content-Type': 'application/json',
           'X-Aegis-Verdict': 'BLOCKED',
           'X-Aegis-Threat': verdict.threat_type,
@@ -519,7 +542,12 @@ export function createGateServer(
           'X-Aegis-Node': config.nodeHostname || effectiveHost,
           'X-Content-Type-Options': 'nosniff',
           'Access-Control-Allow-Origin': '*'
-        });
+        };
+        if (statusCode === 429) {
+          blockHeaders['Retry-After'] = '10';
+        }
+
+        res.writeHead(statusCode, blockHeaders);
         res.end(responsePayload);
         return;
       }

