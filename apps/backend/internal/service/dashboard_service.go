@@ -87,6 +87,17 @@ func (s *DashboardService) GetSummary() map[string]any {
 	botProbesTotal := inRow.Int("bot_probes")
 	ingressAvgLat := inRow.Float("avg_lat")
 
+	if ingressTotal == 0 {
+		fbInRow, _ := s.db.QueryRow("SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE decision = 'BLOCK') AS blocked, COUNT(*) FILTER (WHERE decision = 'BYPASS') AS bypassed, COUNT(*) FILTER (WHERE timestamp >= NOW() - INTERVAL '24 hours' AND request_uri ~* '(wp-login|wp-content|xmlrpc|\\.env|\\.git|phpinfo|phpmyadmin)') AS bot_probes, COALESCE(AVG(latency_ms), 0) AS avg_lat FROM security_audit_logs;")
+		if fbInRow != nil && fbInRow.Int("total") > 0 {
+			ingressTotal = fbInRow.Int("total")
+			ingressBlocked = fbInRow.Int("blocked")
+			ingressBypassed = fbInRow.Int("bypassed")
+			botProbesTotal = fbInRow.Int("bot_probes")
+			ingressAvgLat = fbInRow.Float("avg_lat")
+		}
+	}
+
 	// 2. Egress
 	egRow, _ := s.db.QueryRow(fmt.Sprintf(`
 		SELECT COUNT(*) AS total,
@@ -100,6 +111,16 @@ func (s *DashboardService) GetSummary() map[string]any {
 	egressBlocked := egRow.Int("blocked")
 	egressBypassed := egRow.Int("bypassed")
 	egressAvgLat := egRow.Float("avg_lat")
+
+	if egressTotal == 0 {
+		fbEgRow, _ := s.db.QueryRow("SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE action IN ('BLOCK', 'QUARANTINE')) AS blocked, COUNT(*) FILTER (WHERE action = 'BYPASS') AS bypassed, COALESCE(AVG(latency_ms), 0) AS avg_lat FROM egress_security_logs;")
+		if fbEgRow != nil && fbEgRow.Int("total") > 0 {
+			egressTotal = fbEgRow.Int("total")
+			egressBlocked = fbEgRow.Int("blocked")
+			egressBypassed = fbEgRow.Int("bypassed")
+			egressAvgLat = fbEgRow.Float("avg_lat")
+		}
+	}
 
 	// 3. Mesures énergétiques RAPL
 	enRow, _ := s.db.QueryRow(fmt.Sprintf(`
@@ -116,6 +137,16 @@ func (s *DashboardService) GetSummary() map[string]any {
 	instantWatts := roundFloat(cpuWatts+ramWatts, 2)
 	cpuPct := roundFloat(enRow.Float("cpu_pct"), 1)
 
+	if instantWatts == 0 {
+		fbEnRow, _ := s.db.QueryRow("SELECT COALESCE(cpu_power_watts, 0) AS cpu_w, COALESCE(ram_power_watts, 0) AS ram_w, COALESCE(cpu_utilization_pct, 0) AS cpu_pct FROM telemetry_energy_metrics ORDER BY timestamp DESC LIMIT 1;")
+		if fbEnRow != nil && (fbEnRow.Float("cpu_w") > 0 || fbEnRow.Float("ram_w") > 0) {
+			cpuWatts = roundFloat(fbEnRow.Float("cpu_w"), 2)
+			ramWatts = roundFloat(fbEnRow.Float("ram_w"), 2)
+			instantWatts = roundFloat(cpuWatts+ramWatts, 2)
+			cpuPct = roundFloat(fbEnRow.Float("cpu_pct"), 1)
+		}
+	}
+
 	aggEnRow, _ := s.db.QueryRow(fmt.Sprintf(`
 		SELECT COALESCE(AVG(cpu_power_watts + ram_power_watts), 0) AS avg_w,
 		       COALESCE(SUM(energy_consumed_joules), 0) AS total_j,
@@ -126,6 +157,17 @@ func (s *DashboardService) GetSummary() map[string]any {
 	avgWatts24h := roundFloat(aggEnRow.Float("avg_w"), 2)
 	totalJoules24h := roundFloat(aggEnRow.Float("total_j"), 2)
 	energySamples := aggEnRow.Int("sample_count")
+
+	if avgWatts24h == 0 && totalJoules24h == 0 {
+		fbAggRow, _ := s.db.QueryRow("SELECT COALESCE(AVG(cpu_power_watts + ram_power_watts), 0) AS avg_w, COALESCE(SUM(energy_consumed_joules), 0) AS total_j, COUNT(*) AS sample_count FROM telemetry_energy_metrics WHERE timestamp >= NOW() - INTERVAL '24 hours';")
+		if fbAggRow != nil && fbAggRow.Int("sample_count") > 0 {
+			avgWatts24h = roundFloat(fbAggRow.Float("avg_w"), 2)
+			totalJoules24h = roundFloat(fbAggRow.Float("total_j"), 2)
+			energySamples = fbAggRow.Int("sample_count")
+		} else if instantWatts > 0 {
+			avgWatts24h = instantWatts
+		}
+	}
 
 	histRows, _ := s.db.Query(fmt.Sprintf(`
 		SELECT ROUND((cpu_power_watts + ram_power_watts)::numeric, 2) AS watts,
@@ -398,10 +440,12 @@ func (s *DashboardService) GetSummary() map[string]any {
 		},
 	}
 
-	s.cacheMu.Lock()
-	s.summaryCache = res
-	s.summaryCacheTime = time.Now()
-	s.cacheMu.Unlock()
+	if instantWatts > 0 || totalRequests > 0 {
+		s.cacheMu.Lock()
+		s.summaryCache = res
+		s.summaryCacheTime = time.Now()
+		s.cacheMu.Unlock()
+	}
 
 	return res
 }
