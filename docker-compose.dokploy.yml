@@ -100,7 +100,7 @@ services:
       - aegis-edge
     volumes:
       - aegis_ollama_data:/root/.ollama
-    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && (ollama pull nimble || true) && wait"]
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 6 && (ollama list | grep -q nimble || (ollama pull qwen2.5:0.5b 2>/dev/null && ollama cp qwen2.5:0.5b nimble 2>/dev/null) || true) && wait"]
 
   # 6. APPLICATION WEB & COCKPIT SOC SOUVERAIN UNIQUE (ASTRO / VUE 3 / NGINX DURCI)
   web:
