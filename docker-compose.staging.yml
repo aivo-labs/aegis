@@ -67,6 +67,9 @@ services:
       - dokploy-network
     depends_on:
       - backend
+    links:
+      - backend:backend
+      - ollama-nimble:ollama-nimble
 
   # 4. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE RUST STAGING
   telemetry-agent:
@@ -89,6 +92,8 @@ services:
       - aegis-staging-internal
     depends_on:
       - backend
+    links:
+      - backend:backend
 
   # 5. MOTEUR IA SYSTEM ONE STAGING
   ollama-nimble:
@@ -112,6 +117,8 @@ services:
       - aegis-staging-internal
     depends_on:
       - backend
+    links:
+      - backend:backend
 
   # 7. PASSERELLE INGRESS PEP & WAF STAGING (aegis.baud.dev)
   gate-proxy:
@@ -140,6 +147,9 @@ services:
     depends_on:
       - backend
       - web
+    links:
+      - backend:backend
+      - web:web
 
   # 8. DOCUMENTATION STAGING
   docs:

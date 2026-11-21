@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders } from 'node:http';
 import type { WafRuleRegistry } from '../rules/registry.js';
-import type { IIpReputationManager } from '../quarantine/ip-reputation.js';
+import { isExemptIp, type IIpReputationManager } from '../quarantine/ip-reputation.js';
 import type { InspectionContext, WafVerdict } from '../types.js';
 import { canonicalizeInput } from './canonicalizer.js';
 import { computeRequestEntropy } from './entropy.js';
@@ -184,7 +184,7 @@ export class WafInspector implements IWafInspector {
 
     // Règle -1 : Liste Noire IP Dynamique & Quarantaine Auto-Jail (Verrou n°3 P1)
     if (clientIp && this.ipReputation.isBanned(clientIp)) {
-      if (clientIp === '92.157.163.164' || clientIp === '127.0.0.1' || clientIp === 'localhost') {
+      if (isExemptIp(clientIp)) {
         this.ipReputation.unban(clientIp);
       } else {
         return {
