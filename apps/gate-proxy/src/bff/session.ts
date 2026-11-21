@@ -8,10 +8,67 @@ export interface BffUserSession {
   tenantId: string;
   exp: number; // Timestamp Unix en ms
   createdAt: number;
+  ctxHash?: string; // Verrou n°5-Bis (v1.3 « Anti-Artex ») : Empreinte Context-Binding (UA + Sous-réseau IP)
+}
+
+export interface SessionClientContext {
+  userAgent?: string;
+  clientIp?: string;
 }
 
 export const SESSION_COOKIE_NAME = '__Host-aegis_session';
 export const FALLBACK_COOKIE_NAME = 'aegis_session';
+
+const PRIVATE_OR_LOCAL_IP_REGEX =
+  /^(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|::1$|localhost$|fe80:|fc00:|fd00:)/i;
+
+/**
+ * Extrait un préfixe de sous-réseau stable (/24 pour IPv4 public, /64 pour IPv6 public, 'local' pour RFC1918/loopback)
+ */
+export function extractSubnetPrefix(ip?: string): string {
+  const clean = (ip || '').replace(/^::ffff:/, '').trim();
+  if (!clean || PRIVATE_OR_LOCAL_IP_REGEX.test(clean)) {
+    return 'local-net';
+  }
+  if (clean.includes('.')) {
+    const parts = clean.split('.');
+    if (parts.length === 4) {
+      return `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
+    }
+  }
+  if (clean.includes(':')) {
+    const parts = clean.split(':').slice(0, 4);
+    return `${parts.join(':')}::/64`;
+  }
+  return 'local-net';
+}
+
+/**
+ * Verrou n°5-Bis (v1.3 « Anti-Artex ») : Calcule l'empreinte cryptographique du contexte client
+ * (User-Agent normalisé + préfixe sous-réseau IP) pour empêcher le rejeu de cookies volés par un Agent Worker.
+ */
+export function computeClientContextHash(userAgent?: string, clientIp?: string): string {
+  const normUa = (userAgent || 'unknown').trim().toLowerCase();
+  const subnet = extractSubnetPrefix(clientIp);
+  return crypto
+    .createHash('sha256')
+    .update(`aegis_ctx_v1|${normUa}|${subnet}`)
+    .digest('hex')
+    .substring(0, 16);
+}
+
+/**
+ * Vérifie que la session déchiffrée correspond au contexte client courant (si un ctxHash y est scellé).
+ */
+export function verifySessionContext(
+  session: BffUserSession,
+  userAgent?: string,
+  clientIp?: string
+): boolean {
+  if (!session.ctxHash) return true;
+  const expected = computeClientContextHash(userAgent, clientIp);
+  return session.ctxHash === expected;
+}
 
 /**
  * Dérive une clé cryptographique de 32 octets (AES-256) à partir du secret configuré.
@@ -92,12 +149,24 @@ export function parseCookies(cookieHeader: string | undefined): Record<string, s
 
 /**
  * Extrait la session depuis les cookies de la requête (supporte __Host-aegis_session ou aegis_session en dev).
+ * Si clientContext est fourni et que la session possède un ctxHash, vérifie la liaison cryptographique (Anti-Replay).
  */
-export function extractSessionFromRequest(cookieHeader: string | undefined, secret: string): BffUserSession | null {
+export function extractSessionFromRequest(
+  cookieHeader: string | undefined,
+  secret: string,
+  clientContext?: SessionClientContext
+): BffUserSession | null {
   const cookies = parseCookies(cookieHeader);
   const rawCookie = cookies[SESSION_COOKIE_NAME] || cookies[FALLBACK_COOKIE_NAME];
   if (!rawCookie) return null;
-  return unsealSession(rawCookie, secret);
+  const session = unsealSession(rawCookie, secret);
+  if (!session) return null;
+  if (clientContext && session.ctxHash) {
+    if (!verifySessionContext(session, clientContext.userAgent, clientContext.clientIp)) {
+      return null;
+    }
+  }
+  return session;
 }
 
 /**

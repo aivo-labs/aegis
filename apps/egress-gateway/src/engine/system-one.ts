@@ -18,6 +18,27 @@ export class SystemOneClient implements ISystemOneClient {
     const startTime = performance.now();
     const { fqdn, domain_entropy, entropy: rawEntropy, isCrowdSecMatch, protocol_context } = stateVector;
     const entropy = domain_entropy ?? rawEntropy ?? calculateShannonEntropy(fqdn);
+
+    // Level 1A-Bis (v1.3 Anti-Artex): Neutralisation des serveurs de callback OAST & tunnels LOTC (< 0.5 ms)
+    const oastLotc = this.ctiManager.isOastOrLotcRelay ? this.ctiManager.isOastOrLotcRelay(fqdn) : { matched: false };
+    if (oastLotc.matched) {
+      const latency = Math.max(0.15, performance.now() - startTime);
+      const isOast = oastLotc.category === 'OAST_BLIND_CALLBACK';
+      return {
+        action: 'BLOCK',
+        confidence: 0.999,
+        threat_type: isOast
+          ? 'OAST_BLIND_EXPLOIT_CALLBACK_BLOCKED'
+          : 'LOTC_TUNNEL_EXFILTRATION_BLOCKED',
+        risk_score: isOast ? 99 : 97,
+        reasoning: isOast
+          ? `Serveur de callback OAST intercepté (${oastLotc.matchedSuffix}) — Neutralisation Blind SSRF/RCE Anti-Artex`
+          : `Relais/Tunnel d'exfiltration LOTC intercepté (${oastLotc.matchedSuffix})`,
+        latency_ms: parseFloat(latency.toFixed(2)),
+        engine: isOast ? 'AEGIS_ANTI_ARTEX_OAST_SINKHOLE' : 'AEGIS_ANTI_ARTEX_LOTC_GUARD'
+      };
+    }
+
     const matchedCti = isCrowdSecMatch ?? this.ctiManager.isBlocked(fqdn);
 
     // Level 1A: Match immédiat CTI CrowdSec / CERT-FR (< 1 ms)
