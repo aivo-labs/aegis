@@ -366,5 +366,125 @@ test('Aegis Gate PEP — ForwardAuth Endpoint (/_aegis/verify)', async () => {
     assert.equal(gwCode, 403, `Docker gateway attack #${i + 1} must be blocked`);
   }
   assert.equal(ipRep.isBanned('172.17.0.1'), false, 'Docker bridge gateway 172.17.0.1 must never be auto-jailed');
+
+  // 5. Mode Stealth 403 Anti-LLM : Masque la règle interne au client externe tout en gardant le verdict BLOCKED
+  let stealthCode = 0;
+  let stealthBody = '';
+  const mockResStealth: any = {
+    setHeader: () => {},
+    writeHead: (c: number) => { stealthCode = c; },
+    end: (d: string) => { stealthBody = d; },
+  };
+  const mockReqStealth: any = {
+    url: '/_aegis/verify',
+    method: 'GET',
+    headers: {
+      'x-forwarded-method': 'GET',
+      'x-forwarded-uri': '/swagger.json',
+      'x-forwarded-host': 'api.aivo.fr',
+      'x-forwarded-for': '198.51.100.91',
+      'x-aegis-stealth': 'true',
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+    on: () => {},
+  };
+  server.emit('request', mockReqStealth, mockResStealth);
+  assert.equal(stealthCode, 403);
+  const stealthJson = JSON.parse(stealthBody);
+  assert.equal(stealthJson.threat_detected, 'SECURITY_POLICY_VIOLATION');
+  assert.equal(stealthJson.risk_score, undefined);
+
+  // 6. Leurre Canary Honeypot (/.env.canary) suivi du rejeu Canary Tripwire -> Auto-Ban immédiat
+  let canaryTrapCode = 0;
+  let canaryTrapBody = '';
+  const mockResCanary: any = {
+    setHeader: () => {},
+    writeHead: (c: number) => { canaryTrapCode = c; },
+    end: (d: string) => { canaryTrapBody = d; },
+  };
+  const mockReqCanary: any = {
+    url: '/_aegis/verify',
+    method: 'GET',
+    headers: {
+      'x-forwarded-method': 'GET',
+      'x-forwarded-uri': '/.env.canary',
+      'x-forwarded-host': 'aivo.fr',
+      'x-forwarded-for': '198.51.100.92',
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+    on: () => {},
+  };
+  server.emit('request', mockReqCanary, mockResCanary);
+  assert.equal(canaryTrapCode, 200);
+  assert.ok(canaryTrapBody.includes('ak_live_aegis_canary_9f8e7d6c5b4a3210'));
+
+  // Rejeu du jeton Canary par l'agent ARTEX -> 403 + Bannissement immédiat de l'IP
+  let tripwireCode = 0;
+  const mockResTripwire: any = {
+    setHeader: () => {},
+    writeHead: (c: number) => { tripwireCode = c; },
+    end: () => {},
+  };
+  const mockReqTripwire: any = {
+    url: '/_aegis/verify',
+    method: 'GET',
+    headers: {
+      'x-forwarded-method': 'GET',
+      'x-forwarded-uri': '/api/v1/data',
+      'x-forwarded-host': 'aivo.fr',
+      'x-forwarded-for': '198.51.100.92',
+      authorization: 'Bearer ak_live_aegis_canary_9f8e7d6c5b4a3210',
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+    on: () => {},
+  };
+  server.emit('request', mockReqTripwire, mockResTripwire);
+  assert.equal(tripwireCode, 403);
+  assert.equal(ipRep.isBanned('198.51.100.92'), true, 'Attacker replaying a Canary Token must be banned immediately');
+  ipRep.unban('198.51.100.92');
 });
+
+test('Pure BFF Session — Cryptographic Context-Binding Anti-Token Replay (Verrou n°5-Bis v1.3)', async () => {
+  const { computeClientContextHash, sealSession, extractSessionFromRequest } = await import('../src/bff/session.js');
+  const secret = 'context_binding_sovereign_secret_32b!';
+  const legUa = 'Mozilla/5.0 (X11; Linux x86_64) Chrome/130.0.0.0';
+  const legIp = '82.64.12.45';
+
+  const session: BffUserSession = {
+    id: 'usr_ctx_bound',
+    name: 'Admin Context Bound',
+    email: 'admin@aivo.fr',
+    role: 'admin',
+    tenantId: '00000000-0000-0000-0000-000000000001',
+    exp: Date.now() + 60000,
+    createdAt: Date.now(),
+    ctxHash: computeClientContextHash(legUa, legIp),
+  };
+
+  const sealed = sealSession(session, secret);
+  const cookieHeader = `aegis_session=${sealed}`;
+
+  // 1. Même User-Agent et même sous-réseau /24 (82.64.12.99) -> Autorisé
+  const validExtract = extractSessionFromRequest(cookieHeader, secret, {
+    userAgent: legUa,
+    clientIp: '82.64.12.99',
+  });
+  assert.ok(validExtract !== null);
+  assert.equal(validExtract?.id, 'usr_ctx_bound');
+
+  // 2. Rejeu par un Worker ARTEX avec un autre User-Agent -> Rejeté (null)
+  const hijackedUa = extractSessionFromRequest(cookieHeader, secret, {
+    userAgent: 'Go-http-client/2.0',
+    clientIp: legIp,
+  });
+  assert.equal(hijackedUa, null, 'Session replayed with different User-Agent must be rejected');
+
+  // 3. Rejeu depuis un sous-réseau IP distant (185.220.101.5) -> Rejeté (null)
+  const hijackedIp = extractSessionFromRequest(cookieHeader, secret, {
+    userAgent: legUa,
+    clientIp: '185.220.101.5',
+  });
+  assert.equal(hijackedIp, null, 'Session replayed from different /24 public subnet must be rejected');
+});
+
 
