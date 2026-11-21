@@ -241,9 +241,18 @@ export function createGateServer(
       }
 
       const targetMethod = (req.headers['x-forwarded-method'] as string) || req.method || 'GET';
-      const targetUri = (req.headers['x-forwarded-uri'] as string) || (req.url || '/').replace(/^\/_aegis\/verify/, '') || '/';
+      const targetUri =
+        (req.headers['x-forwarded-uri'] as string) ||
+        (req.headers['x-original-uri'] as string) ||
+        (req.headers['x-rewrite-url'] as string) ||
+        (req.url || '/').replace(/^\/_aegis\/verify/, '') ||
+        '/';
       const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || getClientIp(req);
       const userAgent = (req.headers['user-agent'] as string) || 'unknown';
+      const targetHost =
+        (req.headers['x-forwarded-host'] as string) ||
+        (req.headers.host as string) ||
+        'unknown';
 
       // Immunité totale pour les flux d'authentification BFF OIDC (/api/auth/*)
       if (targetUri.startsWith('/api/auth/')) {
@@ -256,7 +265,7 @@ export function createGateServer(
         return;
       }
 
-      // Immunité d'accès pour l'administrateur SOC & IP VPS
+      // Immunité d'accès pour l'administrateur SOC & IP VPS (unban préventif uniquement)
       const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret);
       const isAdminSession = session?.role === 'admin' || session?.role === 'secops';
       const isImmuneIp = clientIp === '92.157.163.164' || clientIp === '127.0.0.1';
@@ -273,7 +282,7 @@ export function createGateServer(
       if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && (isAdminSession || isImmuneIp)) {
         ipReputation.unban(clientIp);
         fetch(`${config.backendUrl}/api/v1/dashboard/bans?ip=${encodeURIComponent(clientIp)}`, { method: 'DELETE' }).catch(() => {});
-      } else if (verdict.blocked && state.protectionEnabled && !isImmuneIp) {
+      } else if (verdict.blocked && state.protectionEnabled) {
         const statusCode = verdict.http_status || 403;
         const eventId = `aegis-fwd-${crypto.randomBytes(6).toString('hex')}`;
 
@@ -299,7 +308,7 @@ export function createGateServer(
             pattern: verdict.pattern,
             event_id: eventId,
             engine: 'Traefik ForwardAuth PEP',
-            host: req.headers['x-forwarded-host'] || req.headers.host
+            host: targetHost
           }
         });
 
@@ -456,7 +465,7 @@ export function createGateServer(
         ipReputation.unban(clientIp);
         // Débannissement automatique dans PostgreSQL / TimescaleDB
         fetch(`${config.backendUrl}/api/v1/dashboard/bans?ip=${encodeURIComponent(clientIp)}`, { method: 'DELETE' }).catch(() => {});
-      } else if (verdict.blocked && state.protectionEnabled && !isImmuneIp) {
+      } else if (verdict.blocked && state.protectionEnabled) {
         const statusCode = verdict.http_status || 403;
         const eventId = `aegis-blk-${crypto.randomBytes(6).toString('hex')}`;
 
