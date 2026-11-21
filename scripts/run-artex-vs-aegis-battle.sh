@@ -5,11 +5,19 @@
 #
 # Usage :
 #   ./scripts/run-artex-vs-aegis-battle.sh                          # Mode vidéo cadencé sur localhost:8000
-#   ./scripts/run-artex-vs-aegis-battle.sh https://cible.exemple.fr # Cible distante (ex: VM Google Cloud)
+#   ./scripts/run-artex-vs-aegis-battle.sh --ai https://ctf.aegis.aivo.fr # VRAI Agent IA autonome (ReAct LLM via Ollama/OpenAI/Gemini)
+#   ./scripts/run-artex-vs-aegis-battle.sh https://ctf.aegis.aivo.fr      # Cible distante (ex: VM Google Cloud)
 #   ./scripts/run-artex-vs-aegis-battle.sh --fast                   # Exécution rapide sans pause (CI / test)
 # =============================================================================
 
 set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ "${1:-}" == "--ai" ]]; then
+  shift
+  exec node "${SCRIPT_DIR}/run-artex-ai-agent.mjs" "$@"
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
