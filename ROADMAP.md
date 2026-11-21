@@ -7,7 +7,7 @@
 This document is the **single source of truth** for the Aegis engineering roadmap, shared between the open-source repository and the [AIVO Agency architectural case study](https://aivo.fr/en/realisations/aegis-sovereign-gate).
 
 Every item is tracked strictly by **implementation status (`✅ Delivered`, `🚧 Partial`, `⏳ Planned / In Design`)** and **engineering priority (`P0` to `P3`)** — with no arbitrary calendar promises — toward three measurable objectives:
-1. Raise real-world interception efficacy against manual Red Team evasion and memory-corruption attacks from **~78% to > 95%**.
+1. Raise real-world interception efficacy against manual Red Team evasion, **autonomous AI pentesting frameworks (such as ARTEX / Hexstrike)**, and memory-corruption attacks from **~78% to > 95%**.
 2. Enforce **"Assume Breach" defense-in-depth** across containers, Linux kernels, and workstations (`< 10 MB RAM` Rust endpoint posture agent) without per-seat SaaS licensing fees.
 3. Extend sovereign perimeter filtering to **AI workloads** (LLM data exfiltration guardrails, sandboxed Agent Harnesses, collaborative P2P CTI, and CPU-only `< 1B` micro-SLMs).
 
@@ -24,7 +24,8 @@ Every item is tracked strictly by **implementation status (`✅ Delivered`, `�
 | **P0/P1** | **#4 HTTP Protocol Hardening (`431`), Multipart RFC & Shell-Spawn Watch** | **✅ Delivered (v1.2)** | **P1 (High)** | `apps/gate-proxy/src/`, `apps/telemetry-agent/src/collector/` | Strict `HTTP 431` header caps (`8 KB` total / `4 KB` single / `64` max), RFC multipart validation, compression-bomb block & Rust `/proc` shell-spawn monitor |
 | **P0/P1** | **#5 Continuous Passive Posture, PQC (`ML-KEM`), CERT-FR & Remediation** | **✅ Delivered (v1.2)** | **P1 (High)** | `apps/backend/internal/scanner/`, `service/audit_service.go`, `web` | Scheduled periodic audits (`6h`/`12h`/`24h`), posture drift detection, guided Traefik/Nginx/Caddy/PHP snippets, PQC `X25519MLKEM768` & CVSS-weighted scoring |
 | **Hardening** | **v1.2.1/v1.2.2 TimescaleDB Failover, Rust Worker Filter & Sovereign Precision UI** | **✅ Delivered (v1.2.2)** | **P1 (High)** | `apps/backend/internal/database/`, `telemetry-agent`, `web`, `aegis-cloud` | `/etc/hosts` Docker link & dynamic `lastGoodIP` failover (zero 500s), benign worker spawn filter, CPU clamping `[0, 100]%`, Ollama micro-SLM resilience & anti-vibe UI/UX overhaul |
-| **P2** | **#6 L3/L4 eBPF / XDP Kernel Filter & CVE Audit** | **⏳ In Design** | **P2 (Medium)** | `apps/telemetry-agent/src/` | NIC-level `XDP_DROP` (`< 0.005 ms`) against malformed TCP SYN options (LSRR/SSRR) + `uname -r` alerts |
+| **v1.3 (P1.5)** | **#5-Bis "Anti-Artex" Shield (Autonomous Offensive AI Defense)** | **✅ Delivered (v1.3)** | **P1.5 (High)** | `gate-proxy`, `egress-gateway` | Opaque `403`, Adaptive Tarpit & Canary Honeypot anti-LLM, OAST/LOTC Sinkhole (`interact.sh`), API BOLA/IDOR/Swagger shield, UA mismatch & BFF Context-Binding |
+| **P2** | **#6 L3/L4 eBPF / XDP Kernel Filter, `SIGKILL` Kill-Switch & CVE Audit** | **⏳ In Design** | **P2 (Medium)** | `apps/telemetry-agent/src/` | NIC-level `XDP_DROP` (`< 0.005 ms`) against malformed TCP SYN options, active `< 10 ms` `SIGKILL` on rogue shell spawn + `uname -r` alerts |
 | **P2** | **#7 Enterprise DNS Filtering & Shadow IT (DoH/DoT)** | **⏳ Planned** | **P2 (Medium)** | `apps/egress-gateway/src/` | Central DHCP/`:5053` + remote DoH/DoT resolver regulating RAT tools (TeamViewer, AnyDesk, RustDesk) in Prod/DMZ |
 | **P2** | **#8 Frugal Rust Endpoint Agent (`< 10 MB`) & PQC `mTLS`** | **⏳ In Design** | **P2 (Medium)** | New `aegis-node-agent` (Rust) + `web` | Cross-platform workstation CVE & hygiene probe over **hybrid post-quantum `mTLS` (`X25519MLKEM768`)** + conditional access |
 | **P2** | **#9 "Assume Breach" ZTNA Micro-Segmentation** | **⏳ In Design** | **P2 (Medium)** | Network architecture & PEP | Eliminates direct L3 office-to-DB routes + adds internal ARP/port-scan honeypot alerting |
@@ -103,14 +104,43 @@ Before listing upcoming P2/P3 locks, the following capabilities are **already im
 
 ---
 
+## ⚔️ Phase P1.5 (v1.3) — Sovereign "Anti-Artex" Shield (Autonomous Offensive AI Defense — ✅ Delivered)
+
+### 🔒 Lock #5-Bis: Neutralizing Autonomous Multi-Agent Pentesting Orchestrators (ARTEX, Hexstrike, CyberStrikeAI)
+- **Status:** ✅ Delivered (`v1.3.0`)
+- **Priority:** High (**P1.5** — Direct countermeasure against LLM-driven autonomous offensive frameworks)
+- **Context & Threat Model:** Agentic offensive frameworks (such as **ARTEX**) decompose natural-language intrusion goals into sub-tasks executed at machine speed (*Machine-Speed Kill Chain* `< 3h`) by autonomous *Agent Workers*. Unlike static scanners, they parse HTTP `403` error bodies to mutate payloads, target API business logic (**BOLA / IDOR**, OpenAPI/GraphQL schemas), validate blind exploits via **OAST** relays (`interact.sh`), and chain stolen session tokens.
+- **Technical Plan (6 "Anti-Artex" Defense Bricks):**
+  1. **Anti-LLM Cognitive Deception, Opaque `403` Mode, Adaptive Tarpit & Canary Honeypot ([`apps/gate-proxy/src/server.ts`](apps/gate-proxy/src/server.ts))**:
+     - **Production `STEALTH_BLOCK` Mode**: Strip internal rule names (`threat_detected`) and matched regex patterns from external HTTP error responses (returning only an opaque `event_id` while logging full forensics to TimescaleDB), depriving ARTEX's LLM *Planner* of its feedback learning oracle.
+     - **Adaptive Tarpit**: Inject progressive response delays (`3s` $\rightarrow$ `10s` $\rightarrow$ `25s`) on IPs accumulating anomalies to stall synchronous agent worker loops and exhaust orchestration timeouts.
+     - **Canary Honeypot & Contextual Traps (Booby-Trapped `/.env`)**: Optionally serve decoy `.env` payloads containing traceable *Canary Tokens* on trap endpoints; any subsequent request presenting a Canary Token mathematically proves automated multi-step chaining and triggers an immediate permanent ban (`CANARY_TOKEN_TRIPWIRE_TRIGGERED`).
+  2. **Egress Neutralization of OAST Servers & "Living-off-the-Trusted-Cloud" (LOTC) Relays ([`apps/egress-gateway/src/cti/blocklist.ts`](apps/egress-gateway/src/cti/blocklist.ts))**:
+     - **Native OAST Blocklist in DNS Sinkhole (`:5053`)**: Block out-of-band pentest callback infrastructures by default (`*.interact.sh`, `*.interactsh.com`, `*.oast.pro`, `*.oast.live`, `*.oast.site`, `*.oast.online`, `*.oast.fun`, `*.oast.me`, `*.burpcollaborator.net`, `*.oastify.com`, `*.canarytokens.com`, `*.webhook.site`, `*.requestbin.com`, `*.pipedream.net`), rendering ARTEX **100% blind** on asynchronous exploits (*Blind SSRF, Blind RCE, Blind XXE*).
+     - **Server LOTC Egress Policy**: Optional blocking of public exfiltration tunnels and relays (`*.ngrok-free.app`, `*.ngrok.io`, `*.trycloudflare.com`, `*.loca.lt`, `transfer.sh`, `pastebin.com`) from production backend containers.
+  3. **API Business Logic Shield: Anti-BOLA / IDOR, Anti-Mass Assignment & OpenAPI/GraphQL Masking ([`apps/gate-proxy/src/rules/`](apps/gate-proxy/src/rules/default-rules.ts))**:
+     - **API Discovery Schema Lockdown**: Block unauthenticated external access to API specifications (`/swagger*`, `/openapi.json`, `/api-docs*`, `/v2/api-docs`, `/v3/api-docs`, `/redoc`, `/actuator*`) and GraphQL introspection queries (`__schema`, `__type`) in production.
+     - **Sequential Enumeration Detector (Anti-BOLA / IDOR)**: Sliding-window tracking of distinct object IDs queried across parameterized routes (`/api/v1/resource/{id}`) to halt automated business-object scraping (`API_BOLA_ENUMERATION_DETECTED`).
+     - **Anti-Mass Assignment & Prototype Pollution Filter**: Inspect inbound JSON bodies (`POST`/`PUT`/`PATCH`) against privilege-escalation field injection (`"role":"admin"`, `"is_admin":true`, `"permissions"`, `"__proto__"`, `"constructor.prototype"`).
+  4. **"Low-and-Slow" Behavioral Detection & Browser Header Fingerprint Mismatch ([`apps/gate-proxy/src/engine/inspector.ts`](apps/gate-proxy/src/engine/inspector.ts))**:
+     - **Unmasking Disguised Go/Python Workers**: Detect requests claiming a modern browser `User-Agent` (Chrome/Edge/Firefox) while omitting mandatory structural browser headers (`Sec-Ch-Ua`, `Sec-Fetch-Mode`, `Sec-Fetch-Site`, `Accept-Language`).
+     - **Long-Horizon Suspicion Memory (24h)**: Accumulate slow bursts of `404` / `401` / `403` probes operating below the volumetric rate threshold (`60 req/10s`) to neutralize distributed *Low-and-Slow* reconnaissance.
+  5. **Cryptographic Session Context-Binding in Pure BFF (Anti-Token Replay) ([`apps/gate-proxy/src/bff/session.ts`](apps/gate-proxy/src/bff/session.ts))**:
+     - Seal the client context fingerprint (`User-Agent` hash + `/24` or `/64` IP subnet prefix) directly inside the `AES-256-GCM` encrypted `HttpOnly` `aegis_session` cookie. Any replay of a stolen session cookie from an ARTEX Worker or different network immediately revokes the session and raises a critical `SESSION_HIJACK_REPLAY_DETECTED` alert.
+  6. **Sovereign "Purple Team" Continuous Self-Audit ([`apps/backend/internal/scanner/`](apps/backend/internal/scanner/engine.go))**:
+     - Extend the continuous passive posture scanner (Lock #5) to proactively verify that protected domains do not expose sensitive files (`.env`, `.git`, backups), open Swagger/GraphQL schemas, or unprotected subdomains — delivering the legitimate defensive visibility ARTEX originally promised without deploying a weaponizable offensive tool.
+
+---
+
 ## 🛡️ Phase P2 — Kernel Defense, Frugal Rust Endpoint Agent & ZTNA
 
-### 🔒 Lock #6: L3/L4 `eBPF / XDP` Network Filter & Host Kernel Watch
+### 🔒 Lock #6: L3/L4 `eBPF / XDP` Network Filter, Sub-Second `SIGKILL` Process Kill-Switch & Host Kernel Watch
 - **Status:** ⏳ In Design
 - **Priority:** Medium (**P2** — Linux Host / Bare-Metal)
 - **Technical Plan:**
   1. Extend [`apps/telemetry-agent`](apps/telemetry-agent/src/main.rs) with an `xdp` eBPF program attached at the NIC driver layer to discard malformed IPv4 TCP SYN packets carrying dangerous IP options (`IPOPT_LSRR`, `IPOPT_SSRR`, `IPOPT_RR` — e.g., kernel TCP stack UAF vectors like CVE-2026-98432) in `< 0.005 ms` (`XDP_DROP`).
-  2. Read host kernel release (`uname -r`) continuously and surface actionable distro upgrade alerts in the Cockpit when running unpatched kernels.
+  2. **Sub-Second Process Kill-Switch (`SIGKILL < 10 ms`) against machine-speed post-exploitation**: Evolve [`apps/telemetry-agent/src/collector/process_spawn.rs`](apps/telemetry-agent/src/collector/process_spawn.rs) from passive `/proc` detection to an `ACTIVE_CONTAINMENT` mode that immediately dispatches `SIGKILL` (`kill -9`) to any unauthorized child shell (`sh`, `bash`, `nc`, `python`, `socat`) spawned by a web worker before an autonomous AI agent (ARTEX) can receive its command output.
+  3. Read host kernel release (`uname -r`) continuously and surface actionable distro upgrade alerts in the Cockpit when running unpatched kernels.
 
 ### 🔒 Lock #7: Centralized Enterprise DNS Filtering & Shadow IT Governance
 - **Status:** ⏳ Planned

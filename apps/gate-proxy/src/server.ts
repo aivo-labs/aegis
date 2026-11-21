@@ -20,9 +20,21 @@ export function getClientIp(req: IncomingMessage): string {
   return remote.replace(/^::ffff:/, '');
 }
 
+export const DECOY_CANARY_ENV_PAYLOAD = [
+  '# PRODUCTION ENVIRONMENT CONFIGURATION',
+  'APP_ENV=production',
+  'AEGIS_API_KEY=ak_live_aegis_canary_9f8e7d6c5b4a3210',
+  'AWS_SECRET_ACCESS_KEY=AEGIS_CANARY_TRAP_SECRET_KEY_8842',
+  'DATABASE_PASSWORD=AEGIS_CANARY_TRAP_DB_PASS_9910'
+].join('\n');
+
 export interface GateServerState {
   protectionEnabled: boolean;
   maxPayloadBytes: number;
+  stealthBlockMode?: boolean;
+  tarpitEnabled?: boolean;
+  tarpitMaxMs?: number;
+  canaryHoneypotEnabled?: boolean;
 }
 
 export function createGateServer(
@@ -273,9 +285,55 @@ export function createGateServer(
       }
 
       // Immunité d'accès pour l'administrateur SOC & passerelles Docker (unban préventif uniquement)
-      const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret);
+      const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret, {
+        userAgent,
+        clientIp
+      });
       const isAdminSession = session?.role === 'admin' || session?.role === 'secops';
       const isImmuneIp = isExemptIp(clientIp);
+
+      // Verrou n°5-Bis (v1.3 « Anti-Artex ») : Leurre Canary Honeypot (/.env.canary ou mode Canary actif)
+      const isCanaryTrapEndpoint =
+        targetUri === '/.env.canary' ||
+        targetUri === '/.aegis-canary' ||
+        (Boolean(state.canaryHoneypotEnabled || req.headers['x-aegis-canary-honeypot'] === 'true') &&
+          targetUri === '/.env');
+      if (isCanaryTrapEndpoint && state.protectionEnabled) {
+        const eventId = `aegis-canary-${crypto.randomBytes(6).toString('hex')}`;
+        telemetry.send({
+          tenant_id: config.tenantId,
+          client_ip: clientIp,
+          user_agent: userAgent,
+          http_method: targetMethod,
+          request_uri: targetUri,
+          decision: 'BLOCK',
+          http_status_returned: 200,
+          latency_ms: 0.5,
+          threat_type: 'CANARY_HONEYPOT_TRAP_SERVED',
+          severity: 'CRITICAL',
+          risk_score: 96,
+          entropy: 3.9,
+          matched_pattern: `Piège Canary Honeypot servi sur ${targetUri} (Secrets leurres ak_live_aegis_canary_* armés contre ARTEX)`,
+          metadata: {
+            threat_type: 'CANARY_HONEYPOT_TRAP_SERVED',
+            severity: 'CRITICAL',
+            risk_score: 96,
+            entropy: 3.9,
+            pattern: `Piège Canary Honeypot servi sur ${targetUri}`,
+            event_id: eventId,
+            engine: 'Aegis Anti-Artex Deception Honeypot',
+            host: targetHost,
+            domain: targetHost
+          }
+        });
+        res.writeHead(200, {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'X-Aegis-Canary-Trap': 'armed',
+          'X-Aegis-Event-ID': eventId
+        });
+        res.end(DECOY_CANARY_ENV_PAYLOAD);
+        return;
+      }
 
       const verdict = inspector.inspect(
         targetUri,
@@ -292,6 +350,16 @@ export function createGateServer(
       } else if (verdict.blocked && state.protectionEnabled) {
         const statusCode = verdict.http_status || 403;
         const eventId = `aegis-fwd-${crypto.randomBytes(6).toString('hex')}`;
+
+        // Si un agent autonome (ARTEX) rejoue un Canary Token, bannissement immédiat de 60 minutes
+        if (verdict.threat_type === 'CANARY_TOKEN_TRIPWIRE_TRIGGERED' && !isImmuneIp) {
+          ipReputation.ban(
+            clientIp,
+            60 * 60 * 1000,
+            `Piège Canary Anti-Artex déclenché sur ${targetHost} (Chaînage autonome de secret leurre)`,
+            'AUTO_JAIL_WAF'
+          );
+        }
 
         telemetry.send({
           tenant_id: config.tenantId,
@@ -335,35 +403,65 @@ export function createGateServer(
           }).catch(() => {});
         }
 
+        const isStealth = Boolean(
+          state.stealthBlockMode ||
+          process.env.AEGIS_STEALTH_BLOCK === 'true' ||
+          req.headers['x-aegis-stealth'] === 'true'
+        );
+        const isTarpit = Boolean(
+          state.tarpitEnabled ||
+          process.env.AEGIS_TARPIT_ENABLED === 'true'
+        );
+        const rawTarpitDelay =
+          isTarpit && ipReputation.getTarpitDelayMs ? ipReputation.getTarpitDelayMs(clientIp) : 0;
+        const effectiveTarpitDelay =
+          state.tarpitMaxMs !== undefined ? Math.min(rawTarpitDelay, state.tarpitMaxMs) : rawTarpitDelay;
+
+        const externalThreatLabel = isStealth
+          ? 'SECURITY_POLICY_VIOLATION'
+          : (verdict.threat_type || 'SECURITY_THREAT');
+
         const blockHeaders: Record<string, string> = {
           'Content-Type': 'application/json',
           'X-Aegis-Decision': 'BLOCK',
-          'X-Aegis-Threat': verdict.threat_type || 'SECURITY_THREAT'
+          'X-Aegis-Threat': externalThreatLabel
         };
         if (statusCode === 429) {
           blockHeaders['Retry-After'] = '10';
         }
+        if (rawTarpitDelay > 0) {
+          blockHeaders['X-Aegis-Tarpit-Delay-Ms'] = String(rawTarpitDelay);
+        }
 
-        res.writeHead(statusCode, blockHeaders);
-        res.end(JSON.stringify({
-          status: statusCode,
-          error:
-            statusCode === 413
-              ? 'Payload Too Large — Blocked by Aegis Gate Virtual Patching'
-              : statusCode === 429
-                ? 'Too Many Requests — Volumetric Sliding-Window Rate Limit Exceeded'
-                : statusCode === 431
-                  ? 'Request Header Fields Too Large — Blocked by Aegis Protocol Hardening'
-                  : 'Access Denied by Aegis Gate Zero-Trust PEP (Traefik ForwardAuth)',
-          verdict: 'BLOCKED',
-          threat_detected: verdict.threat_type,
-          severity: verdict.severity,
-          risk_score: verdict.risk_score,
-          client_ip: clientIp,
-          target_uri: targetUri,
-          event_id: eventId,
-          security_standard: 'ANSSI NIS 2 Hardened • Virtual Patching Active'
-        }));
+        const sendFwdBlock = () => {
+          res.writeHead(statusCode, blockHeaders);
+          res.end(JSON.stringify({
+            status: statusCode,
+            error:
+              statusCode === 413
+                ? 'Payload Too Large — Blocked by Aegis Gate Virtual Patching'
+                : statusCode === 429
+                  ? 'Too Many Requests — Volumetric Sliding-Window Rate Limit Exceeded'
+                  : statusCode === 431
+                    ? 'Request Header Fields Too Large — Blocked by Aegis Protocol Hardening'
+                    : 'Access Denied by Aegis Gate Zero-Trust PEP (Traefik ForwardAuth)',
+            verdict: 'BLOCKED',
+            threat_detected: externalThreatLabel,
+            severity: isStealth ? 'RESTRICTED' : verdict.severity,
+            risk_score: isStealth ? undefined : verdict.risk_score,
+            client_ip: clientIp,
+            target_uri: targetUri,
+            event_id: eventId,
+            tarpit_delay_ms: rawTarpitDelay > 0 ? rawTarpitDelay : undefined,
+            security_standard: 'ANSSI NIS 2 Hardened • Virtual Patching Active'
+          }));
+        };
+
+        if (effectiveTarpitDelay > 0) {
+          setTimeout(sendFwdBlock, effectiveTarpitDelay);
+        } else {
+          sendFwdBlock();
+        }
         return;
       }
 
@@ -438,7 +536,7 @@ export function createGateServer(
       return;
     }
 
-    // Endpoint interne de contrôle du bouclier (activation / désactivation à chaud + seuil 413 + Ban IP)
+    // Endpoint interne de contrôle du bouclier (activation / désactivation à chaud + seuil 413 + Ban IP + Anti-Artex)
     if (req.url === '/_aegis/mode') {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -457,6 +555,9 @@ export function createGateServer(
             status: 'success',
             protection_enabled: state.protectionEnabled,
             max_payload_bytes: state.maxPayloadBytes,
+            stealth_block_mode: Boolean(state.stealthBlockMode),
+            tarpit_enabled: Boolean(state.tarpitEnabled),
+            canary_honeypot_enabled: Boolean(state.canaryHoneypotEnabled),
             banned_ips: ipReputation.getAll(),
             quarantine_entries: ipReputation.getQuarantineEntries
               ? ipReputation.getQuarantineEntries()
@@ -480,6 +581,15 @@ export function createGateServer(
             if (typeof body.max_payload_bytes === 'number' && body.max_payload_bytes >= 1024) {
               state.maxPayloadBytes = body.max_payload_bytes;
             }
+            if (typeof body.stealth_block_mode === 'boolean') {
+              state.stealthBlockMode = body.stealth_block_mode;
+            }
+            if (typeof body.tarpit_enabled === 'boolean') {
+              state.tarpitEnabled = body.tarpit_enabled;
+            }
+            if (typeof body.canary_honeypot_enabled === 'boolean') {
+              state.canaryHoneypotEnabled = body.canary_honeypot_enabled;
+            }
             if (body.reset === true) {
               ipReputation.clear();
             } else if (Array.isArray(body.banned_ips)) {
@@ -496,6 +606,9 @@ export function createGateServer(
                 status: 'success',
                 protection_enabled: state.protectionEnabled,
                 max_payload_bytes: state.maxPayloadBytes,
+                stealth_block_mode: Boolean(state.stealthBlockMode),
+                tarpit_enabled: Boolean(state.tarpitEnabled),
+                canary_honeypot_enabled: Boolean(state.canaryHoneypotEnabled),
                 banned_ips_count: ipReputation.size()
               })
             );
@@ -534,6 +647,54 @@ export function createGateServer(
     req.on('end', () => {
       const rawBody = Buffer.concat(bodyChunks).toString('utf-8');
       const effectiveBytes = Math.max(totalBytes, declaredLength);
+      const effectiveHost =
+        config.nodeHostname ||
+        ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0];
+
+      // Verrou n°5-Bis (v1.3 « Anti-Artex ») : Leurre Canary Honeypot en mode Reverse-Proxy (/.env.canary)
+      const reqPathname = (req.url || '/').split('?')[0];
+      const isCanaryTrapEndpoint =
+        reqPathname === '/.env.canary' ||
+        reqPathname === '/.aegis-canary' ||
+        (Boolean(state.canaryHoneypotEnabled || req.headers['x-aegis-canary-honeypot'] === 'true') &&
+          reqPathname === '/.env');
+      if (isCanaryTrapEndpoint && state.protectionEnabled) {
+        const eventId = `aegis-canary-${crypto.randomBytes(6).toString('hex')}`;
+        telemetry.send({
+          tenant_id: config.tenantId,
+          client_ip: clientIp,
+          user_agent: userAgent,
+          http_method: req.method || 'GET',
+          request_uri: req.url || '/',
+          decision: 'BLOCK',
+          http_status_returned: 200,
+          latency_ms: 0.5,
+          threat_type: 'CANARY_HONEYPOT_TRAP_SERVED',
+          severity: 'CRITICAL',
+          risk_score: 96,
+          entropy: 3.9,
+          matched_pattern: `Piège Canary Honeypot servi sur ${reqPathname} (Secrets leurres ak_live_aegis_canary_* armés contre ARTEX)`,
+          metadata: {
+            threat_type: 'CANARY_HONEYPOT_TRAP_SERVED',
+            severity: 'CRITICAL',
+            risk_score: 96,
+            entropy: 3.9,
+            pattern: `Piège Canary Honeypot servi sur ${reqPathname}`,
+            event_id: eventId,
+            engine: 'Aegis Anti-Artex Deception Honeypot',
+            host: effectiveHost,
+            domain: effectiveHost
+          }
+        });
+        res.writeHead(200, {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'X-Aegis-Canary-Trap': 'armed',
+          'X-Aegis-Event-ID': eventId
+        });
+        res.end(DECOY_CANARY_ENV_PAYLOAD);
+        return;
+      }
+
       const verdict = inspector.inspect(
         req.url || '/',
         req.method || 'GET',
@@ -545,7 +706,10 @@ export function createGateServer(
       const latency = Math.max(0.2, parseFloat((performance.now() - startTime).toFixed(2)));
 
       // Immunité d'accès pour l'Administrateur SOC Authentifié (Zero-Trust Identity > IP Heuristic)
-      const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret);
+      const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret, {
+        userAgent,
+        clientIp
+      });
       const isAdminSession = session?.role === 'admin' || session?.role === 'secops';
       // En mode 'edge' (ex: VM Oracle Cloud), nous n'immunisons pas 127.0.0.1 afin que les scripts
       // de test locaux ou distants exécutés sur la VM soient réellement inspectés et bloqués par le WAF.
@@ -553,9 +717,6 @@ export function createGateServer(
         config.nodeMode === 'edge'
           ? false
           : isExemptIp(clientIp);
-      const effectiveHost =
-        config.nodeHostname ||
-        ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0];
       const alreadyVerifiedByForwardAuth = Boolean(req.headers['x-aegis-verified']);
 
       if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && (isAdminSession || isImmuneIp)) {
@@ -565,6 +726,16 @@ export function createGateServer(
       } else if (verdict.blocked && state.protectionEnabled) {
         const statusCode = verdict.http_status || 403;
         const eventId = `aegis-blk-${crypto.randomBytes(6).toString('hex')}`;
+
+        // Si un agent autonome (ARTEX) rejoue un Canary Token, bannissement immédiat de 60 minutes
+        if (verdict.threat_type === 'CANARY_TOKEN_TRIPWIRE_TRIGGERED' && !isImmuneIp) {
+          ipReputation.ban(
+            clientIp,
+            60 * 60 * 1000,
+            `Piège Canary Anti-Artex déclenché sur ${effectiveHost} (Chaînage autonome de secret leurre)`,
+            'AUTO_JAIL_WAF'
+          );
+        }
 
         telemetry.send({
           tenant_id: config.tenantId,
@@ -613,6 +784,24 @@ export function createGateServer(
           }).catch(() => {});
         }
 
+        const isStealth = Boolean(
+          state.stealthBlockMode ||
+          process.env.AEGIS_STEALTH_BLOCK === 'true' ||
+          req.headers['x-aegis-stealth'] === 'true'
+        );
+        const isTarpit = Boolean(
+          state.tarpitEnabled ||
+          process.env.AEGIS_TARPIT_ENABLED === 'true'
+        );
+        const rawTarpitDelay =
+          isTarpit && ipReputation.getTarpitDelayMs ? ipReputation.getTarpitDelayMs(clientIp) : 0;
+        const effectiveTarpitDelay =
+          state.tarpitMaxMs !== undefined ? Math.min(rawTarpitDelay, state.tarpitMaxMs) : rawTarpitDelay;
+
+        const externalThreatLabel = isStealth
+          ? 'SECURITY_POLICY_VIOLATION'
+          : verdict.threat_type;
+
         const responsePayload = JSON.stringify(
           {
             status: statusCode,
@@ -625,13 +814,16 @@ export function createGateServer(
                     ? 'Request Header Fields Too Large — Blocked by Aegis Protocol Hardening'
                     : 'Access Denied by Aegis Gate Zero-Trust PEP',
             verdict: 'BLOCKED',
-            threat_detected: verdict.threat_type,
-            severity: verdict.severity,
-            risk_score: verdict.risk_score,
-            details: verdict.pattern,
+            threat_detected: externalThreatLabel,
+            severity: isStealth ? 'RESTRICTED' : verdict.severity,
+            risk_score: isStealth ? undefined : verdict.risk_score,
+            details: isStealth
+              ? 'Opaque Zero-Trust Block (Anti-LLM Oracle Protection Active)'
+              : verdict.pattern,
             client_ip: clientIp,
             node_hostname: config.nodeHostname || effectiveHost,
             latency_ms: latency,
+            tarpit_delay_ms: rawTarpitDelay > 0 ? rawTarpitDelay : undefined,
             timestamp: new Date().toISOString(),
             event_id: eventId,
             security_standard: 'ANSSI NIS 2 Hardened • Virtual Patching Active'
@@ -643,7 +835,7 @@ export function createGateServer(
         const blockHeaders: Record<string, string> = {
           'Content-Type': 'application/json',
           'X-Aegis-Verdict': 'BLOCKED',
-          'X-Aegis-Threat': verdict.threat_type,
+          'X-Aegis-Threat': externalThreatLabel,
           'X-Aegis-Event-ID': eventId,
           'X-Aegis-Node': config.nodeHostname || effectiveHost,
           'X-Content-Type-Options': 'nosniff',
@@ -652,9 +844,20 @@ export function createGateServer(
         if (statusCode === 429) {
           blockHeaders['Retry-After'] = '10';
         }
+        if (rawTarpitDelay > 0) {
+          blockHeaders['X-Aegis-Tarpit-Delay-Ms'] = String(rawTarpitDelay);
+        }
 
-        res.writeHead(statusCode, blockHeaders);
-        res.end(responsePayload);
+        const sendProxyBlock = () => {
+          res.writeHead(statusCode, blockHeaders);
+          res.end(responsePayload);
+        };
+
+        if (effectiveTarpitDelay > 0) {
+          setTimeout(sendProxyBlock, effectiveTarpitDelay);
+        } else {
+          sendProxyBlock();
+        }
         return;
       }
 

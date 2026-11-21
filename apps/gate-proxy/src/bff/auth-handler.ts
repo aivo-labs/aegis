@@ -3,11 +3,13 @@ import crypto from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { GateConfig } from '../config.js';
 import {
+  computeClientContextHash,
   extractSessionFromRequest,
   sealSession,
   serializeSessionCookie,
   serializeLogoutCookie,
-  type BffUserSession
+  type BffUserSession,
+  type SessionClientContext
 } from './session.js';
 
 export interface BffOidcConfig {
@@ -24,6 +26,17 @@ export class BffAuthHandler {
   private config: GateConfig;
   private oidcConfig: BffOidcConfig;
   private pendingStates: Map<string, { codeVerifier: string; createdAt: number }> = new Map();
+
+  private getRequestContext(req: IncomingMessage): SessionClientContext {
+    const forwarded = req.headers['x-forwarded-for'];
+    const clientIp = typeof forwarded === 'string'
+      ? forwarded.split(',')[0].trim()
+      : (req.socket?.remoteAddress || '127.0.0.1');
+    return {
+      userAgent: (req.headers['user-agent'] as string) || 'unknown',
+      clientIp
+    };
+  }
 
   constructor(config: GateConfig, oidcConfig: BffOidcConfig = {}) {
     this.config = config;
@@ -142,6 +155,7 @@ export class BffAuthHandler {
       if (!isOidcActive) {
         // Mode Standalone Souverain (Banc d'essai local / VPS autonome / Démo)
         // On scelle directement la session administrateur SOC locale et on pose le cookie
+        const reqCtx = this.getRequestContext(req);
         const sessionData: BffUserSession = {
           id: 'usr_sovereign_admin',
           name: 'Administrateur SOC Souverain',
@@ -149,7 +163,8 @@ export class BffAuthHandler {
           role: 'admin',
           tenantId: this.config.tenantId,
           exp: Date.now() + 86400000, // 24 heures
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          ctxHash: computeClientContextHash(reqCtx.userAgent, reqCtx.clientIp)
         };
 
         const sealedCookie = sealSession(sessionData, sessionSecret);
@@ -213,6 +228,8 @@ export class BffAuthHandler {
     if (pathname === '/api/auth/callback' && req.method === 'GET') {
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
+      const reqCtx = this.getRequestContext(req);
+      const ctxHash = computeClientContextHash(reqCtx.userAgent, reqCtx.clientIp);
 
       let sessionData: BffUserSession;
 
@@ -225,7 +242,8 @@ export class BffAuthHandler {
           role: 'admin',
           tenantId: this.config.tenantId,
           exp: Date.now() + 86400000, // 24 heures
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          ctxHash
         };
       } else {
         // En mode OIDC réel, si on n'a pas pu valider le code
@@ -236,7 +254,8 @@ export class BffAuthHandler {
           role: 'secops',
           tenantId: this.config.tenantId,
           exp: Date.now() + 86400000,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          ctxHash
         };
       }
 
@@ -253,7 +272,7 @@ export class BffAuthHandler {
 
     // 3. GET /api/auth/me ou /api/auth/user : État de la session courante
     if ((pathname === '/api/auth/me' || pathname === '/api/auth/user') && req.method === 'GET') {
-      const session = extractSessionFromRequest(req.headers.cookie, sessionSecret);
+      const session = extractSessionFromRequest(req.headers.cookie, sessionSecret, this.getRequestContext(req));
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -263,7 +282,7 @@ export class BffAuthHandler {
         res.end(
           JSON.stringify({
             authenticated: false,
-            message: 'Session non authentifiée ou expirée'
+            message: 'Session non authentifiée, expirée ou empreinte Context-Binding invalide'
           })
         );
         return true;
@@ -327,7 +346,7 @@ export class BffAuthHandler {
 
     // 5. POST /api/auth/refresh : Rafraîchissement de session
     if (pathname === '/api/auth/refresh' && req.method === 'POST') {
-      const session = extractSessionFromRequest(req.headers.cookie, sessionSecret);
+      const session = extractSessionFromRequest(req.headers.cookie, sessionSecret, this.getRequestContext(req));
       if (!session) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'error', message: 'Session invalide' }));
@@ -367,7 +386,11 @@ export class BffAuthHandler {
    * avec les revendications d'identité extraites du Cookie HttpOnly chiffré.
    */
   public enrichBackendHeaders(req: IncomingMessage, targetHeaders: http.OutgoingHttpHeaders): void {
-    const session = extractSessionFromRequest(req.headers.cookie, this.config.sessionSecret);
+    const session = extractSessionFromRequest(
+      req.headers.cookie,
+      this.config.sessionSecret,
+      this.getRequestContext(req)
+    );
     if (session) {
       targetHeaders['x-aegis-tenant-id'] = session.tenantId;
       targetHeaders['x-aegis-user-id'] = session.id;
