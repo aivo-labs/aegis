@@ -67,6 +67,23 @@ Dans les environnements Kubernetes, Aegis s'interface avec les sondes eBPF de **
 Sur les machines virtuelles où les registres MSR physiques sont masqués par l'hyperviseur :
 * Lecture directe des compteurs de cycles CPU dans `/proc/stat` (`user`, `system`, `iowait`, `idle`).
 * Application continue d'un modèle thermodynamique étalonné sur le profil matériel de la machine hôte (consommation de base à vide de 12 W, montant jusqu'à 48 W à pleine charge par vCPU).
+* **Bornage CPU Strict** : Encadrement mathématique dans l'intervalle `[0,0, 100,0]%` éliminant tout artefact de surconsommation induit par les dérives temporelles d'hyperviseur ou réétalonnages de fréquence.
+
+---
+
+## 🛡️ Détection d'Intrusions Hôte & Résilience d'Ingestion
+
+L'agent de télémétrie Rust (`apps/telemetry-agent`) combine la surveillance énergétique avec une télémétrie de sécurité au niveau du noyau :
+
+### 1. Surveillance des Processus Enfants & Filtrage des Workers Légitimes
+L'agent intercepte les appels système fork/exec pour repérer en temps réel les comportements anormaux sur l'hôte :
+* **Filtrage des Workers Bénins (`is_benign_worker_child_cmd`)** : Détection intelligente des invocations normales de développement et d'orchestration (ex: `node` exécutant `sh -c dotenv -e ...`, gestionnaires de paquets, bundlers), évitant la pollution du flux par de fausses alertes P1.
+* **Neutralisation des Objections & Shells Malveillants** : Tout spawn de shell interactif ou binaire réseau non autorisé (`nc -e /bin/sh`, connexions TCP inverses, `bash -i`) génère instantanément une alerte d'urgence dans le Cockpit.
+
+### 2. Haute Disponibilité d'Ingestion & Failover DNS TimescaleDB
+Pour garantir une intégrité totale de la comptabilité énergétique sans interruption lors des congestions réseau ou défaillances de résolution interne :
+* **Résolution Directe `/etc/hosts`** : Dans le backend Go, le pool de connexions pgx inspecte `/etc/hosts` pour s'affranchir des erreurs SERVFAIL intermittentes du résolveur interne de Docker (`127.0.0.11:53`).
+* **Cache d'IP Persistant & KeepAlive TCP** : Maintien continu des connexions avec KeepAlive 30s et bascule automatique sur la dernière adresse IP valide connue en mémoire, éliminant tout rejet de télémétrie.
 
 ---
 

@@ -15,6 +15,7 @@ This guide gets you up and running immediately with the **Aegis** sovereign cybe
   * `5053` : Egress Gateway (DNS UDP)
   * `8080` : Backend Control Plane API (Go / TimescaleDB)
   * `5432` : TimescaleDB Database
+  * `11434` : Sovereign Local AI Engine (Nimble Micro-SLM / Ollama)
 
 ---
 
@@ -27,7 +28,7 @@ On any server or test virtual machine, run the official installation script:
 curl -sSL https://aegis.aivo.fr/install.sh | sudo bash -s -- --profile vps
 ```
 
-The script automatically provisions required dependencies, sets up `/opt/aegis`, and starts all containerized services.
+The script automatically provisions required dependencies, sets up `/opt/aegis`, and starts all containerized services within a frugal footprint (< 200 MB RAM).
 
 > [!TIP]
 > If deploying on a **physical dedicated server**, use the Bare-Metal profile to enable direct Intel/AMD RAPL hardware energy register sampling:
@@ -50,13 +51,16 @@ cd aegis
 docker compose up -d --build
 ```
 
+> [!NOTE]
+> As of **v1.2.2**, the Docker composition automatically injects an `/etc/hosts` link and multi-tier dynamic reconnection (`lastGoodIP`) between the Go backend and TimescaleDB, ensuring absolute resilience against Docker embedded DNS timeouts.
+
 ---
 
 ## 🧭 Live Web Interfaces
 
 As soon as the containers are running (`docker compose ps`):
 
-* 📊 **Operational SOC & ESG Cockpit**: [`http://localhost:4321/app`](http://localhost:4321/app)
+* 📊 **Operational SOC & ESG Cockpit**: [`http://localhost:4321/app`](http://localhost:4321/app) (Sovereign Precision UI with high-contrast light/dark toggle)
 * 🗂️ **Real-Time Traffic Triage (Kanban)**: [`http://localhost:4321/app/triage`](http://localhost:4321/app/triage)
 * 🛡️ **Cybersecurity Action Center**: [`http://localhost:4321/app/actions/security`](http://localhost:4321/app/actions/security)
 * 🌿 **Energy Management & Frugal Mode**: [`http://localhost:4321/app/actions/green`](http://localhost:4321/app/actions/green)
