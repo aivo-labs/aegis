@@ -24,7 +24,7 @@ Every item is tracked strictly by **implementation status (`✅ Delivered`, `�
 | **P0/P1** | **#4 HTTP Protocol Hardening (`431`), Multipart RFC & Shell-Spawn Watch** | **✅ Delivered (v1.2)** | **P1 (High)** | `apps/gate-proxy/src/`, `apps/telemetry-agent/src/collector/` | Strict `HTTP 431` header caps (`8 KB` total / `4 KB` single / `64` max), RFC multipart validation, compression-bomb block & Rust `/proc` shell-spawn monitor |
 | **P0/P1** | **#5 Continuous Passive Posture, PQC (`ML-KEM`), CERT-FR & Remediation** | **✅ Delivered (v1.2)** | **P1 (High)** | `apps/backend/internal/scanner/`, `service/audit_service.go`, `web` | Scheduled periodic audits (`6h`/`12h`/`24h`), posture drift detection, guided Traefik/Nginx/Caddy/PHP snippets, PQC `X25519MLKEM768` & CVSS-weighted scoring |
 | **Hardening** | **v1.2.1/v1.2.2 TimescaleDB Failover, Rust Worker Filter & Sovereign Precision UI** | **✅ Delivered (v1.2.2)** | **P1 (High)** | `apps/backend/internal/database/`, `telemetry-agent`, `web`, `aegis-cloud` | `/etc/hosts` Docker link & dynamic `lastGoodIP` failover (zero 500s), benign worker spawn filter, CPU clamping `[0, 100]%`, Ollama micro-SLM resilience & anti-vibe UI/UX overhaul |
-| **v1.3 (P1.5)** | **#5-Bis "Anti-Artex" Shield (Autonomous Offensive AI Defense)** | **⏳ In Design (v1.3)** | **P1.5 (High)** | `gate-proxy`, `egress-gateway`, `telemetry-agent` | Opaque `403`, Adaptive Tarpit & Canary Honeypot anti-LLM, OAST/LOTC Sinkhole (`interact.sh`), API BOLA/IDOR/Swagger shield, UA mismatch & BFF Context-Binding |
+| **v1.3 (P1.5)** | **#5-Bis "Anti-Artex" Shield (Autonomous Offensive AI Defense)** | **✅ Delivered (v1.3)** | **P1.5 (High)** | `gate-proxy`, `egress-gateway` | Opaque `403`, Adaptive Tarpit & Canary Honeypot anti-LLM, OAST/LOTC Sinkhole (`interact.sh`), API BOLA/IDOR/Swagger shield, UA mismatch & BFF Context-Binding |
 | **P2** | **#6 L3/L4 eBPF / XDP Kernel Filter, `SIGKILL` Kill-Switch & CVE Audit** | **⏳ In Design** | **P2 (Medium)** | `apps/telemetry-agent/src/` | NIC-level `XDP_DROP` (`< 0.005 ms`) against malformed TCP SYN options, active `< 10 ms` `SIGKILL` on rogue shell spawn + `uname -r` alerts |
 | **P2** | **#7 Enterprise DNS Filtering & Shadow IT (DoH/DoT)** | **⏳ Planned** | **P2 (Medium)** | `apps/egress-gateway/src/` | Central DHCP/`:5053` + remote DoH/DoT resolver regulating RAT tools (TeamViewer, AnyDesk, RustDesk) in Prod/DMZ |
 | **P2** | **#8 Frugal Rust Endpoint Agent (`< 10 MB`) & PQC `mTLS`** | **⏳ In Design** | **P2 (Medium)** | New `aegis-node-agent` (Rust) + `web` | Cross-platform workstation CVE & hygiene probe over **hybrid post-quantum `mTLS` (`X25519MLKEM768`)** + conditional access |
@@ -104,10 +104,10 @@ Before listing upcoming P2/P3 locks, the following capabilities are **already im
 
 ---
 
-## ⚔️ Phase P1.5 (v1.3) — Sovereign "Anti-Artex" Shield (Autonomous Offensive AI Defense)
+## ⚔️ Phase P1.5 (v1.3) — Sovereign "Anti-Artex" Shield (Autonomous Offensive AI Defense — ✅ Delivered)
 
 ### 🔒 Lock #5-Bis: Neutralizing Autonomous Multi-Agent Pentesting Orchestrators (ARTEX, Hexstrike, CyberStrikeAI)
-- **Status:** ⏳ In Design (`v1.3`)
+- **Status:** ✅ Delivered (`v1.3.0`)
 - **Priority:** High (**P1.5** — Direct countermeasure against LLM-driven autonomous offensive frameworks)
 - **Context & Threat Model:** Agentic offensive frameworks (such as **ARTEX**) decompose natural-language intrusion goals into sub-tasks executed at machine speed (*Machine-Speed Kill Chain* `< 3h`) by autonomous *Agent Workers*. Unlike static scanners, they parse HTTP `403` error bodies to mutate payloads, target API business logic (**BOLA / IDOR**, OpenAPI/GraphQL schemas), validate blind exploits via **OAST** relays (`interact.sh`), and chain stolen session tokens.
 - **Technical Plan (6 "Anti-Artex" Defense Bricks):**
