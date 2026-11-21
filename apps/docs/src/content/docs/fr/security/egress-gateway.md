@@ -63,12 +63,19 @@ L'émergence des agents d'intelligence artificielle autonomes (outils de code, a
 * **Exfiltration par Injection Indirecte de Prompt** : Un pirate force un agent IA à lire une page web piégée qui lui ordonne d'exfiltrer les clés d'API vers un serveur tiers via une requête web ou une balise Markdown image.
 * **Appels d'outils incontrôlés (*Rogue Tool Calls*)** : Aegis Egress restreint strictement les destinations sortantes des conteneurs d'agents aux seuls domaines d'API validés (Zero-Trust Egress Policy).
 
+### 5. Verrou #1 : Confinement Réseau Strict & Neutralisation des Sockets IP Brutes
+Pour empêcher les attaquants ou les agents compromis de contourner complètement la couche DNS en initiant directement des connexions sur des adresses IP brutes :
+* **Liste Blanche Dynamique DNS-vers-IP (`DnsToIpAllowlist`)** : Toute adresse IP externe contactée doit impérativement correspondre à un nom de domaine valide, résolu et approuvé par CoreDNS dans une fenêtre temporelle glissante de 60 secondes (cache TTL).
+* **Interception des Sockets IP Brutes** : Toute tentative d'ouverture de socket TCP/UDP directe vers une IP externe inconnue sans résolution DNS préalable est immédiatement interrompue avec l'alerte SOC haute priorité : `RAW_IP_REVERSE_SHELL_BLOCKED`.
+
 ---
 
-## ⚡ Inférence Frugale Locale : Modèle Nimble 9B
+## ⚡ Inférence Frugale Locale : Modèle Nimble 9B & Micro-SLM
 
-Pour analyser les domaines inconnus sans transférer les métadonnées de l'entreprise vers des API tierces étrangères, Aegis intègre le modèle compact **Nimble 9B** :
+Pour analyser les domaines inconnus sans transférer les métadonnées de l'entreprise vers des API tierces étrangères, Aegis intègre un modèle de langage souverain compact :
 * **Auto-hébergement souverain** : Exécuté localement via le conteneur `ollama-nimble` inclus dans la composition Docker.
+* **Résilience d'Initialisation des Modèles** : Sélection automatique du micro-modèle `qwen2.5:0.5b` sous l'alias `nimble`, assurant une disponibilité immédiate et pérenne face aux évolutions de schémas des versions récentes d'Ollama.
+* **Repli Zéro-Trust Déterministe** : En cas d'indisponibilité transitoire du micro-SLM, le moteur bascule instantanément sur l'analyse locale d'entropie de Shannon et le scoring de réputation TLD, garantissant une étanchéité totale sans ouverture de flux.
 * **Aucune dépendance cloud** : Les requêtes ne sortent jamais du serveur hôte, garantissant la conformité stricte avec les exigences de souveraineté des données de l'ANSSI.
 * **Inférence rapide** : Décision en moins de 50 ms grâce à un arbre de décision optimisé et un cache LRU en mémoire.
 

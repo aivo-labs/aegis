@@ -62,16 +62,24 @@ Aegis completely eliminates token-theft vulnerabilities resulting from malicious
 * The `apps/gate-proxy/src/bff` module intercepts `/api/auth/*` routes, negotiates standardized OIDC with **PKCE (RFC 7636)** verification, and issues an encrypted **AES-256-GCM**, `HttpOnly`, `SameSite=Strict`, `Secure` session cookie to the browser.
 * Upstream of internal microservices, Aegis Gate decrypts the session and injects certified identity headers (`X-Aegis-User-Id`, `X-Aegis-User-Role`, `X-Aegis-Tenant-Id`).
 
-### 2. Recursive Canonicalization & Evasion Resistance
-Attackers frequently use obfuscation to evade pattern-matching filters (multi-encoding `%252e%252e%252f`, null bytes `%00`, mixed UTF-8 sequences).
-* The engine recursively de-canonicalizes all URI paths, query strings, headers, and bodies until reaching a stable, raw canonical representation.
-* Automatic stripping of null bytes and neutralization of inline SQL comments (`/**/`).
+### 2. Multi-Encoding Canonicalization & Anti-Obfuscation (Lock #2)
+Attackers frequently use nested obfuscation to evade pattern-matching filters (multi-encoding `%252e%252e%252f`, null bytes `%00`, mixed UTF-8 sequences, HTML entities, and Base64 wrappers).
+* **Recursive 3-Pass Decoding**: The engine recursively canonicalizes all URI paths, query strings, headers, and bodies until reaching a stable, raw representation.
+* **Entity & Escape Normalization**: Strips null bytes, decodes named, decimal, and hex HTML entities (`&quot;`, `&#x27;`), and resolves Hex/Unicode escapes (`\x..`, `\u....`, `%u....`).
+* **Path Sanitization**: Strictly normalizes path separators (`/./`, `//`, Windows `\`) prior to directory traversal inspection.
+* **Automatic Base64 Ingestion**: Suspect base64 segments (`>= 16` alphanumeric characters with valid padding) are decoded on the fly and inspected as primary payloads.
 
-### 3. Volumetric Protection & RFC 413 Overflow Defense
-* Aegis Gate enforces a strict hardware cut-off on the incoming request body size (configurable via `AEGIS_MAX_PAYLOAD_BYTES`, defaulting to `32,768 bytes` or 32 KB).
-* If an incoming request exceeds this limit, the gateway halts transfer immediately and responds with `HTTP 413 Payload Too Large`, preventing RAM exhaustion and neutralizing buffer overflow exploits.
+### 3. Volumetric Rate-Limiting & Automated Auto-Jail (Lock #3)
+Aegis Gate protects upstreams against brute-force attacks and high-speed fuzzing:
+* **Sliding-Window Volumetric Limiter**: Enforces a strict budget of **60 requests per 10 seconds** per client IP, returning `HTTP 429 Too Many Requests` with a compliant `Retry-After: 10` header.
+* **15-Minute Automated Auto-Jail**: Any unauthenticated IP accumulating **3 critical offenses** (`risk_score >= 90`) within **5 minutes** is automatically quarantined in the persistent blacklist for 15 minutes (`AUTO_JAIL_TEMPORARY_QUARANTINE`), synced to the Go Control Plane and visible in the Cockpit.
 
-### 4. Shannon Entropy Engine
+### 4. HTTP Protocol Hardening & RFC 413 / 431 Defense (Lock #4)
+* **Header Budgets (`HTTP 431`)**: Requests exceeding `8 KB` total header size, `4 KB` for an individual header, or containing over `64` headers are blocked with `HTTP 431 Request Header Fields Too Large`.
+* **Volumetric Body Cap (`HTTP 413`)**: Enforces a strict cut-off on the incoming request body size (configurable via `AEGIS_MAX_PAYLOAD_BYTES`, defaulting to `32 KB`), halts transfer immediately with `HTTP 413 Payload Too Large`, and defends against compression bombs.
+* **Multipart RFC Validation**: Validates `multipart/form-data` boundary formatting, bounds nested boundary recursion depth (`<= 3`), and blocks executable upload extensions (`.php`, `.phtml`, `.phar`, `.sh`).
+
+### 5. Shannon Entropy Engine
 * Computing Shannon entropy $H(X) = -\sum P(x) \log_2 P(x)$ quantifies information density across URI segments and request bodies.
 * Any string exhibiting an entropy value greater than **3.85** over a significant character length instantly indicates an injected compiled binary, base64-obfuscated shellcode, or cryptographic key exfiltration attempt.
 
