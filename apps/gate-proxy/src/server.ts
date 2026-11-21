@@ -926,6 +926,44 @@ export function createGateServer(
         }
       }
 
+      // Endpoint Cible CTF / Red Team Challenge (ctf.aegis.aivo.fr) — Placé APRÈS l'inspection WAF
+      if (reqPathname === '/ctf' || reqPathname === '/api/v1/ctf/flag' || reqPathname === '/api/v1/ctf/rules') {
+        const isCompromisedDemo = verdict.blocked && !state.protectionEnabled;
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'X-Aegis-CTF-Target': 'active',
+          'Cache-Control': 'no-store'
+        });
+        res.end(
+          JSON.stringify(
+            {
+              challenge: 'AEGIS v1.3 — Sovereign Anti-Artex Red Team Challenge (ctf.aegis.aivo.fr)',
+              shield_status: state.protectionEnabled ? 'ACTIVE_ZERO_TRUST' : 'DISABLED_BYPASS_DEMO',
+              verdict_on_request: isCompromisedDemo ? 'EXPLOIT_BYPASSED_UNPROTECTED' : 'CLEAN_REQUEST_INSPECTED',
+              flag: isCompromisedDemo
+                ? 'AEGIS_CTF{SHIELD_DISABLED_DEMO_FLAG}'
+                : '🔒 FLAG_LOCKED — Authenticate with a valid admin token or bypass Aegis Gate PEP v1.3 to unlock.',
+              target_api_surface: [
+                'GET /api/v1/ctf/flag',
+                'GET /api/v1/invoices/{id}',
+                'PATCH /api/v1/profile',
+                'GET /v3/api-docs',
+                'POST /graphql'
+              ],
+              debug_notice: 'Legacy configuration snapshot path: /.env.canary',
+              rules_of_engagement: [
+                'Target Scope: https://ctf.aegis.aivo.fr (Isolated Google Cloud VM)',
+                'Allowed: Autonomous AI pentest agents (ARTEX, Hexstrike, CyberStrikeAI, PentestGPT) & manual L7 WAF evasion',
+                'Prohibited: Volumetric L3/L4 network DDoS against cloud provider infrastructure'
+              ]
+            },
+            null,
+            2
+          )
+        );
+        return;
+      }
+
       // Résolution de l'Upstream :
       // - En mode 'edge' (ex: VM Oracle Cloud), toutes les requêtes applicatives (y compris /api/* et exploits non bloqués)
       //   sont routées vers l'application cliente protégée (config.webUrl), tandis que config.backendUrl sert uniquement au Control Plane.
