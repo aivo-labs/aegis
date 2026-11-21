@@ -67,6 +67,23 @@ In Kubernetes environments, Aegis integrates with **Kepler (Kubernetes Efficient
 On virtualized instances where hardware MSR registers are hidden by the hypervisor:
 * Samples raw CPU cycle counters directly from `/proc/stat` (`user`, `system`, `iowait`, `idle`).
 * Applies a continuous thermodynamic formula calibrated to the VM hardware profile (baseline idle consumption from 12 W up to 48 W under full load per vCPU).
+* **Strict CPU Clamping**: Bound mathematically within `[0.0, 100.0]%` to eliminate telemetry spikes caused by hypervisor timer drift or core frequency re-clocking.
+
+---
+
+## 🛡️ Host Intrusion Detection & Ingestion Resilience
+
+The Rust telemetry agent (`apps/telemetry-agent`) couples continuous energy monitoring with kernel-level security telemetry:
+
+### 1. Process Spawn Monitoring & Benign Worker Filtering
+The agent intercepts process fork/exec calls to detect host intrusion attempts in real time:
+* **Benign Worker Filtering (`is_benign_worker_child_cmd`)**: Distinguishes legitimate runtime wrapper commands (e.g. `node` spawning `sh -c dotenv -e ...`, package managers, bundlers) from hostile activity, eliminating false-positive P1 alerts.
+* **Adversarial Shell Interception**: Unsanctioned subshells (e.g. `nc -e /bin/sh`, reverse TCP connections, rogue `bash -i` spawns) immediately trigger emergency alerts in the Cockpit triage stream.
+
+### 2. High-Availability Ingestion & TimescaleDB DNS Failover
+To guarantee uncompromised metrics ingestion even during severe container network strain or DNS flapping:
+* **`/etc/hosts` Direct Resolution**: In Go backend ingestion pipelines, the pgx pool directly parses `/etc/hosts` to bypass transient Docker embedded DNS (`127.0.0.11:53`) SERVFAIL errors.
+* **Persistent IP Caching & KeepAlive**: Connection state is backed by 30s TCP keep-alives and cached last-known-good IP addresses, ensuring uninterrupted zero-loss energy ledgering.
 
 ---
 
