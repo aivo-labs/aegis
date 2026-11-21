@@ -315,5 +315,31 @@ test('Aegis Gate PEP — ForwardAuth Endpoint (/_aegis/verify)', async () => {
   assert.equal(blockedCode, 403, 'Malicious probe should return 403 via ForwardAuth');
   const blockJson = JSON.parse(blockedBody);
   assert.equal(blockJson.verdict, 'BLOCKED');
+
+  // 3. Test de non-régression : Requête d'attaque testée depuis l'IP admin SOC -> Doit être bloquée (403)
+  let adminBlockedCode = 0;
+  let adminBlockedBody = '';
+  const mockResAdminBlock: any = {
+    setHeader: () => {},
+    writeHead: (c: number) => { adminBlockedCode = c; },
+    end: (d: string) => { adminBlockedBody = d; },
+  };
+  const mockReqAdminBlock: any = {
+    url: '/_aegis/verify',
+    method: 'GET',
+    headers: {
+      'x-forwarded-method': 'GET',
+      'x-forwarded-uri': '/.env',
+      'x-forwarded-host': 'nicolas.baud.dev',
+      'x-forwarded-for': '92.157.163.164',
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+    on: () => {},
+  };
+  server.emit('request', mockReqAdminBlock, mockResAdminBlock);
+  assert.equal(adminBlockedCode, 403, 'Admin pentest probe must still be blocked by ForwardAuth');
+  const adminBlockJson = JSON.parse(adminBlockedBody);
+  assert.equal(adminBlockJson.verdict, 'BLOCKED');
+  assert.equal(adminBlockJson.threat_detected, 'PATH_TRAVERSAL_LFI');
 });
 
