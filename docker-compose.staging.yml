@@ -43,6 +43,8 @@ services:
     depends_on:
       timescaledb:
         condition: service_healthy
+    links:
+      - timescaledb:timescaledb
 
   # 3. PASSERELLE SORTANTE EGRESS STAGING
   egress-gateway:
