@@ -341,5 +341,30 @@ test('Aegis Gate PEP — ForwardAuth Endpoint (/_aegis/verify)', async () => {
   const adminBlockJson = JSON.parse(adminBlockedBody);
   assert.equal(adminBlockJson.verdict, 'BLOCKED');
   assert.equal(adminBlockJson.threat_detected, 'PATH_TRAVERSAL_LFI');
+
+  // 4. Passerelle Docker interne (172.17.0.1) : Bloque 4 attaques consécutives sans auto-bannir la passerelle
+  for (let i = 0; i < 4; i++) {
+    let gwCode = 0;
+    const mockResGw: any = {
+      setHeader: () => {},
+      writeHead: (c: number) => { gwCode = c; },
+      end: () => {},
+    };
+    const mockReqGw: any = {
+      url: '/_aegis/verify',
+      method: 'GET',
+      headers: {
+        'x-forwarded-method': 'GET',
+        'x-forwarded-uri': '/.env',
+        'x-forwarded-host': 'aivo.fr',
+        'x-forwarded-for': '172.17.0.1',
+      },
+      socket: { remoteAddress: '172.17.0.1' },
+      on: () => {},
+    };
+    server.emit('request', mockReqGw, mockResGw);
+    assert.equal(gwCode, 403, `Docker gateway attack #${i + 1} must be blocked`);
+  }
+  assert.equal(ipRep.isBanned('172.17.0.1'), false, 'Docker bridge gateway 172.17.0.1 must never be auto-jailed');
 });
 

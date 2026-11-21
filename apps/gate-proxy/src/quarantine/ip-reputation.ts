@@ -41,7 +41,29 @@ export interface IIpReputationManager {
   getQuarantineEntries?(): QuarantineEntry[];
 }
 
-const EXEMPT_IPS = new Set(['127.0.0.1', '::1', 'localhost', '198.51.100.10']);
+const BASE_EXEMPT_IPS = new Set(['127.0.0.1', '::1', 'localhost', '198.51.100.10']);
+const DOCKER_BRIDGE_GATEWAY_REGEX = /^172\.(?:1[6-9]|2\d|3[01])\.\d+\.1$/;
+
+/**
+ * Vérifie si une IP est exemptée d'Auto-Jail et de Rate-Limiting global :
+ * - Loopback & IP administrateur SOC (198.51.100.10 + AEGIS_ADMIN_IPS)
+ * - Passerelles de bridge Docker (ex: 172.17.0.1, 172.18.0.1) utilisées lors du NAT IPv6->IPv4,
+ *   afin d'éviter qu'un attaquant passant par la passerelle ne bloque l'ensemble du bridge.
+ * Note : Les payloads malveillants restent systématiquement bloqués (HTTP 403) par l'inspecteur WAF.
+ */
+export function isExemptIp(ip: string): boolean {
+  const cleanIp = (ip || '').trim();
+  if (!cleanIp) return true;
+  if (BASE_EXEMPT_IPS.has(cleanIp)) return true;
+  if (DOCKER_BRIDGE_GATEWAY_REGEX.test(cleanIp)) return true;
+  const envAdmins = process.env.AEGIS_ADMIN_IPS;
+  if (envAdmins) {
+    for (const entry of envAdmins.split(',')) {
+      if (entry.trim() === cleanIp) return true;
+    }
+  }
+  return false;
+}
 
 export class IpReputationManager implements IIpReputationManager {
   private readonly bannedEntries = new Map<string, QuarantineEntry>();
@@ -169,7 +191,7 @@ export class IpReputationManager implements IIpReputationManager {
    */
   public checkRateLimit(ip: string, now = Date.now()): RateLimitResult {
     const cleanIp = (ip || '').trim();
-    if (!cleanIp || EXEMPT_IPS.has(cleanIp)) {
+    if (!cleanIp || isExemptIp(cleanIp)) {
       return {
         limited: false,
         count: 1,
@@ -205,7 +227,7 @@ export class IpReputationManager implements IIpReputationManager {
     now = Date.now()
   ): AutoJailResult {
     const cleanIp = (ip || '').trim();
-    if (!cleanIp || EXEMPT_IPS.has(cleanIp) || riskScore < 90) {
+    if (!cleanIp || isExemptIp(cleanIp) || riskScore < 90) {
       return { autoJailed: false, offensesCount: 0 };
     }
 
