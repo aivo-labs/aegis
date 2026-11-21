@@ -64,6 +64,9 @@ services:
     depends_on:
       - backend
       - ollama-nimble
+    links:
+      - backend:backend
+      - ollama-nimble:ollama-nimble
 
   # 4. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE RUST (SCAPHANDRE / RGESN / RAPL)
   telemetry-agent:
@@ -82,6 +85,8 @@ services:
       POLL_INTERVAL_SECS: "5"
     depends_on:
       - backend
+    links:
+      - backend:backend
 
   # 5. MOTEUR IA SYSTEM ONE SOUVERAIN (OLLAMA / NIMBLE 9B LOCAL)
   ollama-nimble:
@@ -105,6 +110,8 @@ services:
       - "4321:80"
     depends_on:
       - backend
+    links:
+      - backend:backend
 
   # 7. PASSERELLE INGRESS PEP & WAF (OWASP TOP 10 & PENTEST INTERCEPTION)
   gate-proxy:
@@ -124,6 +131,9 @@ services:
     depends_on:
       - backend
       - web
+    links:
+      - backend:backend
+      - web:web
 
 volumes:
   aegis_pgdata:

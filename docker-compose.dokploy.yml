@@ -69,6 +69,9 @@ services:
       - dokploy-network
     depends_on:
       - backend
+    links:
+      - backend:backend
+      - ollama-nimble:ollama-nimble
 
   # 4. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE RUST (SCAPHANDRE / RAPL PHYSIQUE VPS)
   telemetry-agent:
@@ -91,6 +94,8 @@ services:
       - aegis-internal
     depends_on:
       - backend
+    links:
+      - backend:backend
 
   # 5. MOTEUR IA SYSTEM ONE SOUVERAIN (OLLAMA NIMBLE LOCAL)
   ollama-nimble:
@@ -115,6 +120,8 @@ services:
       - aegis-internal
     depends_on:
       - backend
+    links:
+      - backend:backend
 
   # 7. PASSERELLE INGRESS PEP & WAF (PURE BFF & VIRTUEL PATCHING)
   # Ce conteneur est rattaché à dokploy-network pour être joignable par aegis-cloud
@@ -144,6 +151,9 @@ services:
     depends_on:
       - backend
       - web
+    links:
+      - backend:backend
+      - web:web
 
   # 8. DOCUMENTATION OFFICIELLE (ASTRO STARLIGHT - PORTAIL SOUVERAIN)
   docs:
