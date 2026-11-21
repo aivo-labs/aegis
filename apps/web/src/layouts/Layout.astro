@@ -151,14 +151,16 @@ if (pathname.startsWith('/docs')) {
 					<!-- Lien vers Cockpit SOC -->
 					<a href="/app/" class="hover:text-emerald-400 transition-colors font-semibold text-slate-200 flex items-center gap-1.5">
 						<span>Cockpit SOC</span>
-						<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+						<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
 					</a>
 
 					<!-- Lien vers Démo Sandbox Replay -->
-					<a href="/demo" class="px-2.5 py-1 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/30 text-cyan-300 hover:text-white transition-all text-xs font-mono font-bold flex items-center gap-1.5 shadow-sm">
-						<span>🧪</span>
+					<a href="/demo" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 hover:text-emerald-300 transition-colors text-xs font-mono font-semibold flex items-center gap-1.5">
+						<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+							<polyline stroke-linecap="round" stroke-linejoin="round" points="4 17 10 11 4 5"/>
+							<line stroke-linecap="round" stroke-linejoin="round" x1="12" y1="19" x2="20" y2="19"/>
+						</svg>
 						<span>{lang === 'fr' ? 'Démo Sandbox' : 'Live Sandbox'}</span>
-						<span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
 					</a>
 
 					<!-- Lien direct Documentation -->
@@ -174,7 +176,7 @@ if (pathname.startsWith('/docs')) {
 						href="https://github.com/aivo-labs/aegis" 
 						target="_blank" 
 						rel="noopener noreferrer" 
-						class="w-9 h-9 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-all"
+						class="w-9 h-9 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-colors"
 						title="Source code on GitHub (AGPLv3)"
 					>
 						<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -182,14 +184,13 @@ if (pathname.startsWith('/docs')) {
 						</svg>
 					</a>
 
-					<!-- Sélecteur de Langue Dropdown avec Drapeaux (🇬🇧 / 🇫🇷) -->
+					<!-- Sélecteur de Langue Dropdown -->
 					<div class="relative group/lang">
 						<button 
 							type="button" 
-							class="h-9 px-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 flex items-center gap-1.5 text-xs font-mono text-slate-200 transition-colors cursor-pointer"
+							class="h-9 px-2.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 flex items-center gap-1.5 text-xs font-mono text-slate-200 transition-colors cursor-pointer"
 							aria-label={lang === 'fr' ? 'Changer de langue' : 'Switch language'}
 						>
-							<span class="text-sm leading-none">{lang === 'fr' ? '🇫🇷' : '🇬🇧'}</span>
 							<span class="font-bold">{lang === 'fr' ? 'FR' : 'EN'}</span>
 							<svg class="w-3.5 h-3.5 text-slate-400 group-hover/lang:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -198,32 +199,26 @@ if (pathname.startsWith('/docs')) {
 
 						<!-- Menu déroulant des langues -->
 						<div class="absolute right-0 top-full pt-2 w-36 opacity-0 invisible group-hover/lang:opacity-100 group-hover/lang:visible transition-all duration-200 z-50">
-							<div class="bg-slate-900/95 backdrop-blur-xl border border-slate-800 rounded-2xl p-1.5 shadow-2xl space-y-1 font-mono text-xs">
+							<div class="bg-slate-900/95 backdrop-blur-xl border border-slate-800 rounded-xl p-1.5 shadow-2xl space-y-1 font-mono text-xs">
 								<a 
 									href={enUrl} 
 									class:list={[
-										"flex items-center justify-between px-3 py-2 rounded-xl transition-colors",
+										"flex items-center justify-between px-3 py-2 rounded-lg transition-colors",
 										lang === 'en' ? "bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30" : "text-slate-300 hover:bg-slate-800 hover:text-white"
 									]}
 								>
-									<span class="flex items-center gap-2">
-										<span class="text-base leading-none">🇬🇧</span>
-										<span>English</span>
-									</span>
+									<span>EN · English</span>
 									{lang === 'en' && <span class="text-emerald-400 text-xs">✓</span>}
 								</a>
 
 								<a 
 									href={frUrl} 
 									class:list={[
-										"flex items-center justify-between px-3 py-2 rounded-xl transition-colors",
+										"flex items-center justify-between px-3 py-2 rounded-lg transition-colors",
 										lang === 'fr' ? "bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30" : "text-slate-300 hover:bg-slate-800 hover:text-white"
 									]}
 								>
-									<span class="flex items-center gap-2">
-										<span class="text-base leading-none">🇫🇷</span>
-										<span>Français</span>
-									</span>
+									<span>FR · Français</span>
 									{lang === 'fr' && <span class="text-emerald-400 text-xs">✓</span>}
 								</a>
 							</div>
@@ -231,12 +226,12 @@ if (pathname.startsWith('/docs')) {
 					</div>
 
 					<!-- Groupe Toggle Thème Clair/Sombre + Point d'interrogation (?) avec Tooltip -->
-					<div class="relative flex items-center bg-slate-900/90 border border-slate-800 rounded-xl p-0.5">
+					<div class="relative flex items-center bg-slate-900/90 border border-slate-800 rounded-lg p-0.5">
 						<button
 							type="button"
 							id="theme-toggle-btn"
 							onclick="toggleAegisTheme()"
-							class="w-8 h-8 rounded-lg text-sm text-slate-300 hover:text-emerald-400 flex items-center justify-center transition-colors cursor-pointer"
+							class="w-8 h-8 rounded-md text-sm text-slate-300 hover:text-emerald-400 flex items-center justify-center transition-colors cursor-pointer"
 							title={lang === 'fr' ? "Basculer entre thème sombre et clair" : "Switch between dark and light theme"}
 							aria-label="Toggle theme"
 						>
@@ -247,15 +242,14 @@ if (pathname.startsWith('/docs')) {
 						<div class="relative group/tooltip">
 							<button
 								type="button"
-								class="w-5 h-5 rounded-md bg-slate-800/80 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-300 font-mono text-[10px] font-bold flex items-center justify-center transition-colors cursor-help mr-0.5"
+								class="w-5 h-5 rounded bg-slate-800/80 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-300 font-mono text-[10px] font-bold flex items-center justify-center transition-colors cursor-help mr-0.5"
 								aria-label="RGESN info"
 							>
 								?
 							</button>
 
-							<div class="absolute right-0 top-full mt-2.5 w-72 p-3.5 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-emerald-500/40 shadow-2xl text-left opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none">
+							<div class="absolute right-0 top-full mt-2.5 w-72 p-3.5 rounded-xl bg-slate-900/95 backdrop-blur-xl border border-slate-700 shadow-2xl text-left opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-50 pointer-events-none">
 								<div class="flex items-center gap-2 text-xs font-bold text-emerald-300 font-mono mb-1">
-									<span>🍃</span>
 									<span>{t.rgesnTooltipTitle}</span>
 								</div>
 								<p class="text-[11px] text-slate-300 leading-relaxed font-sans">
@@ -268,10 +262,10 @@ if (pathname.startsWith('/docs')) {
 					<!-- Bouton Login Client / Partenaire -->
 					<a 
 						href={lang === 'fr' ? "/fr/login/" : "/login/"} 
-						class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-extrabold text-xs font-mono shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/35 transition-all active:scale-95 flex items-center gap-1.5"
+						class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs transition-colors flex items-center gap-1.5"
 					>
 						<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
 						</svg>
 						<span>{t.login}</span>
 					</a>

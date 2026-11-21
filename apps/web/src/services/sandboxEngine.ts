@@ -153,14 +153,45 @@ export function computeShannonEntropy(str: string, maxSampleSize = 512): Entropy
 }
 
 // -------------------------------------------------------------
-// 2. Canonicalisation Récursive Multi-Passes (Verrou Roadmap n°2)
+// 2. Canonicalisation Récursive Multi-Passes (Verrou Roadmap n°2 P1)
 // -------------------------------------------------------------
+const SANDBOX_HTML_ENTITIES: Record<string, string> = {
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&apos;': "'",
+  '&#39;': "'",
+  '&amp;': '&',
+  '&sol;': '/',
+  '&bsol;': '\\',
+  '&colon;': ':',
+  '&semi;': ';'
+};
+
+const SANDBOX_SUSPICIOUS_B64_REGEX =
+  /[\s;|&$`<>(){}[\]'"\\/]|(?:select|union|insert|update|delete|drop|sleep|benchmark|cat|whoami|curl|wget|bash|sh|python|perl|php|eval|system|exec|jndi|ldap|rmi|passwd|shadow|allow_url_include|auto_prepend_file)/i;
+
+function decodeBase64Universal(b64: string): string | null {
+  try {
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(b64, 'base64').toString('utf8');
+    }
+    if (typeof atob === 'function') {
+      return atob(b64);
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function canonicalizeInput(raw: string): CanonicalizationResult {
   const original = raw || '';
   let out = original;
   let passes = 0;
   let hasDecoded = false;
 
+  // 1. Décodage URL récursif (3 passes)
   for (let i = 0; i < 3; i++) {
     try {
       const dec = decodeURIComponent(out);
@@ -170,6 +201,67 @@ export function canonicalizeInput(raw: string): CanonicalizationResult {
       hasDecoded = true;
     } catch {
       break;
+    }
+  }
+
+  // 2. Décodage Hex (\x..) & Unicode (\u...., %u....)
+  const beforeHex = out;
+  out = out
+    .replace(/\\x([0-9a-fA-F]{2})/g, (full, hex) => {
+      const code = parseInt(hex, 16);
+      return code >= 32 && code <= 126 ? String.fromCharCode(code) : full;
+    })
+    .replace(/(?:\\u|%u)([0-9a-fA-F]{4})/gi, (full, hex) => {
+      const code = parseInt(hex, 16);
+      return code >= 32 && code <= 126 ? String.fromCharCode(code) : full;
+    });
+  if (out !== beforeHex) {
+    passes++;
+    hasDecoded = true;
+  }
+
+  // 3. Décodage des entités HTML
+  if (out.includes('&')) {
+    const beforeHtml = out;
+    out = out
+      .replace(/&(?:lt|gt|quot|apos|amp|sol|bsol|colon|semi|#39);/gi, m => SANDBOX_HTML_ENTITIES[m.toLowerCase()] || m)
+      .replace(/&#x([0-9a-fA-F]{1,4});?/g, (full, hex) => {
+        const code = parseInt(hex, 16);
+        return code >= 32 && code <= 126 ? String.fromCharCode(code) : full;
+      })
+      .replace(/&#(\d{1,5});?/g, (full, dec) => {
+        const code = parseInt(dec, 10);
+        return code >= 32 && code <= 126 ? String.fromCharCode(code) : full;
+      });
+    if (out !== beforeHtml) {
+      passes++;
+      hasDecoded = true;
+    }
+  }
+
+  // 4. Normalisation des séparateurs de chemin (/./, //, ..\)
+  out = out
+    .replace(/\.\.\\+/g, '../')
+    .replace(/\/(?:\.\/)+/g, '/')
+    .replace(/([^:])\/\/+/g, '$1/');
+
+  // 5. Décodage automatique des blocs Base64 suspects (>= 16 chars)
+  if (out.length >= 16) {
+    const b64Regex = /(?:^|[\s=:"'&?/,])([A-Za-z0-9+/]{16,}={0,2})(?=$|[\s"&',])/g;
+    let m: RegExpExecArray | null;
+    const decodedPayloads: string[] = [];
+    while ((m = b64Regex.exec(out)) !== null) {
+      const candidate = m[1];
+      if (candidate.length % 4 !== 0) continue;
+      const decoded = decodeBase64Universal(candidate);
+      if (decoded && /^[\x09\x0a\x0d\x20-\x7e]{8,}$/.test(decoded) && SANDBOX_SUSPICIOUS_B64_REGEX.test(decoded)) {
+        decodedPayloads.push(decoded);
+      }
+    }
+    if (decodedPayloads.length > 0) {
+      out = `${out} ${decodedPayloads.join(' ')}`;
+      passes++;
+      hasDecoded = true;
     }
   }
 

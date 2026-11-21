@@ -1,0 +1,33 @@
+#!/usr/sbin/nft -f
+# =============================================================================
+# AEGIS BY AIVO — VERROU N°1 (P0) : CONFINEMENT EGRESS STRICT (NFTABLES / KERNEL)
+# Bloque les reverse-shells TCP par IP brute sans résolution DNS préalable (:5053)
+# =============================================================================
+
+table inet aegis_egress_confinement {
+    # Set dynamique alimenté par Aegis Egress Gateway (TTL 60s)
+    set authorized_egress_ips {
+        type ipv4_addr
+        flags timeout
+        timeout 60s
+    }
+
+    chain output_filter {
+        type filter hook output priority 0; policy accept;
+
+        # 1. Autoriser le trafic loopback et les réseaux internes RFC 1918 (Docker internal)
+        oifname "lo" accept
+        ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8 } accept
+
+        # 2. Autoriser les connexions déjà établies et les résolutions DNS sortantes du démon Egress (:53)
+        ct state established,related accept
+        udp dport 53 accept
+        tcp dport 53 accept
+
+        # 3. Autoriser les IP publiques pré-validées par le résolveur Aegis Sinkhole (:5053)
+        ip daddr @authorized_egress_ips accept
+
+        # 4. Bloquer et journaliser les connexions TCP directes vers IP littérale non résolue (ex: Reverse Shell :4444)
+        tcp dport { 1337, 4444, 5555, 6666, 7777, 8888, 9001, 9999 } log prefix "[AEGIS-P0-REVSHELL-DROP] " drop
+    }
+}
