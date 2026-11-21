@@ -20,6 +20,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [1.2.0] — 2026-11-21 (Tag `v1.2.0` on `main`)
+
+### Added
+- **Lock #1 (P0 Critical) — Strict Egress Network Confinement & Anti-Reverse Shell DNS-to-IP Allowlist**:
+  - Added [`apps/egress-gateway/src/engine/ip-allowlist.ts`](apps/egress-gateway/src/engine/ip-allowlist.ts) (`DnsToIpAllowlist` with 60s TTL) and `POST /api/v1/egress/verify-connection` in [`tcp-server.ts`](apps/egress-gateway/src/http/tcp-server.ts), blocking direct raw-IP callbacks (`RAW_IP_REVERSE_SHELL_BLOCKED`) and unapproved outbound IP sockets (`UNRESOLVED_DIRECT_IP_EGRESS_BLOCKED`).
+  - Segmented Docker networks in [`docker-compose.yml`](docker-compose.yml) and [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) (`aegis-internal` with `internal: true` + `aegis-edge`) and added host nftables policy [`deploy/security/egress-lockdown.nft`](deploy/security/egress-lockdown.nft).
+- **Lock #2 (P1 High) — Multi-Encoding Anti-Obfuscation Canonicalization (Base64 / HTML / Hex / Path)**:
+  - Upgraded [`apps/gate-proxy/src/engine/canonicalizer.ts`](apps/gate-proxy/src/engine/canonicalizer.ts) and [`apps/web/src/services/sandboxEngine.ts`](apps/web/src/services/sandboxEngine.ts) with HTML entity decoding (named, decimal, hex), Hex/Unicode escapes (`\x..`, `\u....`, `%u....`), path separator normalization (`/./`, `//`, `\`), and automatic Base64 payload extraction and decoding (`>= 16` chars).
+- **Lock #3 (P1 High) — Volumetric Rate-Limiting (`HTTP 429`) & Automated 15-Minute IP Auto-Jail**:
+  - Added sliding-window rate limiting (`60 req / 10s` per IP with `Retry-After: 10`) and automated **15-minute Auto-Jail** (`AUTO_JAIL_TEMPORARY_QUARANTINE`) after `3` critical WAF blocks (`risk_score >= 90`) within `5` minutes in [`apps/gate-proxy/src/quarantine/ip-reputation.ts`](apps/gate-proxy/src/quarantine/ip-reputation.ts), synced with the Go Control Plane (`ttlMinutes` / `expires_at`).
+- **Lock #4 (P1 High) — HTTP Protocol Hardening (`HTTP 431`), Multipart RFC & Rust Anti-Spawn Shell Probe**:
+  - Enforced HTTP header limits (`> 8 KB` total, `> 4 KB` single header, or `> 64` headers returning `HTTP 431`), `multipart/form-data` RFC boundary & nesting validation (`<= 3` depth, blocking executable upload extensions `.php`, `.phtml`, `.phar`, `.sh`), and multi-encoding compression-bomb chaining detection in [`apps/gate-proxy/src/engine/inspector.ts`](apps/gate-proxy/src/engine/inspector.ts).
+  - Added Rust procfs collector [`apps/telemetry-agent/src/collector/process_spawn.rs`](apps/telemetry-agent/src/collector/process_spawn.rs) scanning `/host/proc` and `/proc` to detect child shells (`sh`, `bash`, `nc`, `curl`, `python`, `socat`) spawned by web workers (`php-fpm`, `node`, `nginx`, `caddy`).
+- **Lock #5 (P1 High) — Continuous Scheduled Posture Audits, Drift Detection & Guided Remediation Wizard**:
+  - Added `GET/POST /api/v1/audit/schedule`, automated posture drift detection (`EvaluatePostureDrift`), and ready-to-deploy hardening snippets (`GenerateGuidedRemediationSnippets` for Traefik, Nginx, Caddy, and Apache/`php.ini`) in [`audit_service.go`](apps/backend/internal/service/audit_service.go) and [`AuditPanel.vue`](apps/web/src/components/soc/actions/AuditPanel.vue).
+
+### Changed
+- **"Aegis Sovereign Precision" UI/UX Redesign (Eliminating the AI-Generated Aesthetic)**:
+  - Created monochrome vector SVG icon component [`AegisIcon.vue`](apps/web/src/components/soc/AegisIcon.vue) (`stroke-width: 1.75px`) replacing raw Unicode emojis across the SOC Cockpit and Landing Page.
+  - Enforced strict `90/5/5` chromatic restraint (`slate-950`/`slate-900` surfaces, `1px` `slate-800` hairlines, unified `emerald-400` brand accent, semantic alert colors reserved strictly for active telemetry), tightened border radii (`rounded-lg` = `8px`), applied dual typography (`font-sans` for UI labels and prose; `font-mono tabular-nums` for metrics, IPs, CVEs, and Watts), and removed promotional slogans from the operational Cockpit.
+
+---
+
 ## [1.1.0] — 2026-11-15 (Tag `v1.1.0` on `main`)
 
 ### Added

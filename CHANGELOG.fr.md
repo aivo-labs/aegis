@@ -20,6 +20,29 @@ Le format suit le standard [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 
 ---
 
+## [1.2.0] — 2026-11-21 (Tag `v1.2.0` sur `main`)
+
+### Ajouté (Added)
+- **Verrou n°1 (P0 Critique) — Confinement Réseau Egress Strict & Allowlist DNS-to-IP Anti-Reverse Shell** :
+  - Ajout du moteur [`apps/egress-gateway/src/engine/ip-allowlist.ts`](apps/egress-gateway/src/engine/ip-allowlist.ts) (`DnsToIpAllowlist` avec TTL de 60s) et de l'endpoint `POST /api/v1/egress/verify-connection` dans [`tcp-server.ts`](apps/egress-gateway/src/http/tcp-server.ts) bloquant toute tentative de callback TCP sortant sur adresse IP brute (`RAW_IP_REVERSE_SHELL_BLOCKED`) ou IP non préalablement résolue via `:5053` (`UNRESOLVED_DIRECT_IP_EGRESS_BLOCKED`).
+  - Segmentation réseau Docker dans [`docker-compose.yml`](docker-compose.yml) et [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) (`aegis-internal` en mode `internal: true` sans route Internet par défaut + `aegis-edge`) et politique [`deploy/security/egress-lockdown.nft`](deploy/security/egress-lockdown.nft).
+- **Verrou n°2 (P1 Haute) — Canonisation Multi-Encodage Anti-Évasion (Base64 / HTML / Hex / Chemins)** :
+  - Extension de [`apps/gate-proxy/src/engine/canonicalizer.ts`](apps/gate-proxy/src/engine/canonicalizer.ts) et [`apps/web/src/services/sandboxEngine.ts`](apps/web/src/services/sandboxEngine.ts) avec le décodage des entités HTML (nommées, décimales, hexadécimales), des séquences d'échappement Hex/Unicode (`\x..`, `\u....`, `%u....`), la normalisation des chemins (`/./`, `//`, `\`) et l'extraction + décodage automatique des charges Base64 suspectes (`>= 16` caractères).
+- **Verrou n°3 (P1 Haute) — Rate-Limiting Volumétrique (`HTTP 429`) & Quarantaine IP Automatique (`Auto-Jail 15 min`)** :
+  - Ajout d'un limiteur de débit à fenêtre glissante (`60 req / 10 s` par IP, en-tête `Retry-After: 10`) et d'une mise en quarantaine automatique de **15 minutes** (`AUTO_JAIL_TEMPORARY_QUARANTINE`) dès `3` offenses critiques (`risk_score >= 90`) en moins de `5` minutes dans [`apps/gate-proxy/src/quarantine/ip-reputation.ts`](apps/gate-proxy/src/quarantine/ip-reputation.ts), synchronisée avec le Control Plane Go (`ttlMinutes` / `expires_at`).
+- **Verrou n°4 (P1 Haute) — Durcissement Protocole HTTP (`HTTP 431`), Multipart RFC & Sonde Rust Anti-Spawn Shell** :
+  - Plafonnement des en-têtes HTTP (`> 8 Ko` total, `> 4 Ko` par en-tête ou `> 64` en-têtes → `HTTP 431`), validation RFC `multipart/form-data` (profondeur `<= 3`, rejet d'extensions exécutables `.php`, `.phtml`, `.phar`, `.sh`) et blocage des chaînes `Content-Encoding` suspectes dans [`apps/gate-proxy/src/engine/inspector.ts`](apps/gate-proxy/src/engine/inspector.ts).
+  - Ajout du collecteur Rust [`apps/telemetry-agent/src/collector/process_spawn.rs`](apps/telemetry-agent/src/collector/process_spawn.rs) inspectant `/host/proc` et `/proc` pour détecter tout shell enfant (`sh`, `bash`, `nc`, `curl`, `python`, `socat`) engendré par un worker web (`php-fpm`, `node`, `nginx`, `caddy`).
+- **Verrou n°5 (P1 Haute) — Audits de Posture Continus Planifiés, Détection de Dérive & Assistant de Remédiation Guidée** :
+  - Ajout des endpoints `GET/POST /api/v1/audit/schedule`, de l'évaluation de dérive (`EvaluatePostureDrift`) et du générateur d'extraits de durcissement (`GenerateGuidedRemediationSnippets` pour Traefik, Nginx, Caddy et Apache/`php.ini`) dans [`audit_service.go`](apps/backend/internal/service/audit_service.go) et [`AuditPanel.vue`](apps/web/src/components/soc/actions/AuditPanel.vue).
+
+### Modifié (Changed)
+- **Refonte UI/UX « Aegis Sovereign Precision » (Élimination de l'esthétique « Vibe Codé »)** :
+  - Création du système d'icônes vectorielles monochromes [`AegisIcon.vue`](apps/web/src/components/soc/AegisIcon.vue) (`stroke-width: 1.75px`) remplaçant l'ensemble des emojis Unicode dans le Cockpit SOC et la Landing Page.
+  - Application de la discipline chromatique `90/5/5` (surfaces sobres `slate-950`/`slate-900`, bordures `1px` `slate-800`, accent unique `emerald-400`, couleurs sémantiques réservées aux alertes réelles), géométrie technique `rounded-lg` (`8px`), typographie duale (`font-sans` pour l'interface / `font-mono tabular-nums` pour les métriques, IP, CVE et Watts) et suppression des bandeaux promotionnels dans le Cockpit.
+
+---
+
 ## [1.1.0] — 2026-11-15 (Tag `v1.1.0` sur `main`)
 
 ### Ajouté (Added)
