@@ -20,7 +20,23 @@ Le format suit le standard [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 
 ---
 
-## [1.2.0] — 2026-11-21 (Tag `v1.2.0` sur `main`)
+## [1.2.2] — 2026-11-21 (Tag `v1.2.2` sur `main`)
+
+### Corrigé (Fixed)
+- **Failover DNS & Résolution `/etc/hosts` pour l'Ingestion TimescaleDB** :
+  - Résolution des erreurs SERVFAIL intermittentes du résolveur interne de Docker (`127.0.0.11:53`) dans le backend Go (`apps/backend/internal/database/pgwire.go`) via inspection directe de `/etc/hosts`, KeepAlive TCP de 30s et bascule d'exécution vers la dernière IP valide connue.
+  - Ajout des liaisons `links: - timescaledb:timescaledb` dans `docker-compose.yml`, `docker-compose.dokploy.yml` et `deploy/docker-compose/docker-compose.yml`.
+- **Requêtes de Secours pour les Métriques & Verrouillage Conditionnel du Cache** :
+  - Élimination des métriques vides dans le cockpit en intégrant des requêtes globales de repli dans `DashboardService` (`dashboard_service.go`) lorsque les requêtes par tenant retournent un ensemble vide, empêchant la mise en cache d'un état à 0.
+- **Filtrage des Spawns de Processus dans l'Agent de Télémétrie & Bornage CPU** :
+  - Implémentation du filtre `is_benign_worker_child_cmd` dans `apps/telemetry-agent` pour éliminer les faux positifs d'alerte P1 lors de l'exécution normale de scripts (`node`, `npm`, `dotenv`), tout en maintenant la neutralisation temps réel des shells hostiles (`nc`, `bash -i`).
+  - Encadrement strict de l'utilisation CPU dans `[0,0, 100,0]%` garantissant des calculs de Joules fiables.
+- **Résilience de l'Initialisation du Micro-SLM Ollama** :
+  - Configuration de l'alias vers `qwen2.5:0.5b` pour `nimble`, éliminant les erreurs HTTP 412 lors du pull des manifestes de modèles entre différentes versions d'Ollama.
+- **Contraste Thème Clair & Finitions UI Précision Souveraine** :
+  - Correction des contrastes dégradés (cartes gris sur gris, flux CVE) dans le Cockpit et harmonisation du design vectoriel SVG sur l'ensemble des pages.
+
+---
 
 ### Ajouté (Added)
 - **Verrou n°1 (P0 Critique) — Confinement Réseau Egress Strict & Allowlist DNS-to-IP Anti-Reverse Shell** :
