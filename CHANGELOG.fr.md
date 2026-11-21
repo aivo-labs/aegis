@@ -20,6 +20,24 @@ Le format suit le standard [Keep a Changelog](https://keepachangelog.com/fr/1.1.
 
 ---
 
+## [1.3.0-beta] — 2026-11-21 (Tag `v1.3.0-beta` sur `main`)
+
+### Ajouté (Added)
+- **Verrou n°5-Bis (P1.5 Haute) — Bouclier Souverain « Anti-Artex » (Défense Contre le Pentest IA Autonome)** :
+  - **Sinkhole Egress OAST & Relais LOTC (`apps/egress-gateway`)** : Neutralisation `< 0,5 ms` des 19 infrastructures de callback d'exploitation aveugle (*Blind SSRF/RCE/XXE* : `*.interact.sh`, `*.oast.*`, `*.burpcollaborator.net`, `*.oastify.com`, `*.webhook.site`, `*.canarytokens.com`) et des tunnels d'exfiltration (`*.ngrok-free.app`, `*.trycloudflare.com`, `transfer.sh`).
+  - **Bouclier API Métier & Anti-BOLA/IDOR (`apps/gate-proxy/src/rules/anti-artex.rule.ts`, `ip-reputation.ts`)** : Verrouillage en production des schémas `/swagger*`, `/openapi.json`, `/api-docs*`, `/actuator*` et de l'introspection GraphQL (`__schema`) ; détection par fenêtre glissante de l'énumération séquentielle d'identifiants (`API_BOLA_IDOR_ENUMERATION`) ; blocage du *Mass Assignment* (`is_admin`, `user_role`, `__proto__`).
+  - **Démasquage des Workers IA Déguisés (`scanner.rule.ts`)** : Détection des signatures d'orchestrateurs IA (`artex`, `hexstrike`, `cyberstrike`, `pentestgpt`, `xbow`, `cairn`) et des incohérences d'empreinte protocole (`AI_AGENT_SPOOFED_BROWSER_FINGERPRINT` sur faux `User-Agent` Chrome/Edge sans `Sec-Ch-Ua` / `Sec-Fetch-Mode`).
+  - **Déception Cognitive Anti-LLM (`server.ts`)** : Mode `STEALTH_BLOCK` (`403` opaque privant le *Planner* LLM d'oracle d'apprentissage), **Tarpit adaptatif** (`3s` $\rightarrow$ `10s` $\rightarrow$ `25s`) et **Leurre Canary Honeypot (`/.env.canary`)** avec bannissement immédiat sur rejeu (`CANARY_TOKEN_TRIPWIRE_TRIGGERED`).
+  - **Context-Binding Cryptographique Pure BFF (`bff/session.ts`)** : Scellement de l'empreinte client (`User-Agent` + sous-réseau IP `/24` ou `/64`) dans le cookie `AES-256-GCM` contre le rejeu de sessions volées.
+
+### Corrigé (Fixed)
+- **Parité Complète Traefik ForwardAuth (`/_aegis/verify`) & Sécurité des Passerelles Bridge Docker** :
+  - Dissociation de l'exemption d'Auto-Jail (IP administrateur SOC et passerelles bridge Docker `172.16.0.0/12` en `.1`) et de l'interception WAF afin que tous les tests d'intrusion déclenchent systématiquement un blocage `HTTP 403` sans risque d'auto-bannissement collatéral.
+  - Parité complète de télémétrie (`BLOCK`, `BYPASS`, `ALLOW` avec dédoublonnage `X-Aegis-Verified`) et synchronisation des bannissements Auto-Jail avec TimescaleDB en mode ForwardAuth.
+  - Généralisation des directives `links` (`/etc/hosts`) sur l'ensemble des services dans tous les fichiers `docker-compose*.yml`.
+
+---
+
 ## [1.2.2-beta] — 2026-11-21 (Tag `v1.2.2-beta` sur `main`)
 
 ### Corrigé (Fixed)
