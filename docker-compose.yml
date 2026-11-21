@@ -76,6 +76,9 @@ services:
       - aegis-edge
     depends_on:
       - backend
+    links:
+      - backend:backend
+      - ollama-nimble:ollama-nimble
 
   # 4. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE RUST (SCAPHANDRE / RGESN / RAPL)
   telemetry-agent:
@@ -98,6 +101,8 @@ services:
       - aegis-internal
     depends_on:
       - backend
+    links:
+      - backend:backend
 
   # 5. MOTEUR IA SYSTEM ONE SOUVERAIN (OLLAMA / NIMBLE 9B LOCAL)
   ollama-nimble:
@@ -126,6 +131,8 @@ services:
       - aegis-internal
     depends_on:
       - backend
+    links:
+      - backend:backend
 
   # 7. PASSERELLE INGRESS PEP & WAF (OWASP TOP 10 & PENTEST INTERCEPTION)
   gate-proxy:
@@ -155,6 +162,9 @@ services:
     depends_on:
       - backend
       - web
+    links:
+      - backend:backend
+      - web:web
 
   # 8. DOCUMENTATION OFFICIELLE (ASTRO STARLIGHT - PROFIL OPTIONNEL)
   docs:
