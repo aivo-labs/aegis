@@ -2,12 +2,14 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { IWafInspector } from './engine/inspector.js';
-import type { IIpReputationManager } from './quarantine/ip-reputation.js';
+import { isExemptIp, type IIpReputationManager } from './quarantine/ip-reputation.js';
 import type { ITelemetryReporter } from './telemetry/reporter.js';
 import type { IProxyForwarder } from './proxy/forwarder.js';
 import type { GateConfig } from './config.js';
 import { BffAuthHandler } from './bff/auth-handler.js';
 import { extractSessionFromRequest } from './bff/session.js';
+
+const STATIC_OR_ASSET_REGEX = /\.(?:css|js|mjs|svg|png|jpg|jpeg|webp|gif|ico|woff2?|ttf|map)(?:\?|$)/i;
 
 export function getClientIp(req: IncomingMessage): string {
   const forwarded = req.headers['x-forwarded-for'];
@@ -249,15 +251,20 @@ export function createGateServer(
         '/';
       const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || getClientIp(req);
       const userAgent = (req.headers['user-agent'] as string) || 'unknown';
-      const targetHost =
+      const targetHost = (
         (req.headers['x-forwarded-host'] as string) ||
         (req.headers.host as string) ||
-        'unknown';
+        'unknown'
+      ).split(':')[0];
 
-      // Immunité totale pour les flux d'authentification BFF OIDC (/api/auth/*)
-      if (targetUri.startsWith('/api/auth/')) {
+      // Immunité totale pour les flux d'authentification BFF OIDC (/api/auth/*) & ingestion M2M
+      if (
+        targetUri.startsWith('/api/auth/') ||
+        targetUri.startsWith('/api/v1/gate/telemetry/') ||
+        targetUri.startsWith('/api/v1/agent/')
+      ) {
         res.writeHead(200, {
-          'X-Aegis-Verified': 'auth-flow',
+          'X-Aegis-Verified': 'auth-or-m2m-flow',
           'X-Aegis-Engine': 'Aegis Gate PEP',
           'X-Aegis-Client-IP': clientIp
         });
@@ -265,10 +272,10 @@ export function createGateServer(
         return;
       }
 
-      // Immunité d'accès pour l'administrateur SOC & IP VPS (unban préventif uniquement)
+      // Immunité d'accès pour l'administrateur SOC & passerelles Docker (unban préventif uniquement)
       const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret);
       const isAdminSession = session?.role === 'admin' || session?.role === 'secops';
-      const isImmuneIp = clientIp === '92.157.163.164' || clientIp === '127.0.0.1';
+      const isImmuneIp = isExemptIp(clientIp);
 
       const verdict = inspector.inspect(
         targetUri,
@@ -308,18 +315,46 @@ export function createGateServer(
             pattern: verdict.pattern,
             event_id: eventId,
             engine: 'Traefik ForwardAuth PEP',
-            host: targetHost
+            host: targetHost,
+            domain: targetHost
           }
         });
 
-        res.writeHead(statusCode, {
+        // Si l'IP vient de passer en Auto-Jail suite à cette infraction critique, synchroniser avec le Control Plane
+        if (verdict.threat_type !== 'BANNED_IP_BLACKLIST' && ipReputation.isBanned(clientIp)) {
+          fetch(`${config.backendUrl}/api/v1/dashboard/bans`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ip: clientIp,
+              reason: `Auto-Jail WAF (15 min) suite à répétition d'alertes critiques sur ${targetHost} (${verdict.threat_type})`,
+              source: 'AUTO_JAIL_WAF',
+              risk_score: 98,
+              ttl_minutes: 15
+            })
+          }).catch(() => {});
+        }
+
+        const blockHeaders: Record<string, string> = {
           'Content-Type': 'application/json',
           'X-Aegis-Decision': 'BLOCK',
           'X-Aegis-Threat': verdict.threat_type || 'SECURITY_THREAT'
-        });
+        };
+        if (statusCode === 429) {
+          blockHeaders['Retry-After'] = '10';
+        }
+
+        res.writeHead(statusCode, blockHeaders);
         res.end(JSON.stringify({
           status: statusCode,
-          error: 'Access Denied by Aegis Gate Zero-Trust PEP (Traefik ForwardAuth)',
+          error:
+            statusCode === 413
+              ? 'Payload Too Large — Blocked by Aegis Gate Virtual Patching'
+              : statusCode === 429
+                ? 'Too Many Requests — Volumetric Sliding-Window Rate Limit Exceeded'
+                : statusCode === 431
+                  ? 'Request Header Fields Too Large — Blocked by Aegis Protocol Hardening'
+                  : 'Access Denied by Aegis Gate Zero-Trust PEP (Traefik ForwardAuth)',
           verdict: 'BLOCKED',
           threat_detected: verdict.threat_type,
           severity: verdict.severity,
@@ -330,6 +365,67 @@ export function createGateServer(
           security_standard: 'ANSSI NIS 2 Hardened • Virtual Patching Active'
         }));
         return;
+      }
+
+      // CAS 1-BIS (ForwardAuth) : Attaque détectée mais bouclier désactivé -> journalisation BYPASS
+      if (verdict.blocked && !state.protectionEnabled) {
+        const eventId = `aegis-fwd-byp-${crypto.randomBytes(6).toString('hex')}`;
+        telemetry.send({
+          tenant_id: config.tenantId,
+          client_ip: clientIp,
+          user_agent: userAgent,
+          http_method: targetMethod,
+          request_uri: targetUri,
+          decision: 'BYPASS',
+          http_status_returned: 200,
+          latency_ms: 0.4,
+          threat_type: `${verdict.threat_type} [NON BLOQUÉ]`,
+          severity: 'CRITICAL',
+          risk_score: 100,
+          entropy: verdict.entropy,
+          matched_pattern: `⚠️ BOUCLIER DÉSACTIVÉ — Exploit transmis au serveur (${targetHost}) : ${verdict.pattern}`,
+          metadata: {
+            threat_type: `${verdict.threat_type} [NON BLOQUÉ]`,
+            severity: 'CRITICAL',
+            risk_score: 100,
+            entropy: verdict.entropy,
+            pattern: `⚠️ BOUCLIER DÉSACTIVÉ — Exploit transmis au serveur (${targetHost}) : ${verdict.pattern}`,
+            event_id: eventId,
+            host: targetHost,
+            domain: targetHost,
+            engine: '⚠️ Protection Désactivée (Traefik ForwardAuth)'
+          }
+        });
+      } else {
+        // CAS 2 (ForwardAuth) : Trafic conforme -> journalisation ALLOW (hors assets statiques & polling interne)
+        const isStaticOrPoll =
+          targetUri.startsWith('/_astro/') ||
+          targetUri === '/favicon.ico' ||
+          targetUri === '/favicon.svg' ||
+          targetUri.startsWith('/api/v1/dashboard/') ||
+          targetUri.startsWith('/_aegis/') ||
+          STATIC_OR_ASSET_REGEX.test(targetUri);
+        if (!isStaticOrPoll) {
+          telemetry.send({
+            tenant_id: config.tenantId,
+            client_ip: clientIp,
+            user_agent: userAgent,
+            http_method: targetMethod,
+            request_uri: targetUri,
+            decision: 'ALLOW',
+            http_status_returned: 200,
+            latency_ms: 0.3,
+            metadata: {
+              threat_type: 'CLEAN_TRAFFIC',
+              severity: 'COMPLIANT',
+              risk_score: 5,
+              entropy: verdict.entropy,
+              host: targetHost,
+              domain: targetHost,
+              engine: 'Traefik ForwardAuth PEP'
+            }
+          });
+        }
       }
 
       // Requête autorisée -> HTTP 200 avec headers transmis à l'application cible
@@ -456,10 +552,11 @@ export function createGateServer(
       const isImmuneIp =
         config.nodeMode === 'edge'
           ? false
-          : clientIp === '92.157.163.164' || clientIp === '127.0.0.1';
+          : isExemptIp(clientIp);
       const effectiveHost =
         config.nodeHostname ||
         ((req.headers['x-forwarded-host'] || req.headers.host || 'aegis.aivo.fr') as string).split(':')[0];
+      const alreadyVerifiedByForwardAuth = Boolean(req.headers['x-aegis-verified']);
 
       if (verdict.threat_type === 'BANNED_IP_BLACKLIST' && (isAdminSession || isImmuneIp)) {
         ipReputation.unban(clientIp);
@@ -563,42 +660,45 @@ export function createGateServer(
 
       // CAS 1-BIS : ATTAQUE DÉTECTÉE MAIS BOUCLIER DÉSACTIVÉ -> LAISSE PASSER VERS LA CIBLE
       if (verdict.blocked && !state.protectionEnabled) {
-        const eventId = `aegis-byp-${crypto.randomBytes(6).toString('hex')}`;
-        telemetry.send({
-          tenant_id: config.tenantId,
-          client_ip: clientIp,
-          user_agent: userAgent,
-          http_method: req.method || 'GET',
-          request_uri: req.url || '/',
-          decision: 'BYPASS',
-          http_status_returned: 200,
-          latency_ms: latency,
-          threat_type: `${verdict.threat_type} [NON BLOQUÉ]`,
-          severity: 'CRITICAL',
-          risk_score: 100,
-          entropy: verdict.entropy,
-          matched_pattern: `⚠️ BOUCLIER DÉSACTIVÉ — Exploit transmis au serveur : ${verdict.pattern}`,
-          metadata: {
+        if (!alreadyVerifiedByForwardAuth || effectiveBytes > 0) {
+          const eventId = `aegis-byp-${crypto.randomBytes(6).toString('hex')}`;
+          telemetry.send({
+            tenant_id: config.tenantId,
+            client_ip: clientIp,
+            user_agent: userAgent,
+            http_method: req.method || 'GET',
+            request_uri: req.url || '/',
+            decision: 'BYPASS',
+            http_status_returned: 200,
+            latency_ms: latency,
             threat_type: `${verdict.threat_type} [NON BLOQUÉ]`,
             severity: 'CRITICAL',
             risk_score: 100,
             entropy: verdict.entropy,
-            pattern: `⚠️ BOUCLIER DÉSACTIVÉ — Exploit transmis au serveur : ${verdict.pattern}`,
-            payload_bytes: effectiveBytes,
-            event_id: eventId,
-            host: effectiveHost,
-            node_hostname: config.nodeHostname || undefined,
-            node_mode: config.nodeMode || 'control-plane',
-            engine: '⚠️ Protection Désactivée (Serveur Exposé)'
-          }
-        });
-      } else {
-        // CAS 2 : TRAFIC CONFORME -> JOURNALISATION (hors assets statiques & polling interne)
+            matched_pattern: `⚠️ BOUCLIER DÉSACTIVÉ — Exploit transmis au serveur : ${verdict.pattern}`,
+            metadata: {
+              threat_type: `${verdict.threat_type} [NON BLOQUÉ]`,
+              severity: 'CRITICAL',
+              risk_score: 100,
+              entropy: verdict.entropy,
+              pattern: `⚠️ BOUCLIER DÉSACTIVÉ — Exploit transmis au serveur : ${verdict.pattern}`,
+              payload_bytes: effectiveBytes,
+              event_id: eventId,
+              host: effectiveHost,
+              node_hostname: config.nodeHostname || undefined,
+              node_mode: config.nodeMode || 'control-plane',
+              engine: '⚠️ Protection Désactivée (Serveur Exposé)'
+            }
+          });
+        }
+      } else if (!alreadyVerifiedByForwardAuth) {
+        // CAS 2 : TRAFIC CONFORME -> JOURNALISATION (hors assets statiques, polling interne & requêtes déjà journalisées par ForwardAuth)
         const isStaticOrPoll =
           (req.url || '').startsWith('/_astro/') ||
           req.url === '/favicon.ico' ||
           req.url === '/favicon.svg' ||
-          (req.url || '').startsWith('/api/v1/dashboard/');
+          (req.url || '').startsWith('/api/v1/dashboard/') ||
+          STATIC_OR_ASSET_REGEX.test(req.url || '');
         if (!isStaticOrPoll) {
           telemetry.send({
             tenant_id: config.tenantId,
