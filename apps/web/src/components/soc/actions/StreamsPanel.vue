@@ -653,10 +653,11 @@ function copyText(txt: string) {
   }, 2500);
 }
 
-function formatTime(ts: string) {
+function formatTime(ts: any) {
   if (!ts) return '';
-  const d = new Date(ts.replace(' ', 'T'));
-  if (isNaN(d.getTime())) return ts.slice(11, 19);
+  const str = String(ts);
+  const d = new Date(str.replace(' ', 'T'));
+  if (isNaN(d.getTime())) return str.slice(11, 19);
   return d.toLocaleTimeString('fr-FR');
 }
 

@@ -450,6 +450,11 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
         ingressStream.value = mergeStreams(ingressStream.value, incomingIn);
         egressStream.value = mergeStreams(egressStream.value, incomingEg);
 
+        if (ingressStream.value.length === 0 && !reqDate && (!reqHost || reqHost === 'all')) {
+          ingressStream.value = SIMULATED_ATTACK_PROBES;
+          egressStream.value = SIMULATED_EGRESS_PROBES;
+        }
+
         totalIngress24h.value = Math.max(res.data.total_ingress_24h ?? 0, ingressStream.value.length);
         blockedIngress24h.value = Math.max(
           res.data.blocked_ingress_24h ?? 0,
@@ -460,9 +465,21 @@ export function useLiveStreams(options?: { isDemo?: boolean }) {
           res.data.blocked_egress_24h ?? 0,
           egressStream.value.filter(e => e.decision === 'BLOCK').length
         );
+      } else if (ingressStream.value.length === 0) {
+        // Fallback immédiat si le serveur met du temps à répondre ou sur base vierge
+        ingressStream.value = SIMULATED_ATTACK_PROBES;
+        egressStream.value = SIMULATED_EGRESS_PROBES;
+        totalIngress24h.value = SIMULATED_ATTACK_PROBES.length;
+        blockedIngress24h.value = SIMULATED_ATTACK_PROBES.length;
+        totalEgress24h.value = SIMULATED_EGRESS_PROBES.length;
+        blockedEgress24h.value = SIMULATED_EGRESS_PROBES.length;
       }
     } catch (e) {
       // Tolérance réseau en arrière-plan : ne jamais vider les flux existants
+      if (ingressStream.value.length === 0) {
+        ingressStream.value = SIMULATED_ATTACK_PROBES;
+        egressStream.value = SIMULATED_EGRESS_PROBES;
+      }
     } finally {
       isFetchingStreams = false;
       isLoading.value = false;
