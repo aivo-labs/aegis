@@ -44,6 +44,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 		fmt.Sprintf(`INSERT INTO infrastructure_nodes (id, tenant_id, hostname, ip_address, provider, os_info, scaphandre_agent_version, status, updated_at)
 		VALUES ('00000000-0000-0000-0000-000000000002', '%s', 'aegis-sovereign-node', '127.0.0.1', 'ovhcloud', 'Linux KVM VPS (Kernel /proc/stat & RAPL)', 'v4.3.0', 'active', CURRENT_TIMESTAMP)
 		ON CONFLICT (tenant_id, hostname) DO UPDATE SET updated_at = CURRENT_TIMESTAMP;`, defaultTenantID),
+		`ALTER TABLE infrastructure_nodes DROP CONSTRAINT IF EXISTS infrastructure_nodes_provider_check;`,
 		`UPDATE infrastructure_nodes SET provider = 'ovhcloud' WHERE provider = 'scaleway';`,
 		`DELETE FROM infrastructure_nodes a USING infrastructure_nodes b WHERE a.id < b.id AND a.tenant_id = b.tenant_id AND a.hostname = b.hostname;`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS uq_nodes_tenant_host ON infrastructure_nodes(tenant_id, hostname);`,
