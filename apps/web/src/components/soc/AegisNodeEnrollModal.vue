@@ -213,14 +213,22 @@ async function copyCommand() {
 // Sondage périodique pour détecter l'apparition du nouveau nœud
 async function checkNodes() {
   try {
+    const targetHost = (serverId.value || '').trim().toLowerCase();
+    if (!targetHost) {
+      detectedNode.value = null;
+      return;
+    }
     const res = await fetch('/api/v1/nodes');
     if (res.ok) {
       const data = await res.json();
       if (data.nodes && data.nodes.length > 0) {
-        // Recherche d'un nœud correspondant ou récemment rapporté
-        const found = data.nodes.find(n => n.hostname === serverId.value) || data.nodes[0];
-        if (found && found.power_watts) {
+        const found = data.nodes.find(
+          n => (n.hostname || '').trim().toLowerCase() === targetHost
+        );
+        if (found && (found.power_watts || found.watts)) {
           detectedNode.value = found;
+        } else {
+          detectedNode.value = null;
         }
       }
     }

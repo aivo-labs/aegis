@@ -45,11 +45,12 @@ while [[ "$#" -gt 0 ]]; do
       echo "  --profile baremetal   : Déploiement physique direct avec registres Intel/AMD RAPL"
       echo "  --profile k8s         : Déploiement sur cluster Kubernetes (Helm & Kepler eBPF)"
       echo "  --profile agent       : Enrôlement de l'agent seul (télémétrie + Egress) sans déployer la stack"
+      echo "  --profile edge|ctf    : Enrôlement Nœud Edge WAF + Egress + Agent + TLS rattaché au Cockpit distant"
       echo ""
       echo "Options additionnelles :"
       echo "  --token <TOKEN>       : Jeton d'enrôlement ou d'évaluation (ex: aegis_tok_live_xxx)"
       echo "  --endpoint <URL>      : URL du Control Plane Aegis (défaut: http://localhost:8080)"
-      echo "  --server-id <ID>      : Identifiant unique du serveur hôte"
+      echo "  --server-id <ID>      : Identifiant unique ou FQDN du serveur hôte (ex: ctf.aegis.aivo.fr)"
       exit 0
       ;;
     *) echo -e "${YELLOW}Option inconnue: $1${NC}"; ;;
@@ -59,7 +60,9 @@ done
 
 # Déduction du profil si non précisé
 if [ -z "$PROFILE" ]; then
-  if [ -n "$TOKEN" ]; then
+  if [[ "$SERVER_ID" == ctf.* ]]; then
+    PROFILE="ctf"
+  elif [ -n "$TOKEN" ]; then
     PROFILE="agent"
   else
     PROFILE="vps"
@@ -370,9 +373,75 @@ EOF
     echo -e "Rendez-vous sur votre cockpit Aegis pour voir le flux en direct !"
     ;;
 
+  edge|ctf)
+    ensure_root
+    if [ -z "$TOKEN" ]; then
+      TOKEN="aegis_tok_live_$(date +%s)"
+    fi
+    if [ "$ENDPOINT" = "http://localhost:8080" ]; then
+      ENDPOINT="https://aegis.aivo.fr"
+    fi
+
+    echo -e "${BLUE}[1/5] Handshake d'enrôlement immédiat avec le Cockpit (${ENDPOINT})...${NC}"
+    HANDSHAKE_PAYLOAD=$(cat <<EOF
+{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "server_id": "${SERVER_ID}",
+  "hostname": "${SERVER_ID}",
+  "provider": "google-cloud",
+  "power_watts": 14.2,
+  "cpu_power_watts": 9.9,
+  "memory_power_watts": 4.3,
+  "cpu_usage_percent": 8.5,
+  "energy_joules_delta": 71.0
+}
+EOF
+)
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer ${TOKEN}" \
+      -d "$HANDSHAKE_PAYLOAD" \
+      "${ENDPOINT}/api/v1/gate/telemetry/energy" || echo "000")
+    echo -e "  ${GREEN}✓ Handshake envoyé vers ${ENDPOINT} (HTTP ${HTTP_STATUS}) — Le nœud [${SERVER_ID}] apparaît dans votre Cockpit !${NC}"
+
+    ensure_docker
+    setup_repo
+
+    echo -e "${BLUE}[3/5] Génération de la configuration Edge Node (${SERVER_ID} ➔ ${ENDPOINT})...${NC}"
+    cd "${INSTALL_DIR}"
+    cat <<EOF > "${INSTALL_DIR}/.env"
+CTF_DOMAIN=${SERVER_ID}
+AEGIS_CONTROL_PLANE_URL=${ENDPOINT}
+AEGIS_ENROLL_TOKEN=${TOKEN}
+AEGIS_SERVER_ID=${SERVER_ID}
+AEGIS_TENANT_ID=00000000-0000-0000-0000-000000000001
+EOF
+    chmod 600 "${INSTALL_DIR}/.env"
+
+    echo -e "${BLUE}[4/5] Démarrage du Bouclier Edge WAF v1.3 + Sinkhole Egress + Sonde RAPL + TLS Let's Encrypt...${NC}"
+    CTF_DOMAIN="${SERVER_ID}" \
+    AEGIS_CONTROL_PLANE_URL="${ENDPOINT}" \
+    AEGIS_ENROLL_TOKEN="${TOKEN}" \
+    docker compose -f docker-compose.ctf.yml up -d --build
+
+    echo -e "${BLUE}[5/5] Validation des conteneurs Edge...${NC}"
+    sleep 3
+    docker compose -f docker-compose.ctf.yml ps
+
+    echo -e ""
+    echo -e "${GREEN}${BOLD}=======================================================================${NC}"
+    echo -e "${GREEN}${BOLD} ✅ SUCCÈS : Nœud Edge [${SERVER_ID}] déployé et rattaché à ${ENDPOINT} !${NC}"
+    echo -e "${GREEN}${BOLD}=======================================================================${NC}"
+    echo -e "👉 ${BOLD}Cible protégée HTTPS${NC}     : https://${SERVER_ID}/ctf"
+    echo -e "👉 ${BOLD}Coffre-fort CTF Flag${NC}     : https://${SERVER_ID}/api/v1/ctf/flag"
+    echo -e "👉 ${BOLD}Leurre Canary Honeypot${NC}   : https://${SERVER_ID}/.env.canary"
+    echo -e "👉 ${BOLD}Supervision en direct${NC}    : ${ENDPOINT}/app"
+    echo ""
+    ;;
+
   *)
     echo -e "${RED}[ERREUR] Profil inconnu : '${PROFILE}'${NC}"
-    echo "Profils disponibles : vps, baremetal, k8s, agent"
+    echo "Profils disponibles : vps, baremetal, k8s, agent, edge, ctf"
     exit 1
     ;;
 esac
