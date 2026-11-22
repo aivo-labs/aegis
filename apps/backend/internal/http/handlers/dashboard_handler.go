@@ -95,6 +95,10 @@ func (h *DashboardHandler) Nodes(w http.ResponseWriter, r *http.Request) {
 		nodes = n
 	} else if n, ok := summary["monitored_nodes"].([]map[string]any); ok {
 		nodes = n
+	} else if soc, ok := summary["soc"].(map[string]any); ok {
+		if n, ok := soc["monitored_nodes"].([]map[string]any); ok {
+			nodes = n
+		}
 	} else if sec, ok := summary["security"].(map[string]any); ok {
 		if n, ok := sec["monitored_nodes"].([]map[string]any); ok {
 			nodes = n
