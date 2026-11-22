@@ -218,19 +218,28 @@ async function checkNodes() {
       detectedNode.value = null;
       return;
     }
+    let list = [];
     const res = await fetch('/api/v1/nodes');
     if (res.ok) {
       const data = await res.json();
-      if (data.nodes && data.nodes.length > 0) {
-        const found = data.nodes.find(
-          n => (n.hostname || '').trim().toLowerCase() === targetHost
-        );
-        if (found && (found.power_watts || found.watts)) {
-          detectedNode.value = found;
-        } else {
-          detectedNode.value = null;
-        }
+      if (Array.isArray(data.nodes) && data.nodes.length > 0) {
+        list = data.nodes;
       }
+    }
+    if (list.length === 0) {
+      const sumRes = await fetch('/api/v1/dashboard/summary');
+      if (sumRes.ok) {
+        const sumData = await sumRes.json();
+        list = sumData?.soc?.monitored_nodes || sumData?.monitored_nodes || [];
+      }
+    }
+    const found = list.find(
+      n => (n.hostname || n.service_name || '').trim().toLowerCase() === targetHost
+    );
+    if (found && (found.power_watts || found.watts)) {
+      detectedNode.value = found;
+    } else {
+      detectedNode.value = null;
     }
   } catch (e) {
     // offline
