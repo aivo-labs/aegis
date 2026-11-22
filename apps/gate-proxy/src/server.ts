@@ -70,13 +70,18 @@ export function createGateServer(
       return;
     }
 
-    // Exemption M2M (Control Plane) : les rapports de télémétrie et d'enrôlement envoyés par des nœuds distants
-    // (ex: VM Oracle Cloud) contiennent les URI/payloads d'attaques bloquées dans leur corps JSON et ne doivent
-    // jamais être auto-bloqués par le WAF du Control Plane.
+    // Exemption M2M (Control Plane) : les rapports de télémétrie, d'enrôlement et de synchronisation Auto-Jail
+    // envoyés par des nœuds Edge distants (ex: VM Google Cloud ctf.aegis.aivo.fr ou Oracle Cloud) contiennent
+    // les URI/payloads d'attaques bloquées dans leur corps JSON et ne doivent jamais être auto-bloqués ni rate-limités.
+    const isInternalM2mSync =
+      req.headers['x-aegis-internal'] === 'PEP-Ingress' || Boolean(req.headers['x-aegis-node']);
     if (
       config.nodeMode !== 'edge' &&
       req.url &&
-      (req.url.startsWith('/api/v1/gate/telemetry/') || req.url.startsWith('/api/v1/agent/'))
+      (req.url.startsWith('/api/v1/gate/telemetry/') ||
+        req.url.startsWith('/api/v1/agent/') ||
+        req.url.startsWith('/api/v1/protection/status') ||
+        (isInternalM2mSync && req.url.startsWith('/api/v1/dashboard/bans')))
     ) {
       const m2mChunks: Buffer[] = [];
       req.on('data', (chunk: Buffer) => m2mChunks.push(chunk));
@@ -269,11 +274,15 @@ export function createGateServer(
         'unknown'
       ).split(':')[0];
 
-      // Immunité totale pour les flux d'authentification BFF OIDC (/api/auth/*) & ingestion M2M
+      // Immunité totale pour les flux d'authentification BFF OIDC (/api/auth/*) & ingestion M2M (nœuds Edge distants)
+      const isInternalM2mHeader =
+        req.headers['x-aegis-internal'] === 'PEP-Ingress' || Boolean(req.headers['x-aegis-node']);
       if (
         targetUri.startsWith('/api/auth/') ||
         targetUri.startsWith('/api/v1/gate/telemetry/') ||
-        targetUri.startsWith('/api/v1/agent/')
+        targetUri.startsWith('/api/v1/agent/') ||
+        targetUri.startsWith('/api/v1/protection/status') ||
+        (isInternalM2mHeader && targetUri.startsWith('/api/v1/dashboard/bans'))
       ) {
         res.writeHead(200, {
           'X-Aegis-Verified': 'auth-or-m2m-flow',
@@ -390,15 +399,22 @@ export function createGateServer(
 
         // Si l'IP vient de passer en Auto-Jail suite à cette infraction critique, synchroniser avec le Control Plane
         if (verdict.threat_type !== 'BANNED_IP_BLACKLIST' && ipReputation.isBanned(clientIp)) {
+          const isCanaryBan = verdict.threat_type === 'CANARY_TOKEN_TRIPWIRE_TRIGGERED';
           fetch(`${config.backendUrl}/api/v1/dashboard/bans`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Aegis-Internal': 'PEP-Ingress',
+              'X-Aegis-Node': config.nodeHostname || targetHost
+            },
             body: JSON.stringify({
               ip: clientIp,
-              reason: `Auto-Jail WAF (15 min) suite à répétition d'alertes critiques sur ${targetHost} (${verdict.threat_type})`,
+              reason: isCanaryBan
+                ? `Piège Canary Anti-Artex déclenché sur ${targetHost} (Chaînage autonome de secret leurre)`
+                : `Auto-Jail WAF (15 min) suite à répétition d'alertes critiques sur ${targetHost} (${verdict.threat_type})`,
               source: 'AUTO_JAIL_WAF',
-              risk_score: 98,
-              ttl_minutes: 15
+              risk_score: isCanaryBan ? 100 : 98,
+              ttl_minutes: isCanaryBan ? 60 : 15
             })
           }).catch(() => {});
         }
@@ -771,15 +787,22 @@ export function createGateServer(
 
         // Si l'IP vient de passer en Auto-Jail suite à cette infraction critique, synchroniser avec le Control Plane
         if (verdict.threat_type !== 'BANNED_IP_BLACKLIST' && ipReputation.isBanned(clientIp)) {
+          const isCanaryBan = verdict.threat_type === 'CANARY_TOKEN_TRIPWIRE_TRIGGERED';
           fetch(`${config.backendUrl}/api/v1/dashboard/bans`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Aegis-Internal': 'PEP-Ingress',
+              'X-Aegis-Node': config.nodeHostname || effectiveHost
+            },
             body: JSON.stringify({
               ip: clientIp,
-              reason: `Auto-Jail WAF (15 min) suite à répétition d'alertes critiques (${verdict.threat_type})`,
+              reason: isCanaryBan
+                ? `Piège Canary Anti-Artex déclenché sur ${effectiveHost} (Chaînage autonome de secret leurre)`
+                : `Auto-Jail WAF (15 min) suite à répétition d'alertes critiques sur ${effectiveHost} (${verdict.threat_type})`,
               source: 'AUTO_JAIL_WAF',
-              risk_score: 98,
-              ttl_minutes: 15
+              risk_score: isCanaryBan ? 100 : 98,
+              ttl_minutes: isCanaryBan ? 60 : 15
             })
           }).catch(() => {});
         }
@@ -927,17 +950,30 @@ export function createGateServer(
       }
 
       // Endpoint Cible CTF / Red Team Challenge (ctf.aegis.aivo.fr) — Placé APRÈS l'inspection WAF
-      if (reqPathname === '/ctf' || reqPathname === '/api/v1/ctf/flag' || reqPathname === '/api/v1/ctf/rules') {
+      const isCtfEdgeArena =
+        process.env.AEGIS_CTF_MODE === 'true' ||
+        effectiveHost.toLowerCase().startsWith('ctf.') ||
+        (config.nodeHostname || '').toLowerCase().startsWith('ctf.');
+
+      if (
+        reqPathname === '/ctf' ||
+        reqPathname === '/api/v1/ctf/flag' ||
+        reqPathname === '/api/v1/ctf/rules' ||
+        (isCtfEdgeArena && reqPathname === '/')
+      ) {
         const isCompromisedDemo = verdict.blocked && !state.protectionEnabled;
         res.writeHead(200, {
           'Content-Type': 'application/json; charset=utf-8',
           'X-Aegis-CTF-Target': 'active',
+          'X-Aegis-Node': config.nodeHostname || effectiveHost,
           'Cache-Control': 'no-store'
         });
         res.end(
           JSON.stringify(
             {
               challenge: 'AEGIS v1.3 — Sovereign Anti-Artex Red Team Challenge (ctf.aegis.aivo.fr)',
+              control_plane_cockpit: 'https://aegis.aivo.fr',
+              node_hostname: config.nodeHostname || effectiveHost,
               shield_status: state.protectionEnabled ? 'ACTIVE_ZERO_TRUST' : 'DISABLED_BYPASS_DEMO',
               verdict_on_request: isCompromisedDemo ? 'EXPLOIT_BYPASSED_UNPROTECTED' : 'CLEAN_REQUEST_INSPECTED',
               flag: isCompromisedDemo
@@ -952,7 +988,7 @@ export function createGateServer(
               ],
               debug_notice: 'Legacy configuration snapshot path: /.env.canary',
               rules_of_engagement: [
-                'Target Scope: https://ctf.aegis.aivo.fr (Isolated Google Cloud VM)',
+                'Target Scope: https://ctf.aegis.aivo.fr (Isolated Google Cloud VM connected to https://aegis.aivo.fr)',
                 'Allowed: Autonomous AI pentest agents (ARTEX, Hexstrike, CyberStrikeAI, PentestGPT) & manual L7 WAF evasion',
                 'Prohibited: Volumetric L3/L4 network DDoS against cloud provider infrastructure'
               ]
@@ -960,6 +996,40 @@ export function createGateServer(
             null,
             2
           )
+        );
+        return;
+      }
+
+      // En mode arène CTF autonome (sans conteneur web/backend local sur la VM GCP), réponses applicatives simulées post-WAF
+      if (isCtfEdgeArena) {
+        const invoiceOrUserMatch = reqPathname.match(/^\/api\/v1\/(invoices|users)\/([^/]+)$/i);
+        if (invoiceOrUserMatch) {
+          res.writeHead(200, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'X-Aegis-CTF-Target': 'bola-honeypot'
+          });
+          res.end(
+            JSON.stringify({
+              resource: invoiceOrUserMatch[1].toLowerCase(),
+              id: invoiceOrUserMatch[2],
+              status: 'REDACTED_BY_ZERO_TRUST_RBAC',
+              hint: 'Sequential ID enumeration is monitored by Aegis Sliding-Window BOLA Shield.'
+            })
+          );
+          return;
+        }
+
+        res.writeHead(404, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'X-Aegis-CTF-Target': 'active'
+        });
+        res.end(
+          JSON.stringify({
+            status: 404,
+            error: 'CTF Arena Endpoint Not Found',
+            available_entry_point: '/ctf',
+            vault_target: '/api/v1/ctf/flag'
+          })
         );
         return;
       }
