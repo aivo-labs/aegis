@@ -32,7 +32,14 @@ func (h *TelemetryHandler) IngestEnergy(w http.ResponseWriter, r *http.Request) 
 		hostname = "aegis-sovereign-node"
 	}
 
-	provider := httputil.AsString(body, "provider", "ovhcloud")
+	defaultProvider := "ovhcloud"
+	lowerHost := strings.ToLower(hostname)
+	if strings.Contains(lowerHost, "gcp") || strings.Contains(lowerHost, "ctf") {
+		defaultProvider = "google-cloud"
+	} else if strings.Contains(lowerHost, "oci") || strings.Contains(lowerHost, "oracle") {
+		defaultProvider = "oracle-cloud"
+	}
+	provider := httputil.AsString(body, "provider", defaultProvider)
 
 	powerWatts := httputil.AsFloat(body, "power_watts", 0)
 	cpuPower := httputil.AsFloat(body, "cpu_power_watts", 0)

@@ -1,58 +1,51 @@
 # =============================================================================
-# ⚔️ AEGIS BY AIVO — COMPOSITION ISOLÉE GOOGLE CLOUD CTF (ctf.aegis.aivo.fr)
-# Banc d'essai Red Team & Défi Public « ARTEX vs. Aegis Shield v1.3 »
-# - Empreinte ultra-frugale (~140 Mo RAM — compatible GCP e2-small / e2-micro)
+# ⚔️ AEGIS BY AIVO — NŒUD EDGE CTF GOOGLE CLOUD (ctf.aegis.aivo.fr)
+# Rattaché en temps réel à ton Cockpit Central : https://aegis.aivo.fr
+#
+# Architecture :
+# - ZÉRO base de données ni interface d'admin sur la VM CTF (100% Stateless Edge Node)
+# - Empreinte ultra-frugale (~45 Mo RAM — tourne sur une VM gratuite GCP e2-micro)
 # - Certificat TLS Let's Encrypt automatique via Caddy 2 intégré (:80 / :443)
-# - Isolation réseau stricte (aegis-ctf-internal en mode internal: true)
+# - Télémétrie Ingress WAF, Egress OAST, Bans Auto-Jail & Énergie remontés en direct
+#   sur https://aegis.aivo.fr (avec synchronisation bidirectionnelle toutes les 3s)
 #
 # Déploiement en 1 commande sur la VM Google Cloud :
-#   CTF_DOMAIN=ctf.aegis.aivo.fr docker compose -f docker-compose.ctf.yml up -d --build
+#   CTF_DOMAIN=ctf.aegis.aivo.fr \
+#   AEGIS_CONTROL_PLANE_URL=https://aegis.aivo.fr \
+#   AEGIS_ENROLL_TOKEN=aegis_tok_live_xxx \
+#   docker compose -f docker-compose.ctf.yml up -d --build
 # =============================================================================
 
 version: '3.8'
 
 services:
-  # 1. BASE DE DONNÉES TIMESCALEDB ISOLÉE (AUCUN PORT EXPOSÉ SUR L'HÔTE)
-  timescaledb:
-    image: timescale/timescaledb:latest-pg16
-    container_name: aegis_ctf_timescaledb
-    restart: always
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-aegis_ctf_db}
-      POSTGRES_USER: ${POSTGRES_USER:-aegis_ctf_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aegis_ctf_sovereign_pass_2026!}
-    networks:
-      - aegis-ctf-internal
-    volumes:
-      - aegis_ctf_pgdata:/var/lib/postgresql/data
-      - ./apps/backend/migrations/schema-database-postgresql-aegis.sql:/docker-entrypoint-initdb.d/01-schema.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aegis_ctf_user} -d ${POSTGRES_DB:-aegis_ctf_db}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # 2. BACKEND API CONTROL PLANE (GO STANDARD LIBRARY)
-  backend:
+  # 1. BOUCLIER AEGIS GATE PEP v1.3 (MODE EDGE + ARÈNE CTF /ctf & /api/v1/ctf/flag)
+  gate-proxy:
     build:
-      context: ./apps/backend
+      context: ./apps/gate-proxy
       dockerfile: Dockerfile
-    container_name: aegis_ctf_backend
+    container_name: aegis_ctf_gate_proxy
     restart: always
     environment:
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-aegis_ctf_user}:${POSTGRES_PASSWORD:-aegis_ctf_sovereign_pass_2026!}@timescaledb:5432/${POSTGRES_DB:-aegis_ctf_db}?serverVersion=16&charset=utf8"
-      APP_ENV: prod
-      APP_SECRET: ${APP_SECRET:-ctf_sovereign_control_plane_secret_32b!}
+      GATE_PORT: 8000
+      AEGIS_NODE_MODE: "edge"
+      AEGIS_CTF_MODE: "true"
+      AEGIS_NODE_HOSTNAME: "${CTF_DOMAIN:-ctf.aegis.aivo.fr}"
+      BACKEND_URL: "${AEGIS_CONTROL_PLANE_URL:-https://aegis.aivo.fr}"
+      WEB_URL: "http://127.0.0.1:8000"
+      EGRESS_GATEWAY_URL: "http://egress-gateway:5053"
+      AEGIS_GATE_API_URL: "${AEGIS_CONTROL_PLANE_URL:-https://aegis.aivo.fr}/api/v1/gate/telemetry/ingress"
+      AEGIS_TENANT_ID: "${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+      AEGIS_EXEMPT_IPS: "${AEGIS_EXEMPT_IPS:-198.51.100.10}"
+      AEGIS_TARPIT_ENABLED: "${AEGIS_TARPIT_ENABLED:-true}"
+      AEGIS_STEALTH_BLOCK: "${AEGIS_STEALTH_BLOCK:-false}"
+      BFF_SESSION_SECRET: "${BFF_SESSION_SECRET:-ctf_aegis_bff_session_secret_32b_key!}"
+    ports:
+      - "127.0.0.1:8000:8000"
     networks:
-      - aegis-ctf-internal
       - aegis-ctf-edge
-    depends_on:
-      timescaledb:
-        condition: service_healthy
-    links:
-      - timescaledb:timescaledb
 
-  # 3. PASSERELLE SORTANTE AEGIS EGRESS (SINKHOLE OAST interact.sh / oast.pro & LOTC)
+  # 2. PASSERELLE SORTANTE AEGIS EGRESS (SINKHOLE OAST interact.sh / oast.pro & LOTC)
   egress-gateway:
     build:
       context: ./apps/egress-gateway
@@ -60,8 +53,8 @@ services:
     container_name: aegis_ctf_egress_gateway
     restart: always
     environment:
-      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
-      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/egress"
+      AEGIS_TENANT_ID: "${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+      AEGIS_GATE_API_URL: "${AEGIS_CONTROL_PLANE_URL:-https://aegis.aivo.fr}/api/v1/gate/telemetry/egress"
       SYSTEMONE_API_URL: "http://localhost:11434/mock"
       SYSTEMONE_MODEL_NAME: "nimble"
       EGRESS_LISTEN_PORT: 5053
@@ -69,14 +62,9 @@ services:
       - "127.0.0.1:5053:5053/udp"
       - "127.0.0.1:5053:5053/tcp"
     networks:
-      - aegis-ctf-internal
       - aegis-ctf-edge
-    depends_on:
-      - backend
-    links:
-      - backend:backend
 
-  # 4. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE & ANTI-SPAWN SHELL RUST
+  # 3. AGENT DE TÉLÉMÉTRIE ÉNERGÉTIQUE & ANTI-SPAWN SHELL RUST (ENRÔLEMENT AUTO SUR aegis.aivo.fr)
   telemetry-agent:
     build:
       context: ./apps/telemetry-agent
@@ -87,64 +75,17 @@ services:
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
-    hostname: "ctf-aegis-gcp-node"
+    hostname: "${CTF_DOMAIN:-ctf.aegis.aivo.fr}"
     environment:
-      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
-      AEGIS_SERVER_ID: "ctf-aegis-gcp-node"
-      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/energy"
+      AEGIS_TENANT_ID: "${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+      AEGIS_SERVER_ID: "${CTF_DOMAIN:-ctf.aegis.aivo.fr}"
+      AEGIS_GATE_API_URL: "${AEGIS_CONTROL_PLANE_URL:-https://aegis.aivo.fr}/api/v1/gate/telemetry/energy"
+      AEGIS_GATE_API_KEY: "${AEGIS_ENROLL_TOKEN:-aegis_tok_live_ctf_gcp}"
       POLL_INTERVAL_SECS: "5"
     networks:
-      - aegis-ctf-internal
-    depends_on:
-      - backend
-    links:
-      - backend:backend
-
-  # 5. APPLICATION WEB & COCKPIT SOC (ASTRO / VUE 3 / NGINX HARDENED)
-  web:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
-    container_name: aegis_ctf_web
-    restart: always
-    networks:
-      - aegis-ctf-internal
-    depends_on:
-      - backend
-    links:
-      - backend:backend
-
-  # 6. BOUCLIER AEGIS GATE PEP v1.3 (ANTI-ARTEX SHIELD + CIBLE CTF /api/v1/ctf/flag)
-  gate-proxy:
-    build:
-      context: ./apps/gate-proxy
-      dockerfile: Dockerfile
-    container_name: aegis_ctf_gate_proxy
-    restart: always
-    environment:
-      GATE_PORT: 8000
-      BACKEND_URL: "http://backend:80"
-      WEB_URL: "http://web:80"
-      AEGIS_GATE_API_URL: "http://backend:80/api/v1/gate/telemetry/ingress"
-      AEGIS_TENANT_ID: "00000000-0000-0000-0000-000000000001"
-      AEGIS_NODE_HOSTNAME: "${CTF_DOMAIN:-ctf.aegis.aivo.fr}"
-      AEGIS_ADMIN_IPS: "${AEGIS_ADMIN_IPS:-198.51.100.10}"
-      AEGIS_TARPIT_ENABLED: "${AEGIS_TARPIT_ENABLED:-true}"
-      AEGIS_STEALTH_BLOCK: "${AEGIS_STEALTH_BLOCK:-false}"
-      BFF_SESSION_SECRET: "${BFF_SESSION_SECRET:-ctf_aegis_bff_session_secret_32b_key!}"
-    ports:
-      - "127.0.0.1:8000:8000"
-    networks:
-      - aegis-ctf-internal
       - aegis-ctf-edge
-    depends_on:
-      - backend
-      - web
-    links:
-      - backend:backend
-      - web:web
 
-  # 7. TERMINAISON TLS AUTOMATIQUE (LET'S ENCRYPT HTTPS POUR ctf.aegis.aivo.fr)
+  # 4. TERMINAISON TLS AUTOMATIQUE (LET'S ENCRYPT HTTPS POUR ctf.aegis.aivo.fr)
   caddy-tls:
     image: caddy:2-alpine
     container_name: aegis_ctf_tls_proxy
@@ -165,13 +106,9 @@ services:
       - gate-proxy:gate-proxy
 
 volumes:
-  aegis_ctf_pgdata:
   aegis_ctf_caddy_data:
   aegis_ctf_caddy_config:
 
 networks:
-  aegis-ctf-internal:
-    driver: bridge
-    internal: true
   aegis-ctf-edge:
     driver: bridge
