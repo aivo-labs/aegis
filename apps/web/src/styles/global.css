@@ -91,9 +91,12 @@ html.theme-light [class*="bg-[#090e1a]"] {
 /* 4. Cartes Principales & Panneaux Élevés (Cartes blanches épurées haute lisibilité) */
 html.theme-light [class*="bg-slate-900"],
 html.theme-light [class*="bg-slate-950"],
+html.theme-light [class*="from-slate-900"],
+html.theme-light [class*="from-slate-950"],
 html.theme-light .bg-slate-900,
 html.theme-light .bg-slate-950 {
   background-color: #ffffff !important;
+  background-image: none !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
@@ -244,7 +247,9 @@ html.theme-light input,
 html.theme-light select,
 html.theme-light textarea {
   background-color: #ffffff !important;
+  background-image: none !important;
   color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
   border-color: #cbd5e1 !important;
 }
 html.theme-light input::placeholder,

@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import AegisLogo from '../components/AegisLogo.astro';
+import AegisArchitectureInfographic from '../components/AegisArchitectureInfographic.vue';
 ---
 
 <Layout 
@@ -88,6 +89,9 @@ import AegisLogo from '../components/AegisLogo.astro';
 
       </div>
     </section>
+
+    <!-- ARCHITECTURE BLUEPRINT & MODULE DESCRIPTIONS -->
+    <AegisArchitectureInfographic client:visible lang="en" />
 
     <!-- 3 CORE PILLARS -->
     <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">

@@ -20,174 +20,30 @@
         </p>
       </div>
 
-      <!-- SCÈNE VISUELLE : LE DÔME TRANSPARENT + LE SI PROTÉGÉ -->
-      <div class="relative rounded-3xl bg-slate-950/80 border border-slate-800/90 p-5 sm:p-8 shadow-2xl overflow-hidden">
-        
-        <!-- Halo du Dôme -->
-        <div class="absolute top-12 left-1/2 -translate-x-1/2 w-[760px] h-[360px] bg-gradient-to-b from-emerald-500/12 via-teal-500/5 to-transparent rounded-t-full blur-2xl pointer-events-none"></div>
-
-        <!-- DIAGRAMME SVG ANIMÉ DU DÔME ET DU SI -->
-        <div class="relative w-full max-w-5xl mx-auto">
-          <!-- Logo Aegis au Sommet du Dôme -->
-          <div class="flex flex-col items-center justify-center relative z-20 mb-2">
-            <div class="p-3 rounded-2xl bg-slate-900/90 border border-emerald-400/50 shadow-[0_0_30px_rgba(16,185,129,0.3)] flex flex-col items-center">
-              <AegisLogo size="lg" />
-              <span class="mt-1 text-[11px] font-mono font-bold text-emerald-300 tracking-wider uppercase">
-                {{ isFr ? 'Dôme Aegis Actif' : 'Active Aegis Dome' }}
-              </span>
-            </div>
-          </div>
-
-          <!-- SVG du Dôme Transparent & Flux Animés (Responsive & Sans Débordement Mobile) -->
-          <div class="w-full overflow-hidden flex items-center justify-center">
-            <svg viewBox="0 0 960 430" class="w-full max-w-full h-auto select-none block overflow-hidden" preserveAspectRatio="xMidYMid meet">
-              <defs>
-                <!-- Dégradé du Dôme Transparent -->
-                <linearGradient id="domeGlass" x1="480" y1="20" x2="480" y2="390" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stop-color="#10b981" stop-opacity="0.18" />
-                  <stop offset="50%" stop-color="#34d399" stop-opacity="0.07" />
-                  <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.02" />
-                </linearGradient>
-                <linearGradient id="domeRim" x1="110" y1="360" x2="850" y2="360" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stop-color="#06b6d4" />
-                  <stop offset="50%" stop-color="#6ee7b7" />
-                  <stop offset="100%" stop-color="#f59e0b" />
-                </linearGradient>
-              </defs>
-
-              <!-- 1. ARCHE DU DÔME TRANSPARENT EN MAILLAGE -->
-              <path
-                d="M 120,370 C 120,105 300,25 480,25 C 660,25 840,105 840,370 Z"
-                fill="url(#domeGlass)"
-                stroke="url(#domeRim)"
-                stroke-width="2.5"
-              />
-              <!-- Lignes de maillage internes du Dôme (effet géodésique transparent) -->
-              <path d="M 165,370 C 180,155 320,65 480,65 C 640,65 780,155 795,370" fill="none" stroke="#6ee7b7" stroke-opacity="0.28" stroke-width="1.2" stroke-dasharray="5 4" />
-              <path d="M 240,370 C 260,195 360,110 480,110 C 600,110 700,195 720,370" fill="none" stroke="#10b981" stroke-opacity="0.22" stroke-width="1" stroke-dasharray="3 3" />
-              <line x1="480" y1="25" x2="480" y2="370" stroke="#6ee7b7" stroke-opacity="0.2" stroke-width="1" stroke-dasharray="4 4" />
-              <line x1="120" y1="370" x2="840" y2="370" stroke="#334155" stroke-width="2" />
-
-              <!-- 2. FLUX ENTRANT À GAUCHE -> INTERCEPTION MODULE 1 (AEGIS GATE) -->
-              <!-- Requête légitime (Verte) qui traverse le dôme -->
-              <path id="cleanFlow" d="M 20,175 Q 110,175 185,205 T 335,265" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="6 4">
-                <animate attributeName="stroke-dashoffset" from="40" to="0" dur="2.5s" repeatCount="indefinite" />
-              </path>
-              <circle r="4" fill="#6ee7b7">
-                <animateMotion dur="2.5s" repeatCount="indefinite" path="M 20,175 Q 110,175 185,205 T 335,265" />
-              </circle>
-              <text x="22" y="162" fill="#6ee7b7" font-size="11" font-family="monospace" font-weight="bold">
-                {{ isFr ? '✓ Trafic Légitime (HTTPS)' : '✓ Legitimate Traffic (HTTPS)' }}
-              </text>
-
-              <!-- Attaque entrante (Rouge) bloquée sur la paroi du Dôme -->
-              <path d="M 20,235 L 152,235" fill="none" stroke="#f43f5e" stroke-width="2.2" stroke-dasharray="5 3">
-                <animate attributeName="stroke-dashoffset" from="32" to="0" dur="1.4s" repeatCount="indefinite" />
-              </path>
-              <circle cx="156" cy="235" r="7" fill="#f43f5e" fill-opacity="0.25" stroke="#f43f5e" stroke-width="1.5">
-                <animate attributeName="r" values="5;10;5" dur="1.6s" repeatCount="indefinite" />
-              </circle>
-              <text x="22" y="255" fill="#fda4af" font-size="10" font-family="monospace">
-                {{ isFr ? '✗ SQLi / RCE / Scan wp-login (403)' : '✗ SQLi / RCE / wp-login Scan (403)' }}
-              </text>
-
-              <!-- Badge Module 1 sur la paroi gauche du Dôme (Interactif) -->
-              <g 
-                transform="translate(125, 110)" 
-                class="cursor-pointer transition-transform hover:scale-105"
-                @click="activeModule = 'gate'"
-              >
-                <rect 
-                  x="0" y="0" width="185" height="54" rx="12" 
-                  :fill="activeModule === 'gate' ? '#082f49' : '#0f172a'" 
-                  :stroke="activeModule === 'gate' ? '#38bdf8' : '#06b6d4'" 
-                  :stroke-width="activeModule === 'gate' ? 2.5 : 1.8" 
-                />
-                <text x="14" y="22" fill="#22d3ee" font-size="12" font-family="monospace" font-weight="bold">① AEGIS GATE (Ingress)</text>
-                <text x="14" y="40" fill="#cbd5e1" font-size="10" font-family="monospace">WAF &amp; Virtual Patch &lt; 1.5 ms</text>
-              </g>
-
-              <!-- 3. REPRÉSENTATION DU SI SOUS LE DÔME (CENTRE) -->
-              <g transform="translate(295, 225)">
-                <!-- Socle du SI -->
-                <rect x="0" y="0" width="370" height="128" rx="16" fill="#090e1a" fill-opacity="0.92" stroke="#1e293b" stroke-width="2" />
-                <text x="185" y="22" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="monospace" font-weight="bold">
-                  {{ isFr ? "SYSTÈME D'INFORMATION PROTÉGÉ (VPS / BARE-METAL / K8S)" : "PROTECTED INFORMATION SYSTEM (VPS / BARE-METAL / K8S)" }}
-                </text>
-
-                <!-- Nœud 1 : Serveurs Web / Apps -->
-                <rect x="18" y="34" width="102" height="76" rx="10" fill="#0f172a" stroke="#10b981" stroke-opacity="0.5" stroke-width="1.4" />
-                <text x="69" y="56" text-anchor="middle" fill="#ecfdf5" font-size="11" font-family="monospace" font-weight="bold">Apps &amp; API</text>
-                <text x="69" y="73" text-anchor="middle" fill="#6ee7b7" font-size="9" font-family="monospace">Nginx / Go / PHP</text>
-                <text x="69" y="94" text-anchor="middle" fill="#34d399" font-size="10" font-family="monospace" font-weight="bold">⚡ 3.4 W</text>
-
-                <!-- Nœud 2 : Base de Données -->
-                <rect x="134" y="34" width="102" height="76" rx="10" fill="#0f172a" stroke="#06b6d4" stroke-opacity="0.5" stroke-width="1.4" />
-                <text x="185" y="56" text-anchor="middle" fill="#ecfdf5" font-size="11" font-family="monospace" font-weight="bold">
-                  {{ isFr ? 'Bases SQL' : 'SQL Databases' }}
-                </text>
-                <text x="185" y="73" text-anchor="middle" fill="#67e8f9" font-size="9" font-family="monospace">PostgreSQL</text>
-                <text x="185" y="94" text-anchor="middle" fill="#22d3ee" font-size="10" font-family="monospace" font-weight="bold">⚡ 2.8 W</text>
-
-                <!-- Nœud 3 : Conteneurs / Workers -->
-                <rect x="250" y="34" width="102" height="76" rx="10" fill="#0f172a" stroke="#10b981" stroke-opacity="0.5" stroke-width="1.4" />
-                <text x="301" y="56" text-anchor="middle" fill="#ecfdf5" font-size="11" font-family="monospace" font-weight="bold">Clusters / VM</text>
-                <text x="301" y="73" text-anchor="middle" fill="#6ee7b7" font-size="9" font-family="monospace">Docker / K8s</text>
-                <text x="301" y="94" text-anchor="middle" fill="#34d399" font-size="10" font-family="monospace" font-weight="bold">⚡ 3.1 W</text>
-              </g>
-
-              <!-- Badge Module 3 (Aegis Green) relié au cœur du SI (Interactif) -->
-              <g 
-                transform="translate(380, 128)" 
-                class="cursor-pointer transition-transform hover:scale-105"
-                @click="activeModule = 'green'"
-              >
-                <rect 
-                  x="0" y="0" width="200" height="54" rx="12" 
-                  :fill="activeModule === 'green' ? '#064e3b' : '#0f172a'" 
-                  :stroke="activeModule === 'green' ? '#34d399' : '#10b981'" 
-                  :stroke-width="activeModule === 'green' ? 2.5 : 1.8" 
-                />
-                <text x="14" y="22" fill="#6ee7b7" font-size="12" font-family="monospace" font-weight="bold">③ AEGIS GREEN (RAPL)</text>
-                <text x="14" y="40" fill="#cbd5e1" font-size="10" font-family="monospace">
-                  {{ isFr ? 'Watts/Joules Réels & EcoIndex' : 'Real Watts/Joules & EcoIndex' }}
-                </text>
-              </g>
-              <line x1="480" y1="182" x2="480" y2="225" stroke="#10b981" stroke-width="1.8" stroke-dasharray="3 3" />
-
-              <!-- 4. FLUX SORTANT À DROITE -> INTERCEPTION MODULE 2 (AEGIS EGRESS) -->
-              <path d="M 665,265 Q 735,235 795,220" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-dasharray="5 3">
-                <animate attributeName="stroke-dashoffset" from="32" to="0" dur="1.5s" repeatCount="indefinite" />
-              </path>
-              <circle cx="798" cy="220" r="8" fill="#f43f5e" fill-opacity="0.3" stroke="#f59e0b" stroke-width="1.8">
-                <animate attributeName="r" values="6;11;6" dur="1.5s" repeatCount="indefinite" />
-              </circle>
-              <text x="815" y="216" fill="#fcd34d" font-size="11" font-family="monospace" font-weight="bold">🚫 Sinkhole 0.0.0.0</text>
-              <text x="815" y="233" fill="#fda4af" font-size="10" font-family="monospace">
-                {{ isFr ? 'Exfiltration DNS / C2 coupée' : 'DNS / C2 Exfiltration Blocked' }}
-              </text>
-
-              <!-- Badge Module 2 sur la paroi droite du Dôme (Interactif) -->
-              <g 
-                transform="translate(650, 110)" 
-                class="cursor-pointer transition-transform hover:scale-105"
-                @click="activeModule = 'egress'"
-              >
-                <rect 
-                  x="0" y="0" width="195" height="54" rx="12" 
-                  :fill="activeModule === 'egress' ? '#451a03' : '#0f172a'" 
-                  :stroke="activeModule === 'egress' ? '#fbbf24' : '#f59e0b'" 
-                  :stroke-width="activeModule === 'egress' ? 2.5 : 1.8" 
-                />
-                <text x="14" y="22" fill="#fbbf24" font-size="12" font-family="monospace" font-weight="bold">
-                  {{ isFr ? '② AEGIS EGRESS (Sortant)' : '② AEGIS EGRESS (Outbound)' }}
-                </text>
-                <text x="14" y="40" fill="#cbd5e1" font-size="10" font-family="monospace">
-                  {{ isFr ? 'Sinkhole DNS/TCP & IA Nimble' : 'DNS/TCP Sinkhole & Local AI' }}
-                </text>
-              </g>
-            </svg>
-          </div>
+      <!-- SCÈNE VISUELLE : BLUEPRINT ARCHITECTURE AEGIS (VIDÉO MP4 / FALLBACK GIF) -->
+      <div class="relative rounded-3xl bg-slate-950/80 border border-slate-800/90 p-3 sm:p-5 shadow-2xl overflow-hidden max-w-5xl mx-auto">
+        <div class="relative w-full overflow-hidden rounded-2xl border border-slate-800/80 bg-[#060a12]">
+          <video
+            :key="isFr ? 'blueprint-fr' : 'blueprint-en'"
+            class="w-full h-auto block object-cover"
+            autoplay
+            loop
+            muted
+            playsinline
+            preload="metadata"
+            :aria-label="isFr ? 'Blueprint animé de l\'architecture Aegis' : 'Animated Aegis Architecture Blueprint'"
+          >
+            <source
+              :src="isFr ? '/assets/blueprint/aegis-blueprint-fr.mp4' : '/assets/blueprint/aegis-blueprint-en.mp4'"
+              type="video/mp4"
+            />
+            <img
+              :src="isFr ? '/assets/blueprint/aegis-blueprint-fr.gif' : '/assets/blueprint/aegis-blueprint-en.gif'"
+              :alt="isFr ? 'Blueprint Architecture Aegis' : 'Aegis Architecture Blueprint'"
+              class="w-full h-auto block"
+              loading="lazy"
+            />
+          </video>
         </div>
       </div>
 
