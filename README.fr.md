@@ -61,6 +61,10 @@ Aegis est une suite logicielle unifiée conçue pour sécuriser le système d'in
 
 ## 🏛️ Architecture & Cartographie des Services
 
+<p align="center">
+  <img src="docs/assets/aegis-blueprint-fr.gif" alt="Blueprint Architecture Aegis — Gate Zero-Trust, Egress IA & Télémétrie Matérielle RAPL" width="100%" />
+</p>
+
 ```
                         [ TRAFIC ENTRANT (Ingress Web & API) ]
                                           │
