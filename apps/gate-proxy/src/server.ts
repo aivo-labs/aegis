@@ -8,6 +8,7 @@ import type { IProxyForwarder } from './proxy/forwarder.js';
 import type { GateConfig } from './config.js';
 import { BffAuthHandler } from './bff/auth-handler.js';
 import { extractSessionFromRequest } from './bff/session.js';
+import { renderCtfLandingHtml } from './ctf-page.js';
 
 const STATIC_OR_ASSET_REGEX = /\.(?:css|js|mjs|svg|png|jpg|jpeg|webp|gif|ico|woff2?|ttf|map)(?:\?|$)/i;
 
@@ -961,6 +962,23 @@ export function createGateServer(
         reqPathname === '/api/v1/ctf/rules' ||
         (isCtfEdgeArena && reqPathname === '/')
       ) {
+        const acceptHeader = String(req.headers.accept || '');
+        const wantsHtml =
+          (reqPathname === '/' || reqPathname === '/ctf') &&
+          acceptHeader.includes('text/html') &&
+          !acceptHeader.includes('application/json');
+
+        if (wantsHtml) {
+          res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'X-Aegis-CTF-Target': 'active',
+            'X-Aegis-Node': config.nodeHostname || effectiveHost,
+            'Cache-Control': 'no-store'
+          });
+          res.end(renderCtfLandingHtml(state.protectionEnabled, config.nodeHostname || effectiveHost));
+          return;
+        }
+
         const isCompromisedDemo = verdict.blocked && !state.protectionEnabled;
         res.writeHead(200, {
           'Content-Type': 'application/json; charset=utf-8',
