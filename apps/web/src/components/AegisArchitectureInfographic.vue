@@ -21,7 +21,7 @@
       </div>
 
       <!-- SCÈNE VISUELLE : BLUEPRINT ARCHITECTURE AEGIS (VIDÉO MP4 / FALLBACK GIF) -->
-      <div class="relative rounded-3xl bg-slate-950/80 border border-slate-800/90 p-3 sm:p-5 shadow-2xl overflow-hidden max-w-5xl mx-auto">
+      <div class="relative rounded-3xl bg-slate-950/80 border border-slate-800/90 p-3 sm:p-5 shadow-2xl overflow-hidden w-full md:w-[60%] mx-auto">
         <div class="relative w-full overflow-hidden rounded-2xl border border-slate-800/80 bg-[#060a12]">
           <video
             :key="isFr ? 'blueprint-fr' : 'blueprint-en'"
