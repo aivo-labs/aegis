@@ -61,6 +61,10 @@ Aegis is a unified software suite built to protect SMB and mid-market informatio
 
 ## 🏛️ Architecture & Service Topology
 
+<p align="center">
+  <img src="docs/assets/aegis-blueprint-en.gif" alt="Aegis Architecture Blueprint — Zero-Trust Gate, AI Egress Sinkhole & Rust RAPL Green Telemetry" width="100%" />
+</p>
+
 ```
                          [ INBOUND TRAFFIC (Ingress Web & API) ]
                                            │
