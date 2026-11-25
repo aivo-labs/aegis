@@ -51,14 +51,14 @@ export interface IIpReputationManager {
   getQuarantineEntries?(): QuarantineEntry[];
 }
 
-const BASE_EXEMPT_IPS = new Set(['127.0.0.1', '::1', 'localhost', '198.51.100.10']);
+const BASE_EXEMPT_IPS = new Set(['127.0.0.1', '::1', 'localhost']);
 const DOCKER_BRIDGE_GATEWAY_REGEX = /^172\.(?:1[6-9]|2\d|3[01])\.\d+\.1$/;
 const NUMERIC_ID_SEGMENT_REGEX = /^\d+$/;
 const UUID_SEGMENT_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Vérifie si une IP est exemptée d'Auto-Jail et de Rate-Limiting global :
- * - Loopback & IP administrateur SOC (198.51.100.10 + AEGIS_ADMIN_IPS)
+ * - Loopback & IPs administrateur SOC configurées via AEGIS_ADMIN_IPS / AEGIS_EXEMPT_IPS (jamais codées en dur)
  * - Passerelles de bridge Docker (ex: 172.17.0.1, 172.18.0.1) utilisées lors du NAT IPv6->IPv4,
  *   afin d'éviter qu'un attaquant passant par la passerelle ne bloque l'ensemble du bridge.
  * Note : Les payloads malveillants restent systématiquement bloqués (HTTP 403) par l'inspecteur WAF.
@@ -68,7 +68,7 @@ export function isExemptIp(ip: string): boolean {
   if (!cleanIp) return true;
   if (BASE_EXEMPT_IPS.has(cleanIp)) return true;
   if (DOCKER_BRIDGE_GATEWAY_REGEX.test(cleanIp)) return true;
-  const envAdmins = process.env.AEGIS_ADMIN_IPS;
+  const envAdmins = [process.env.AEGIS_ADMIN_IPS, process.env.AEGIS_EXEMPT_IPS].filter(Boolean).join(',');
   if (envAdmins) {
     for (const entry of envAdmins.split(',')) {
       if (entry.trim() === cleanIp) return true;

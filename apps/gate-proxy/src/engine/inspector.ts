@@ -33,7 +33,9 @@ export class WafInspector implements IWafInspector {
 
   private isStaticAsset(url: string): boolean {
     if (!url) return false;
-    return url.startsWith('/_astro/') || url === '/favicon.svg' || STATIC_ASSET_EXT_REGEX.test(url);
+    const pathname = url.split('?')[0];
+    if (pathname.startsWith('/api/') || pathname.startsWith('/_aegis/')) return false;
+    return pathname.startsWith('/_astro/') || pathname === '/favicon.svg' || STATIC_ASSET_EXT_REGEX.test(pathname);
   }
 
   private inspectHeadersHardening(
@@ -178,7 +180,13 @@ export class WafInspector implements IWafInspector {
   ): WafVerdict {
     const customExploitHeader =
       (headers['x-exploit-signature'] as string) || (headers['x-php-args'] as string) || '';
-    const rawCombined = `${url || '/'} ${customExploitHeader} ${rawBody}`;
+    const refererHeader = (headers['referer'] as string) || '';
+    const userAgentHeader = (headers['user-agent'] as string) || '';
+    const forwardedHostHeader = (headers['x-forwarded-host'] as string) || '';
+    const rawCookieHeader = ((headers['cookie'] as string) || '')
+      .replace(/(?:__Host-)?aegis_session=[^;\s]+/gi, '')
+      .trim();
+    const rawCombined = `${url || '/'} ${customExploitHeader} ${refererHeader} ${userAgentHeader} ${forwardedHostHeader} ${rawCookieHeader} ${rawBody}`;
     const targetToScan = canonicalizeInput(rawCombined);
     const entropy = computeRequestEntropy(rawCombined);
 
