@@ -153,8 +153,18 @@ export class BffAuthHandler {
       const isOidcActive = Boolean(this.oidcConfig.issuerUrl && this.oidcConfig.clientId);
 
       if (!isOidcActive) {
-        // Mode Standalone Souverain (Banc d'essai local / VPS autonome / Démo)
-        // On scelle directement la session administrateur SOC locale et on pose le cookie
+        if (!this.config.allowDemoAuth) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              ok: false,
+              error: 'OIDC_NOT_CONFIGURED',
+              message: 'Authentification OIDC requise (définir OIDC_ISSUER_URL ou AEGIS_ALLOW_DEMO_AUTH=true en environnement local uniquement).'
+            })
+          );
+          return true;
+        }
+        // Mode Standalone Démo (explicitement activé via AEGIS_ALLOW_DEMO_AUTH=true hors mode CTF)
         const reqCtx = this.getRequestContext(req);
         const sessionData: BffUserSession = {
           id: 'usr_sovereign_admin',
@@ -224,49 +234,123 @@ export class BffAuthHandler {
       return true;
     }
 
-    // 2. GET /api/auth/callback : Échange de jetons et scellement du Cookie
+    // 2. GET /api/auth/callback : Échange de jetons PKCE réel et scellement du Cookie
     if (pathname === '/api/auth/callback' && req.method === 'GET') {
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
       const reqCtx = this.getRequestContext(req);
       const ctxHash = computeClientContextHash(reqCtx.userAgent, reqCtx.clientIp);
 
-      let sessionData: BffUserSession;
-
-      if (!this.oidcConfig.issuerUrl || code === 'mock_sovereign_admin') {
-        // Session administrateur par défaut
-        sessionData = {
+      // Mode démo explicite uniquement (jamais actif par défaut ni en mode CTF)
+      if (!this.oidcConfig.issuerUrl) {
+        if (!this.config.allowDemoAuth) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'OIDC_NOT_CONFIGURED' }));
+          return true;
+        }
+        const sessionData: BffUserSession = {
           id: 'usr_sovereign_admin',
           name: 'Administrateur SOC Souverain',
           email: 'admin@aegis.local',
           role: 'admin',
           tenantId: this.config.tenantId,
-          exp: Date.now() + 86400000, // 24 heures
-          createdAt: Date.now(),
-          ctxHash
-        };
-      } else {
-        // En mode OIDC réel, si on n'a pas pu valider le code
-        sessionData = {
-          id: `usr_${crypto.randomBytes(4).toString('hex')}`,
-          name: 'Opérateur SOC Certifié',
-          email: 'operator@aegis.local',
-          role: 'secops',
-          tenantId: this.config.tenantId,
           exp: Date.now() + 86400000,
           createdAt: Date.now(),
           ctxHash
         };
+        const sealedCookie = sealSession(sessionData, sessionSecret);
+        const cookieHeader = serializeSessionCookie(sealedCookie, isHttps, 86400);
+        res.writeHead(302, { 'Set-Cookie': cookieHeader, Location: '/app/' });
+        res.end();
+        return true;
       }
 
-      const sealedCookie = sealSession(sessionData, sessionSecret);
-      const cookieHeader = serializeSessionCookie(sealedCookie, isHttps, 86400);
+      // Validation obligatoire du state PKCE anti-CSRF / anti-forge
+      const pending = state ? this.pendingStates.get(state) : undefined;
+      if (!code || !state || !pending || Date.now() - pending.createdAt > 600000) {
+        if (state) this.pendingStates.delete(state);
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'INVALID_OIDC_STATE_OR_CODE' }));
+        return true;
+      }
+      this.pendingStates.delete(state);
 
-      res.writeHead(302, {
-        'Set-Cookie': cookieHeader,
-        Location: '/app/'
+      // Échange réel du code d'autorisation PKCE auprès du fournisseur OIDC
+      const tokenEndpoint =
+        this.oidcConfig.tokenEndpoint ||
+        (this.oidcConfig.issuerUrl.includes('/realms/')
+          ? `${this.oidcConfig.issuerUrl.replace(/\/$/, '')}/protocol/openid-connect/token`
+          : `${this.oidcConfig.issuerUrl.replace(/\/$/, '')}/token`);
+      const publicOrigin = this.getPublicOrigin(req, isHttps);
+      const redirectUri = this.oidcConfig.redirectUri || `${publicOrigin}/api/auth/callback`;
+
+      const formBody = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        client_id: this.oidcConfig.clientId || 'aegis-cockpit',
+        code_verifier: pending.codeVerifier
       });
-      res.end();
+      if (this.oidcConfig.clientSecret) {
+        formBody.set('client_secret', this.oidcConfig.clientSecret);
+      }
+
+      fetch(tokenEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formBody.toString()
+      })
+        .then(async tokenRes => {
+          if (!tokenRes.ok) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'OIDC_TOKEN_EXCHANGE_FAILED' }));
+            return;
+          }
+          const tokens = (await tokenRes.json()) as { id_token?: string; access_token?: string };
+          if (!tokens.id_token && !tokens.access_token) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'OIDC_MISSING_TOKEN' }));
+            return;
+          }
+          let claims: Record<string, unknown> = {};
+          if (tokens.id_token && tokens.id_token.split('.').length === 3) {
+            try {
+              claims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString('utf8'));
+            } catch {
+              claims = {};
+            }
+          }
+          const roles = Array.isArray(claims.roles)
+            ? claims.roles.map(String)
+            : Array.isArray((claims.realm_access as { roles?: unknown[] } | undefined)?.roles)
+              ? ((claims.realm_access as { roles: unknown[] }).roles).map(String)
+              : [];
+          const resolvedRole: BffUserSession['role'] = roles.includes('admin')
+            ? 'admin'
+            : roles.includes('secops')
+              ? 'secops'
+              : 'viewer';
+
+          const sessionData: BffUserSession = {
+            id: String(claims.sub || `usr_${crypto.randomBytes(4).toString('hex')}`),
+            name: String(claims.name || claims.preferred_username || 'Opérateur SOC'),
+            email: String(claims.email || 'operator@aegis.local'),
+            role: resolvedRole,
+            tenantId: this.config.tenantId,
+            exp: Date.now() + 86400000,
+            createdAt: Date.now(),
+            ctxHash
+          };
+
+          const sealedCookie = sealSession(sessionData, sessionSecret);
+          const cookieHeader = serializeSessionCookie(sealedCookie, isHttps, 86400);
+          res.writeHead(302, { 'Set-Cookie': cookieHeader, Location: '/app/' });
+          res.end();
+        })
+        .catch(() => {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: 'OIDC_PROVIDER_UNREACHABLE' }));
+        });
       return true;
     }
 
@@ -396,6 +480,9 @@ export class BffAuthHandler {
       targetHeaders['x-aegis-user-id'] = session.id;
       targetHeaders['x-aegis-user-role'] = session.role;
       targetHeaders['x-aegis-user-email'] = session.email;
+      if (this.config.internalAdminToken) {
+        targetHeaders['x-aegis-internal-token'] = this.config.internalAdminToken;
+      }
       // Injection d'un jeton d'authentification interne pour le Core Go
       targetHeaders['authorization'] = `Bearer aegis_token_${session.tenantId}_${session.id}`;
     }

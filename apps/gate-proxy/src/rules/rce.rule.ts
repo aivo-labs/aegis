@@ -1,7 +1,8 @@
 import type { IWafRule } from './rule.interface.js';
 import type { InspectionContext, RuleMatch } from '../types.js';
 
-export const RCE_REGEX = /(?:;\s*(?:cat|ls|id|whoami|curl|wget|nc|ncat|bash|sh|python|perl|php|ruby|powershell)\b|\|\s*(?:cat|ls|id|whoami|sh|bash)\b|`.*(?:whoami|id|cat).*`|\$\((?:whoami|id|cat|curl|wget).*\)|\/bin\/(?:sh|bash|zsh)|\/dev\/tcp\/|mkfifo\s+)/i;
+export const RCE_REGEX =
+  /(?:;\s*(?:cat|ls|id|whoami|curl|wget|nc|ncat|bash|sh|dash|python3?|perl|php|ruby|powershell|awk|busybox|base64|uname)\b|\|\s*(?:cat|ls|id|whoami|sh|bash|dash|awk|base64|nc|curl|wget)\b|`[^`]*(?:whoami|id|cat|curl|wget|sh|bash|uname)[^`]*`|\$\(\s*(?:whoami|id|cat|curl|wget|sh|bash|python3?|uname|env|printenv)[^)]*\)|\$\{IFS\}|\/bin\/(?:sh|bash|zsh|dash|busybox)|\/dev\/(?:tcp|udp)\/|mkfifo\s+)/i;
 
 export class RceRule implements IWafRule {
   public readonly id = 'RCE';

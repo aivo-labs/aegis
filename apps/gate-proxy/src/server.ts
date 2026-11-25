@@ -12,13 +12,78 @@ import { renderCtfLandingHtml } from './ctf-page.js';
 
 const STATIC_OR_ASSET_REGEX = /\.(?:css|js|mjs|svg|png|jpg|jpeg|webp|gif|ico|woff2?|ttf|map)(?:\?|$)/i;
 
-export function getClientIp(req: IncomingMessage): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0].trim();
+const PRIVATE_PROXY_REGEX = /^(?:127\.|10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|::1$|fc00:|fd00:|fe80:)/i;
+const MAX_M2M_BODY_BYTES = 1024 * 1024; // 1 Mo max pour l'ingestion M2M
+const MAX_CONTROL_BODY_BYTES = 64 * 1024; // 64 Ko max pour /_aegis/mode
+const MAX_CONCURRENT_TARPIT = 50; // Plafond anti-Auto-DoS Tarpit (VM e2-micro safe)
+
+export function isTrustedProxyIp(ip: string): boolean {
+  const clean = (ip || '').replace(/^::ffff:/, '').trim();
+  if (!clean) return false;
+  if (PRIVATE_PROXY_REGEX.test(clean)) return true;
+  const extra = process.env.AEGIS_TRUSTED_PROXIES;
+  if (extra) {
+    for (const entry of extra.split(',')) {
+      if (entry.trim() === clean) return true;
+    }
   }
-  const remote = req.socket.remoteAddress || '127.0.0.1';
-  return remote.replace(/^::ffff:/, '');
+  return false;
+}
+
+/**
+ * Résolution sécurisée de l'IP client (Anti-Spoofing X-Forwarded-For) :
+ * - Si la connexion TCP directe ne provient pas d'un reverse-proxy de confiance (Caddy/Traefik/Docker),
+ *   l'en-tête X-Forwarded-For est totalement ignoré.
+ * - Si elle provient d'un proxy de confiance, on lit X-Forwarded-For de DROITE À GAUCHE pour retenir
+ *   la dernière IP non-proxy (injectée par le reverse-proxy de bordure, non forgeable par le client).
+ */
+export function getClientIp(req: IncomingMessage): string {
+  const remote = (req.socket?.remoteAddress || '127.0.0.1').replace(/^::ffff:/, '').trim();
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && isTrustedProxyIp(remote)) {
+    const hops = forwarded
+      .split(',')
+      .map(s => s.replace(/^::ffff:/, '').trim())
+      .filter(Boolean);
+    for (let i = hops.length - 1; i >= 0; i--) {
+      if (!isTrustedProxyIp(hops[i])) {
+        return hops[i];
+      }
+    }
+    if (hops.length > 0) {
+      return hops[hops.length - 1];
+    }
+  }
+  return remote || '127.0.0.1';
+}
+
+function timingSafeTokenMatch(provided: string, expected: string): boolean {
+  if (!provided || !expected) return false;
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+function isAuthorizedControlRequest(req: IncomingMessage, config: GateConfig): boolean {
+  const expectedToken = config.internalAdminToken || process.env.AEGIS_INTERNAL_TOKEN || '';
+  const headerToken =
+    (req.headers['x-aegis-internal-token'] as string) ||
+    ((req.headers.authorization as string) || '').replace(/^Bearer\s+/i, '').trim();
+  if (expectedToken && timingSafeTokenMatch(headerToken, expectedToken)) {
+    return true;
+  }
+  // En mode CTF, seul le token interne M2M est autorisé pour /_aegis/mode et /_aegis/simulate
+  if (process.env.AEGIS_CTF_MODE === 'true') {
+    return false;
+  }
+  const clientIp = getClientIp(req);
+  const userAgent = (req.headers['user-agent'] as string) || 'unknown';
+  const session = extractSessionFromRequest(req.headers.cookie, config.sessionSecret, {
+    userAgent,
+    clientIp
+  });
+  return session?.role === 'admin' || session?.role === 'secops';
 }
 
 export const DECOY_CANARY_ENV_PAYLOAD = [
@@ -47,6 +112,30 @@ export function createGateServer(
   state: GateServerState,
   authHandler?: BffAuthHandler
 ): http.Server {
+  let activeTarpitConnections = 0;
+
+  const scheduleTarpitResponse = (res: ServerResponse, delayMs: number, sendFn: () => void) => {
+    if (delayMs <= 0 || activeTarpitConnections >= MAX_CONCURRENT_TARPIT) {
+      sendFn();
+      return;
+    }
+    activeTarpitConnections++;
+    let done = false;
+    const finish = (executeSend: boolean) => {
+      if (done) return;
+      done = true;
+      activeTarpitConnections = Math.max(0, activeTarpitConnections - 1);
+      if (executeSend && !res.writableEnded) {
+        sendFn();
+      }
+    };
+    const timer = setTimeout(() => finish(true), delayMs);
+    res.once('close', () => {
+      clearTimeout(timer);
+      finish(false);
+    });
+  };
+
   return http.createServer((req: IncomingMessage, res: ServerResponse) => {
     // 0. Interception du Token Handler Pure BFF (/api/auth/*)
     if (authHandler && authHandler.handleAuthRequest(req, res)) {
@@ -85,8 +174,21 @@ export function createGateServer(
         (isInternalM2mSync && req.url.startsWith('/api/v1/dashboard/bans')))
     ) {
       const m2mChunks: Buffer[] = [];
-      req.on('data', (chunk: Buffer) => m2mChunks.push(chunk));
+      let m2mBytes = 0;
+      let m2mOverflow = false;
+      req.on('data', (chunk: Buffer) => {
+        m2mBytes += chunk.length;
+        if (m2mBytes > MAX_M2M_BODY_BYTES) {
+          m2mOverflow = true;
+          res.writeHead(413, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 413, error: 'M2M Payload Too Large' }));
+          req.destroy();
+          return;
+        }
+        m2mChunks.push(chunk);
+      });
       req.on('end', () => {
+        if (m2mOverflow) return;
         const buffered = Buffer.concat(m2mChunks);
         const clientIp = getClientIp(req);
         forwarder.forward(
@@ -102,15 +204,17 @@ export function createGateServer(
       return;
     }
 
-    // Endpoint de simulation de sondes bots / pentest (Ingress & Egress) pour le Cockpit SOC
+    // Endpoint de simulation de sondes bots / pentest (Ingress & Egress) pour le Cockpit SOC (Authentification requise)
     if (req.url === '/_aegis/simulate' && (req.method === 'POST' || req.method === 'GET' || req.method === 'OPTIONS')) {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
       if (req.method === 'OPTIONS') {
-        res.writeHead(200);
+        res.writeHead(204);
         res.end();
+        return;
+      }
+
+      if (!isAuthorizedControlRequest(req, config)) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 401, error: 'Unauthorized — Admin session or internal token required' }));
         return;
       }
 
@@ -267,7 +371,7 @@ export function createGateServer(
         (req.headers['x-rewrite-url'] as string) ||
         (req.url || '/').replace(/^\/_aegis\/verify/, '') ||
         '/';
-      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || getClientIp(req);
+      const clientIp = getClientIp(req);
       const userAgent = (req.headers['user-agent'] as string) || 'unknown';
       const targetHost = (
         (req.headers['x-forwarded-host'] as string) ||
@@ -475,7 +579,7 @@ export function createGateServer(
         };
 
         if (effectiveTarpitDelay > 0) {
-          setTimeout(sendFwdBlock, effectiveTarpitDelay);
+          scheduleTarpitResponse(res, effectiveTarpitDelay, sendFwdBlock);
         } else {
           sendFwdBlock();
         }
@@ -553,15 +657,22 @@ export function createGateServer(
       return;
     }
 
-    // Endpoint interne de contrôle du bouclier (activation / désactivation à chaud + seuil 413 + Ban IP + Anti-Artex)
+    // Endpoint interne de contrôle du bouclier (Authentification Admin / Token interne obligatoire — Correctif P0)
     if (req.url === '/_aegis/mode') {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
       if (req.method === 'OPTIONS') {
-        res.writeHead(200);
+        res.writeHead(204);
         res.end();
+        return;
+      }
+
+      if (!isAuthorizedControlRequest(req, config)) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            status: 401,
+            error: 'Unauthorized — Admin session or X-Aegis-Internal-Token required'
+          })
+        );
         return;
       }
 
@@ -586,8 +697,21 @@ export function createGateServer(
 
       if (req.method === 'POST') {
         const chunks: Buffer[] = [];
-        req.on('data', c => chunks.push(c));
+        let controlBytes = 0;
+        let controlOverflow = false;
+        req.on('data', (c: Buffer) => {
+          controlBytes += c.length;
+          if (controlBytes > MAX_CONTROL_BODY_BYTES) {
+            controlOverflow = true;
+            res.writeHead(413, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ status: 'error', message: 'Control payload too large' }));
+            req.destroy();
+            return;
+          }
+          chunks.push(c);
+        });
         req.on('end', () => {
+          if (controlOverflow) return;
           try {
             const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
             if (typeof body.enabled === 'boolean') {
@@ -878,7 +1002,7 @@ export function createGateServer(
         };
 
         if (effectiveTarpitDelay > 0) {
-          setTimeout(sendProxyBlock, effectiveTarpitDelay);
+          scheduleTarpitResponse(res, effectiveTarpitDelay, sendProxyBlock);
         } else {
           sendProxyBlock();
         }

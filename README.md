@@ -41,28 +41,10 @@ Aegis is a unified software suite built to protect SMB and mid-market informatio
 
 ---
 
-## ⚡ Live Hardware Benchmark: CVE-2024-4577 (PHP2Shell) — With vs Without Shield
-
-<p align="center">
-  <img src="docs/assets/aegis-php2shell-benchmark-en.gif" alt="Aegis PHP2Shell CPU & Intel RAPL Power Benchmark (With vs Without Shield)" width="100%" />
-</p>
-
-> *Measured locally on `Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz (8 vCPUs)` via direct hardware silicon counters (`/sys/class/powercap/intel-rapl:0` + `/proc/stat`) against an Nginx + PHP-FPM 8.3 + Node.js stack under sustained `CVE-2024-4577` burst (`602` blocked requests vs `126` unshielded exploits).*
-
-| Measured Metric | 🛡️ With Aegis Shield (Edge PEP) | 💥 Without Shield (Exposed PHP-FPM 8.3) | Impact |
-| :--- | :---: | :---: | :---: |
-| **PHP2Shell Interception** | **100%** (`602 / 602` HTTP `403`) | **0%** (`126 / 126` HTTP `200` exploited) | Complete perimeter block |
-| **PHP-FPM Container CPU** | **0%** avg / **0%** peak | **537.98%** avg / **743.4%** peak | Zero app CPU burn |
-| **Intel RAPL Power (Avg / Peak)** | **5.81 W** / **16.01 W** | **24.14 W** / **37.58 W** | **+315.5%** avg Watts w/o shield |
-| **Measured Energy Consumed** | **101.04 J** | **438.91 J** (`+337.9 J` wasted) | **×4.34** total energy |
-| **Average HTTP Latency** | **17.33 ms** | **2619.57 ms** | **151×** faster response |
-
----
-
 ## 🏛️ Architecture & Service Topology
 
 <p align="center">
-  <img src="docs/assets/aegis-blueprint-en.gif" alt="Aegis Architecture Blueprint — Zero-Trust Gate, AI Egress Sinkhole & Rust RAPL Green Telemetry" width="100%" />
+  <img src="docs/assets/aegis-blueprint-en.gif" alt="Aegis Architecture Blueprint — Zero-Trust Gate, AI Egress Sinkhole & Rust RAPL Green Telemetry" width="65%" />
 </p>
 
 ```
@@ -237,11 +219,21 @@ aegis/
 
 ---
 
-## ⚖️ License & Commitments
+## ⚡ Live Hardware Benchmark: CVE-2024-4577 (PHP2Shell) — With vs Without Shield
 
-* **Open-Source License**: Distributed under the **AGPLv3** (*GNU Affero General Public License v3*). Fully auditable and modifiable source code.
-* **Sovereign Design**: Developed in France by **AIVO Labs** — Immune to the extraterritorial US Cloud Act.
-* **Regulatory Compliance**: Built for **NIS 2**, **DORA**, **RGESN 2024**, and the European **VS Standard (EFRAG 2026)**.
+<p align="center">
+  <img src="docs/assets/aegis-php2shell-benchmark-en.gif" alt="Aegis PHP2Shell CPU & Intel RAPL Power Benchmark (With vs Without Shield)" width="100%" />
+</p>
+
+> *Measured locally on `Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz (8 vCPUs)` via direct hardware silicon counters (`/sys/class/powercap/intel-rapl:0` + `/proc/stat`) against an Nginx + PHP-FPM 8.3 + Node.js stack under sustained `CVE-2024-4577` burst (`602` blocked requests vs `126` unshielded exploits).*
+
+| Measured Metric | 🛡️ With Aegis Shield (Edge PEP) | 💥 Without Shield (Exposed PHP-FPM 8.3) | Impact |
+| :--- | :---: | :---: | :---: |
+| **PHP2Shell Interception** | **100%** (`602 / 602` HTTP `403`) | **0%** (`126 / 126` HTTP `200` exploited) | Complete perimeter block |
+| **PHP-FPM Container CPU** | **0%** avg / **0%** peak | **537.98%** avg / **743.4%** peak | Zero app CPU burn |
+| **Intel RAPL Power (Avg / Peak)** | **5.81 W** / **16.01 W** | **24.14 W** / **37.58 W** | **+315.5%** avg Watts w/o shield |
+| **Measured Energy Consumed** | **101.04 J** | **438.91 J** (`+337.9 J` wasted) | **×4.34** total energy |
+| **Average HTTP Latency** | **17.33 ms** | **2619.57 ms** | **151×** faster response |
 
 ---
 
@@ -270,3 +262,10 @@ To connect remote servers, gateways, and telemetry probes to the Control Plane, 
 > [!NOTE]
 > **Lifecycle & Production Hardening**: Aegis operates under an active **Public Beta** lifecycle. While all frontline perimeter locks (P0/P1) are operational and hardened, the platform will formally graduate to **General Availability (GA / Production LTS)** upon field validation of milestones P2 and P3.
 
+---
+
+## ⚖️ License & Commitments
+
+* **Open-Source License**: Distributed under the **AGPLv3** (*GNU Affero General Public License v3*). Fully auditable and modifiable source code.
+* **Sovereign Design**: Developed in France by **AIVO Labs** — Immune to the extraterritorial US Cloud Act.
+* **Regulatory Compliance**: Built for **NIS 2**, **DORA**, **RGESN 2024**, and the European **VS Standard (EFRAG 2026)**.
