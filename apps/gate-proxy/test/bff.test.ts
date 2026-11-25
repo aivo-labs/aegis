@@ -144,6 +144,7 @@ test('Pure BFF AuthHandler — Handles /api/auth/login in standalone demo mode (
   const config: any = {
     tenantId: '00000000-0000-0000-0000-000000000001',
     sessionSecret: 'secret_key_for_unit_tests_32_bytes!',
+    allowDemoAuth: true,
   };
   const authHandler = new BffAuthHandler(config);
 
@@ -486,5 +487,126 @@ test('Pure BFF Session — Cryptographic Context-Binding Anti-Token Replay (Verr
   });
   assert.equal(hijackedIp, null, 'Session replayed from different /24 public subnet must be rejected');
 });
+
+test('P0 Security Hardening — BFF /api/auth/login & /api/auth/callback fail closed without OIDC or allowDemoAuth', () => {
+  const authHandler = new BffAuthHandler({
+    tenantId: '00000000-0000-0000-0000-000000000001',
+    sessionSecret: 'secret_key_for_unit_tests_32_bytes!',
+    allowDemoAuth: false,
+  } as any);
+
+  let loginStatus = 0;
+  const resLogin: any = { setHeader: () => {}, writeHead: (c: number) => { loginStatus = c; }, end: () => {} };
+  authHandler.handleAuthRequest({ url: '/api/auth/login', method: 'GET', headers: {} } as any, resLogin);
+  assert.equal(loginStatus, 403, 'Login without OIDC or allowDemoAuth must return 403');
+
+  let cbStatus = 0;
+  const resCb: any = { setHeader: () => {}, writeHead: (c: number) => { cbStatus = c; }, end: () => {} };
+  authHandler.handleAuthRequest({ url: '/api/auth/callback?code=mock_sovereign_admin', method: 'GET', headers: {} } as any, resCb);
+  assert.equal(cbStatus, 403, 'Forged mock_sovereign_admin callback must return 403');
+});
+
+test('P0 Security Hardening — getClientIp prevents X-Forwarded-For spoofing', async () => {
+  const { getClientIp } = await import('../src/server.js');
+
+  // 1. Connexion directe depuis une IP publique -> X-Forwarded-For ignoré
+  const directReq: any = {
+    headers: { 'x-forwarded-for': '127.0.0.1, 198.51.100.10' },
+    socket: { remoteAddress: '203.0.113.42' },
+  };
+  assert.equal(getClientIp(directReq), '203.0.113.42');
+
+  // 2. Connexion via Caddy/Traefik (IP Docker privée 172.18.0.2) -> lit la DERNIÈRE IP non-proxy
+  const proxiedSpoofReq: any = {
+    headers: { 'x-forwarded-for': '1.1.1.1, 198.51.100.88' },
+    socket: { remoteAddress: '172.18.0.2' },
+  };
+  assert.equal(getClientIp(proxiedSpoofReq), '198.51.100.88');
+});
+
+test('P0 Security Hardening — /_aegis/mode requires internal token and blocks unauthenticated kill-switch', async () => {
+  const { createGateServer } = await import('../src/server.js');
+  const { WafInspector } = await import('../src/engine/inspector.js');
+  const { createDefaultRuleRegistry } = await import('../src/rules/default-rules.js');
+  const { IpReputationManager } = await import('../src/quarantine/ip-reputation.js');
+
+  const config: any = {
+    port: 0,
+    backendUrl: 'http://127.0.0.1:9999',
+    webUrl: 'http://127.0.0.1:9998',
+    telemetryUrl: 'http://127.0.0.1:9999/telemetry',
+    tenantId: '00000000-0000-0000-0000-000000000001',
+    sessionSecret: 'p0_test_secret_key_32_bytes_minimum!!',
+    internalAdminToken: 'p0_super_secret_internal_token_2026',
+    defaultMaxPayloadBytes: 32768,
+    defaultProtectionEnabled: true,
+    upstreamRouting: {},
+  };
+  const state = { protectionEnabled: true, maxPayloadBytes: 32768 };
+  const ipRep = new IpReputationManager();
+  const inspector = new WafInspector(createDefaultRuleRegistry(), ipRep, () => state.maxPayloadBytes);
+  const server = createGateServer(
+    config,
+    inspector,
+    ipRep,
+    { send: () => {} },
+    { forward: () => {} },
+    state
+  );
+
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const addr = server.address() as { port: number };
+  const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+  try {
+    // 1. POST /_aegis/mode sans token -> 401 & bouclier reste actif
+    const unauthRes = await fetch(`${baseUrl}/_aegis/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: false }),
+    });
+    assert.equal(unauthRes.status, 401);
+    assert.equal(state.protectionEnabled, true);
+
+    // 2. POST /_aegis/mode avec X-Aegis-Internal-Token valide -> 200
+    const authRes = await fetch(`${baseUrl}/_aegis/mode`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Aegis-Internal-Token': 'p0_super_secret_internal_token_2026',
+      },
+      body: JSON.stringify({ enabled: false }),
+    });
+    assert.equal(authRes.status, 200);
+    assert.equal(state.protectionEnabled, false);
+  } finally {
+    server.close();
+  }
+});
+
+test('P0 Security Hardening — WAF inspects HTTP headers and blocks hardened XSS/RCE/SSRF vectors', async () => {
+  const { WafInspector } = await import('../src/engine/inspector.js');
+  const { createDefaultRuleRegistry } = await import('../src/rules/default-rules.js');
+  const { IpReputationManager } = await import('../src/quarantine/ip-reputation.js');
+
+  const inspector = new WafInspector(createDefaultRuleRegistry(), new IpReputationManager(), () => 32768);
+
+  // Injection SQL dans le header Referer
+  const sqliReferer = inspector.inspect('/api/v1/items', 'GET', { referer: "https://evil.test/?q=' UNION SELECT 1 FROM users--" }, '', 0, '203.0.113.10');
+  assert.equal(sqliReferer.blocked, true);
+
+  // XSS HTML5 moderne (<svg/onpointerenter=...>)
+  const xssSvg = inspector.inspect('/search?q=<svg/onpointerenter=1>', 'GET', {}, '', 0, '203.0.113.11');
+  assert.equal(xssSvg.blocked, true);
+
+  // SSRF IP décimale (169.254.169.254 = 2852039166)
+  const ssrfDec = inspector.inspect('/proxy?url=http://2852039166/latest/meta-data/', 'GET', {}, '', 0, '203.0.113.12');
+  assert.equal(ssrfDec.blocked, true);
+
+  // RCE ${IFS} bypass
+  const rceIfs = inspector.inspect('/run?cmd=cat${IFS}/etc/hosts', 'GET', {}, '', 0, '203.0.113.13');
+  assert.equal(rceIfs.blocked, true);
+});
+
 
 

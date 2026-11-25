@@ -132,65 +132,74 @@ Before listing upcoming P2/P3 locks, the following capabilities are **already im
 
 ---
 
-## 🛡️ Phase P2 — Kernel Defense, Frugal Rust Endpoint Agent & ZTNA
+## 🔒 Phase P1.6 (v1.3.1) — P0 Security & CTF Arena Hardening (✅ Delivered)
 
-### 🔒 Lock #6: L3/L4 `eBPF / XDP` Network Filter, Sub-Second `SIGKILL` Process Kill-Switch & Host Kernel Watch
-- **Status:** ⏳ In Design
-- **Priority:** Medium (**P2** — Linux Host / Bare-Metal)
-- **Technical Plan:**
-  1. Extend [`apps/telemetry-agent`](apps/telemetry-agent/src/main.rs) with an `xdp` eBPF program attached at the NIC driver layer to discard malformed IPv4 TCP SYN packets carrying dangerous IP options (`IPOPT_LSRR`, `IPOPT_SSRR`, `IPOPT_RR` — e.g., kernel TCP stack UAF vectors like CVE-2026-98432) in `< 0.005 ms` (`XDP_DROP`).
-  2. **Sub-Second Process Kill-Switch (`SIGKILL < 10 ms`) against machine-speed post-exploitation**: Evolve [`apps/telemetry-agent/src/collector/process_spawn.rs`](apps/telemetry-agent/src/collector/process_spawn.rs) from passive `/proc` detection to an `ACTIVE_CONTAINMENT` mode that immediately dispatches `SIGKILL` (`kill -9`) to any unauthorized child shell (`sh`, `bash`, `nc`, `python`, `socat`) spawned by a web worker before an autonomous AI agent (ARTEX) can receive its command output.
-  3. Read host kernel release (`uname -r`) continuously and surface actionable distro upgrade alerts in the Cockpit when running unpatched kernels.
-
-### 🔒 Lock #7: Centralized Enterprise DNS Filtering & Shadow IT Governance
-- **Status:** ⏳ Planned
-- **Priority:** Medium (**P2**)
-- **Technical Plan:**
-  1. Operate [`apps/egress-gateway`](apps/egress-gateway/src/index.ts) (`:5053`) as the central sovereign corporate DNS resolver distributed via office DHCP, plus **DNS-over-HTTPS (DoH)** and **DNS-over-TLS (DoT)** profiles for remote workstations — preserving full frugality by avoiding heavy corporate MITM TLS termination proxies.
-  2. Categorize Remote Access Tools (**RAT**: TeamViewer, AnyDesk, RustDesk, LogMeIn, VNC) so admins can enforce subnet rules (e.g., *block all remote desktop traffic originating from DMZ/production databases*) and sinkhole second-stage C2 implants (Sliver, Cobalt Strike) attempting callback after client-side exploits (e.g., TeamViewer URL injection families).
-
-### 🔒 Lock #8: Frugal Rust Endpoint Posture Agent (`< 10 MB RAM`) & Post-Quantum `mTLS` Channel
-- **Status:** ⏳ In Design
-- **Priority:** Medium (**P2**)
-- **Context & Philosophy:** Heavy commercial EDR suites consume `1–2 GB RAM` per laptop with recurring per-seat SaaS costs. Aegis introduces `aegis-node-agent` in compiled native Rust (`< 10 MB RAM`, `~0% idle CPU`) as a sovereign posture and vulnerability probe.
-- **Technical Plan:**
-  1. Standalone cross-platform binary for Linux (`systemd`), macOS (`launchd`), and Windows (native service) with single-use ephemeral token enrollment.
-  2. Local software inventory & CVE checks (e.g., flagging vulnerable TeamViewer `< 15.83`, outdated OpenSSL/sudo, browsers) + basic OS hygiene (BitLocker/FileVault/LUKS disk encryption, local firewall, OS updates).
-  3. **Post-Quantum Hybrid `mTLS` Heartbeat (`X25519MLKEM768` — NIST FIPS 203)** (`POST /api/v1/endpoints/posture`) between Rust probes (`rustls-post-quantum`) and the Go 1.25 Control Plane to immunize infrastructure telemetry against *Harvest Now, Decrypt Later (HNDL)* interception, feeding **ZTNA Conditional Access** decisions in `gate-proxy`.
-
-### 🔒 Lock #9: "Assume Breach" ZTNA Micro-Segmentation
-- **Status:** ⏳ In Design
-- **Priority:** Medium (**P2**)
-- **Technical Plan:**
-  1. Enforce VLAN separation eliminating direct L3 IP routes from office workstations / guest Wi-Fi to core datastores (TimescaleDB, PostgreSQL, ERP).
-  2. Route internal human & admin access strictly through `gate-proxy` PEP with mandatory MFA / mTLS device-posture verification.
-  3. Embed ARP/port-scan anomaly detection (internal honeypot tripwire) to raise immediate critical alerts if a compromised workstation probes internal server subnets.
+- **Status:** ✅ Delivered (`v1.3.1`)
+- **Priority:** Critical (**P0** — Pre-CTF & Public Exposure Hardening)
+- **Delivered Fixes:**
+  1. **Control-Plane & Kill-Switch Lockdown**: Authenticated `/_aegis/mode` and `/_aegis/simulate` via constant-time `X-Aegis-Internal-Token` (or verified BFF admin session outside CTF mode), removed wildcard CORS on control routes, and added `requireInternalAuth` middleware on mutating Go Backend routes ([`apps/backend/internal/http/router.go`](apps/backend/internal/http/router.go)).
+  2. **Anti-Spoofing IP Resolution (`X-Forwarded-For`) & Zero Hardcoded Admin IPs**: Hardened [`getClientIp`](apps/gate-proxy/src/server.ts) to trust `X-Forwarded-For` strictly from trusted reverse-proxy CIDRs (reading right-to-left) and removed hardcoded personal IPs from [`ip-reputation.ts`](apps/gate-proxy/src/quarantine/ip-reputation.ts) and [`docker-compose.ctf.yml`](docker-compose.ctf.yml).
+  3. **Pure BFF OIDC Hardening & Cryptographic Secret Generation**: Disabled unauthenticated admin auto-login by default (gated behind explicit `AEGIS_ALLOW_DEMO_AUTH=true`, forcibly disabled in CTF mode), enforced PKCE `state` validation and real `tokenEndpoint` code exchange, and replaced static fallback session secrets with ephemeral 256-bit cryptographic keys.
+  4. **WAF L7 Surface Expansion & Anti-Auto-DoS Caps**: Expanded inspection to HTTP headers (`Referer`, `User-Agent`, `X-Forwarded-Host`, non-session `Cookie`), blocked `/api/*.css` static-extension bypasses, hardened XSS/RCE/SSRF regexes, bounded M2M/control body buffers, and capped concurrent Tarpit slots (`MAX_CONCURRENT_TARPIT = 50`) for `e2-micro` resilience.
+  5. **CTF Production Defaults**: Enabled `AEGIS_STEALTH_BLOCK=true` and `AEGIS_ALLOW_DEMO_AUTH=false` by default in [`docker-compose.ctf.yml`](docker-compose.ctf.yml).
 
 ---
 
-## 🤖 Phase P3 — AI Security, "Two-Door" MCP Gateway & Collaborative CTI
+## 🛡️ Phase P2 — Core Infrastructure Hardening (3-Pillar Refocus)
 
-### 🔒 Lock #10: "Two-Door" Architecture & Outbound "Zero-Secret Placeholder" Injection (AI DLP)
+To preserve engineering focus and production maturity, Aegis concentrates its core roadmap on **3 differentiating pillars** (Edge Shield, Egress & AI/MCP Boundary, Sovereign Green & PQC Compliance). Non-core enterprise IT domains (workstation EDR, corporate DNS/RAT, VLAN ZTNA, P2P CTI) are intentionally addressed via sovereign **ecosystem integrations and partnerships** (see below).
+
+### 🔒 Lock #6: Production WAF Engine (Coraza / OWASP CRS v4) + Go Native Consolidation & Kernel Containment
+- **Status:** ⏳ Next Up (P1/P2)
+- **Priority:** High (**P2** — Core Pillar #1: Edge Shield)
+- **Technical Plan:**
+  1. **Coraza WAF (OWASP CRS v4) + Anti-Artex Layer**: Embed **Coraza** (native Go OWASP CRS v4 engine) as the battle-tested L7 anomaly-scoring foundation while keeping Aegis's proprietary **Anti-Artex** layer on top (Stealth Block, Canary Honeypot, BOLA sliding window, OAST blocking, Session Context-Binding).
+  2. **Go Native Edge Consolidation**: Port `gate-proxy` and `egress-gateway` (`miekg/dns` + real upstream DNS resolution + `nftables`/`iptables` egress enforcement) to Go for 3× lower RAM, sub-millisecond latency, and zero Node.js event-loop ReDoS/Tarpit risk.
+  3. **Kernel Containment (`eBPF / XDP` & `sched_process_exec` `SIGKILL`)**: Evolve [`apps/telemetry-agent`](apps/telemetry-agent/src/main.rs) from 5s `/proc` polling to real-time eBPF `sched_process_exec` (`SIGKILL < 10 ms` on unauthorized web-worker child shells) and `XDP_DROP` for malformed IPv4 TCP SYN options.
+
+### 🔒 Lock #7: Post-Quantum Hybrid `mTLS` (`X25519MLKEM768`) & Sovereign Green/Compliance Proofs
 - **Status:** ⏳ In Design
-- **Priority:** Strategic R&D (**P3**)
+- **Priority:** High (**P2** — Core Pillar #3: Sovereign Green & Compliance)
+- **Technical Plan:**
+  1. **Post-Quantum Hybrid `mTLS` (`X25519MLKEM768` — NIST FIPS 203)**: Leverage native Go 1.25 `crypto/tls` + Rust `rustls-post-quantum` between `telemetry-agent` / Edge nodes and the Control Plane to protect infrastructure telemetry against *Harvest Now, Decrypt Later (HNDL)* at near-zero engineering overhead.
+  2. **Auditable NIS 2 & EFRAG/RGESN Reporting**: Automated signed PDF/JSON compliance reports combining real Intel/AMD RAPL Joules/Watts with CERT-FR CVE posture and WAF interception proofs.
+
+---
+
+## 🤖 Phase P3 — AI Security, "Two-Door" MCP Gateway & Post-Quantum AI Act Ledger
+
+### 🔒 Lock #8: "Two-Door" Architecture & Outbound "Zero-Secret Placeholder" Injection (AI DLP)
+- **Status:** ⏳ In Design
+- **Priority:** Strategic R&D (**P3** — Core Pillar #2: Egress & AI/MCP Boundary)
 - **Context:** As enterprises connect internal APIs, CRMs, and documents to LLMs and autonomous workflows, both inbound prompt paths and outbound model egress expose API keys and sensitive records to Prompt Injection exfiltration.
 - **Technical Plan:**
   1. **Door 1 — Inbound Edge Prompt Guardrails (`gate-proxy`)**: Combine deterministic heuristics, entropy/structural checks, and token-budget limits to block **Prompt Injections & Jailbreaks** before they reach internal AI backends.
   2. **Door 2 — "Zero-Secret Placeholder" Pattern & Outbound DLP (`egress-gateway`)**: The AI agent runtime holds **zero real API keys** in memory or environment variables (only a local dummy token `AEGIS_PLACEHOLDER_KEY`). `egress-gateway` scrubs regulated PII (GDPR), source code, and internal secrets on the fly, injecting the real external API credential strictly at the outbound network boundary after policy verification.
 
-### 🔒 Lock #11: Zero-Trust MCP Gateway (Per-Identity Tool Filtering) & Post-Quantum AI Act Ledger
+### 🔒 Lock #9: Zero-Trust MCP Gateway (Per-Identity Tool Filtering) & Post-Quantum AI Act Ledger (`ML-DSA-65`)
 - **Status:** ⏳ In Design
-- **Priority:** Strategic R&D (**P3**)
+- **Priority:** Strategic R&D (**P3** — Core Pillar #2 & #3)
 - **Context:** Multi-agent orchestrators rely on the **Model Context Protocol (MCP)** to invoke privileged tools (SQL queries, shell scripts, business APIs), creating severe privilege-escalation risks via indirect prompt injection.
 - **Technical Plan:**
-  1. **Per-Identity MCP Tool Filtering (`tools/list` & `tools/call`)**: Native JSON-RPC MCP inspection inside `gate-proxy` that dynamically filters exposed tool catalogs and authorizes each `tools/call` against the caller's OIDC / SPIFFE identity, combined with ephemeral Linux kernel sandboxing (`seccomp-bpf` syscall filters, `eBPF` hooks, isolated namespaces).
+  1. **Per-Identity MCP Tool Filtering (`tools/list` & `tools/call`)**: Native JSON-RPC MCP inspection inside `gate-proxy` that dynamically filters exposed tool catalogs and authorizes each `tools/call` against the caller's OIDC / SPIFFE identity, combined with ephemeral Linux kernel sandboxing (`seccomp-bpf`, `eBPF` hooks, isolated namespaces).
   2. **Post-Quantum Signed Immutable Decision Ledger (EU AI Act)**: Append-only cryptographic audit trail in TimescaleDB capturing every autonomous agent tool call, sealed with a **hybrid classical + post-quantum dual signature (`Ed25519 + ML-DSA-65` — NIST FIPS 204)** to guarantee long-term non-repudiation under the **European AI Act**.
 
-### 🔒 Lock #12: Collaborative P2P CTI & `< 1B` CPU-Only Specialized Micro-SLMs
-- **Status:** 🚧 Partial (Static C2 blocklist + optional `Nimble 9B` Ollama active in v1)
+### 🔒 Lock #10: Live Open-Source CTI Feeds & `< 1B` CPU-Only Specialized Micro-SLMs
+- **Status:** 🚧 Partial (Static C2/OAST blocklist + optional `qwen2.5:0.5b` / `Nimble` Ollama active in v1)
 - **Priority:** Strategic R&D (**P3**)
-- **Current Codebase State (v1):** [`apps/egress-gateway/src/cti/blocklist.ts`](apps/egress-gateway/src/cti/blocklist.ts) loads an initial CrowdSec/exfil blocklist, paired optionally with the sovereign **Nimble 9B** local SLM container (`ollama-nimble:11434` defined in `docker-compose.yml`).
 - **Evolution Roadmap:**
   1. **Live Open-Source CTI Synchronization**: Automated ingestion of consolidated C2 & malicious IP feeds (**Abuse.ch URLhaus**, **ThreatFox**, **CERT-FR**, **CISA KEV**) in `O(1)` lookup (`< 0.05 ms`, `< 5 MB RAM`).
-  2. **Decentralized Sovereign P2P Reputation**: Opt-in cryptographic peer-to-peer sharing of confirmed hostile scanner IPs and indicators across Aegis nodes without delegating telemetry to a foreign cloud monopoly.
-  3. **Ultra-Frugal CPU-Only Micro-SLMs (`< 1B` parameters)**: Complement or replace the optional `Nimble 9B` service with quantized sub-1-billion-parameter security classification models running purely on standard CPUs (*air-gapped*, zero GPU farm required).
+  2. **Ultra-Frugal CPU-Only Micro-SLMs (`< 1B` parameters)**: Quantized sub-1B security classification models running purely on standard CPUs (*air-gapped*, zero GPU farm required).
+
+---
+
+## 🤝 Ecosystem Integrations, Partnerships & Deferred Scope
+
+Rather than diluting focus across non-core IT security categories, Aegis favors **native connectors and sovereign European partnerships** for the following domains (deferred from the core server roadmap):
+
+| Domain (Deferred from Core) | Recommended Strategy | Sovereign / Open-Source Ecosystem & Partners |
+| :--- | :--- | :--- |
+| **Collaborative Threat Intelligence (P2P CTI)** | Native Bouncer / Feed Connector | **CrowdSec** (community IP reputation), **MISP**, **Abuse.ch**, **CERT-FR** |
+| **Workstation EDR & Endpoint Posture (Win/macOS)** | Posture Webhook / API Ingestion | **Wazuh** (Open Source), **HarfangLab** / **Tehtris** (Sovereign FR EDR), **FleetDM / osquery**, **GLPI** |
+| **ZTNA & VLAN Micro-Segmentation** | Identity & Network Integration | **NetBird**, **Headscale / WireGuard**, **OPNsense / pfSense** |
+| **Corporate Office DNS & RAT Filtering** | Dedicated Add-on / Partner Stack | **Bind9 RPZ**, **AdGuard Home**, **Technitium DNS**, **NextDNS** (EU) |

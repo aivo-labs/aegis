@@ -36,10 +36,12 @@ services:
       EGRESS_GATEWAY_URL: "http://egress-gateway:5053"
       AEGIS_GATE_API_URL: "${AEGIS_CONTROL_PLANE_URL:-https://aegis.aivo.fr}/api/v1/gate/telemetry/ingress"
       AEGIS_TENANT_ID: "${AEGIS_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
-      AEGIS_EXEMPT_IPS: "${AEGIS_EXEMPT_IPS:-198.51.100.10}"
+      AEGIS_EXEMPT_IPS: "${AEGIS_EXEMPT_IPS:-}"
       AEGIS_TARPIT_ENABLED: "${AEGIS_TARPIT_ENABLED:-true}"
-      AEGIS_STEALTH_BLOCK: "${AEGIS_STEALTH_BLOCK:-false}"
-      BFF_SESSION_SECRET: "${BFF_SESSION_SECRET:-ctf_aegis_bff_session_secret_32b_key!}"
+      AEGIS_STEALTH_BLOCK: "${AEGIS_STEALTH_BLOCK:-true}"
+      AEGIS_ALLOW_DEMO_AUTH: "false"
+      AEGIS_INTERNAL_TOKEN: "${AEGIS_INTERNAL_TOKEN:-}"
+      BFF_SESSION_SECRET: "${BFF_SESSION_SECRET:-}"
     ports:
       - "127.0.0.1:8000:8000"
     networks:

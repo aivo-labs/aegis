@@ -41,28 +41,10 @@ Aegis est une suite logicielle unifiée conçue pour sécuriser le système d'in
 
 ---
 
-## ⚡ Preuve Matérielle en Direct : Attaque CVE-2024-4577 (PHP2Shell) — Avec vs Sans Bouclier
-
-<p align="center">
-  <img src="docs/assets/aegis-php2shell-benchmark-fr.gif" alt="Comparatif Charge CPU & Puissance Intel RAPL — Attaque PHP2Shell (Avec vs Sans Bouclier Aegis)" width="100%" />
-</p>
-
-> *Mesuré en local sur `Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz (8 vCPUs)` par lecture matérielle directe (`/sys/class/powercap/intel-rapl:0` + `/proc/stat`) face à une rafale soutenue `CVE-2024-4577` ciblant une stack Nginx + PHP-FPM 8.3 + Node.js (`602` requêtes bloquées vs `126` compromissions sans bouclier).*
-
-| Indicateur Mesuré | 🛡️ Avec Bouclier Aegis (Edge PEP) | 💥 Sans Bouclier (PHP-FPM 8.3 exposé) | Gain Aegis |
-| :--- | :---: | :---: | :---: |
-| **Interception PHP2Shell** | **100 %** (`602 / 602` HTTP `403`) | **0 %** (`126 / 126` HTTP `200` exploitées) | Blocage périmétrique total |
-| **Charge CPU PHP-FPM Cible** | **0 %** moy. / **0 %** pic | **537,98 %** moy. / **743,4 %** pic | Zéro saturation applicative |
-| **Puissance Intel RAPL (Moy / Pic)** | **5,81 W** / **16,01 W** | **24,14 W** / **37,58 W** | **+315,5 %** Watts moy. sans bouclier |
-| **Énergie Cumulée Mesurée** | **101,04 J** | **438,91 J** (`+337,9 J` gaspillés) | **×4,34** d'énergie consommée |
-| **Latence HTTP Moyenne** | **17,33 ms** | **2619,57 ms** | Réponse **151×** plus rapide |
-
----
-
 ## 🏛️ Architecture & Cartographie des Services
 
 <p align="center">
-  <img src="docs/assets/aegis-blueprint-fr.gif" alt="Blueprint Architecture Aegis — Gate Zero-Trust, Egress IA & Télémétrie Matérielle RAPL" width="100%" />
+  <img src="docs/assets/aegis-blueprint-fr.gif" alt="Blueprint Architecture Aegis — Gate Zero-Trust, Egress IA & Télémétrie Matérielle RAPL" width="65%" />
 </p>
 
 ```
@@ -237,11 +219,21 @@ aegis/
 
 ---
 
-## ⚖️ Licence & Engagements
+## ⚡ Preuve Matérielle en Direct : Attaque CVE-2024-4577 (PHP2Shell) — Avec vs Sans Bouclier
 
-* **Licence Libre** : Distribué sous licence **AGPLv3** (*GNU Affero General Public License v3*). Code source auditable et librement modifiable.
-* **Souveraineté** : Conçu en France par **AIVO Labs** — Immunisé contre le Cloud Act américain.
-* **Conformité Réglementaire** : Prêt pour **NIS 2**, **DORA**, le **RGESN 2024** et la **Norme VS (EFRAG 2026)**.
+<p align="center">
+  <img src="docs/assets/aegis-php2shell-benchmark-fr.gif" alt="Comparatif Charge CPU & Puissance Intel RAPL — Attaque PHP2Shell (Avec vs Sans Bouclier Aegis)" width="100%" />
+</p>
+
+> *Mesuré en local sur `Intel(R) Core(TM) i5-8350U CPU @ 1.70GHz (8 vCPUs)` par lecture matérielle directe (`/sys/class/powercap/intel-rapl:0` + `/proc/stat`) face à une rafale soutenue `CVE-2024-4577` ciblant une stack Nginx + PHP-FPM 8.3 + Node.js (`602` requêtes bloquées vs `126` compromissions sans bouclier).*
+
+| Indicateur Mesuré | 🛡️ Avec Bouclier Aegis (Edge PEP) | 💥 Sans Bouclier (PHP-FPM 8.3 exposé) | Gain Aegis |
+| :--- | :---: | :---: | :---: |
+| **Interception PHP2Shell** | **100 %** (`602 / 602` HTTP `403`) | **0 %** (`126 / 126` HTTP `200` exploitées) | Blocage périmétrique total |
+| **Charge CPU PHP-FPM Cible** | **0 %** moy. / **0 %** pic | **537,98 %** moy. / **743,4 %** pic | Zéro saturation applicative |
+| **Puissance Intel RAPL (Moy / Pic)** | **5,81 W** / **16,01 W** | **24,14 W** / **37,58 W** | **+315,5 %** Watts moy. sans bouclier |
+| **Énergie Cumulée Mesurée** | **101,04 J** | **438,91 J** (`+337,9 J` gaspillés) | **×4,34** d'énergie consommée |
+| **Latence HTTP Moyenne** | **17,33 ms** | **2619,57 ms** | Réponse **151×** plus rapide |
 
 ---
 
@@ -270,3 +262,10 @@ Pour interconnecter vos serveurs, passerelles et sondes au Control Plane, consul
 > [!NOTE]
 > **Cycle de Vie & Durcissement en Production** : Aegis est actuellement en phase active de **Bêta Publique**. Bien que tous les verrous du périmètre frontal (P0/P1) soient opérationnels et éprouvés, la plateforme n'annoncera sa **Disponibilité Générale (GA / Production LTS)** qu'après validation sur le terrain des jalons P2 et P3.
 
+---
+
+## ⚖️ Licence & Engagements
+
+* **Licence Libre** : Distribué sous licence **AGPLv3** (*GNU Affero General Public License v3*). Code source auditable et librement modifiable.
+* **Souveraineté** : Conçu en France par **AIVO Labs** — Immunisé contre le Cloud Act américain.
+* **Conformité Réglementaire** : Prêt pour **NIS 2**, **DORA**, le **RGESN 2024** et la **Norme VS (EFRAG 2026)**.

@@ -132,65 +132,74 @@ Avant les prochains verrous P2/P3, les briques suivantes sont **opérationnelles
 
 ---
 
-## 🛡️ Phase P2 — Défense Noyau Linux, Agent Endpoint Rust & ZTNA
+## 🔒 Phase P1.6 (v1.3.1) — Durcissement Sécurité P0 & Arène CTF (✅ Livré)
 
-### 🔒 Verrou n°6 : Filtre Réseau `eBPF / XDP` L3/L4, Kill-Switch Processus `SIGKILL` & Veille Kernel Hôte
-- **Statut :** ⏳ En conception
-- **Priorité :** Moyenne (**P2** — Hôte Linux / Bare-Metal)
-- **Plan d'action technique :**
-  1. Charger via [`apps/telemetry-agent`](apps/telemetry-agent/src/main.rs) un programme eBPF `XDP` au niveau du pilote réseau pour jeter (`XDP_DROP` en `< 0,005 ms`) tout paquet IPv4 `TCP SYN` porteur d'options IP obsolètes/malveillantes (`IPOPT_LSRR`, `IPOPT_SSRR`, `IPOPT_RR` — ex. failles kernel TCP UAF telles que CVE-2026-98432).
-  2. **Kill-Switch Processus Sub-Seconde (`SIGKILL < 10 ms`) contre l'exécution post-exploitation à vitesse machine** : faire évoluer [`apps/telemetry-agent/src/collector/process_spawn.rs`](apps/telemetry-agent/src/collector/process_spawn.rs) de la détection passive `/proc` vers un mode `ACTIVE_CONTAINMENT` capable d'envoyer instantanément `SIGKILL` (`kill -9`) à tout processus shell enfant illégitime (`sh`, `bash`, `nc`, `python`, `socat`) engendré par un worker web avant même que le Worker d'un agent IA (ARTEX) ne reçoive le résultat de sa commande.
-  3. Remonter automatiquement `uname -r` dans le Cockpit avec alerte de mise à jour noyau lorsque la version hôte est vulnérable.
-
-### 🔒 Verrou n°7 : Filtrage DNS Entreprise Centralisé & Gouvernance Shadow IT
-- **Statut :** ⏳ À planifier
-- **Priorité :** Moyenne (**P2**)
-- **Plan d'action technique :**
-  1. Déployer [`apps/egress-gateway`](apps/egress-gateway/src/index.ts) (`:5053`) comme résolveur DNS d'entreprise (DHCP sur site + profils sécurisés **DoH / DoT** en télétravail), préservant la sobriété en évitant la rupture/inspection TLS lourde sur tout le trafic web.
-  2. Catégoriser les outils de télémaintenance (**RAT** : TeamViewer, AnyDesk, RustDesk, LogMeIn, VNC) afin d'appliquer des règles par sous-réseau (ex. *interdiction de prise en main sortante depuis la DMZ et les bases de production*) et neutraliser les beacons C2 post-exploitation.
-
-### 🔒 Verrou n°8 : Agent de Posture Endpoint Frugal en Rust (`< 10 Mo RAM`) & Canal `mTLS` Post-Quantique
-- **Statut :** ⏳ En conception
-- **Priorité :** Moyenne (**P2**)
-- **Philosophie :** Remplacer les EDR commerciaux lourds (`1–2 Go RAM` / jusqu'à `50 €/poste/mois`) par un binaire natif Rust (`aegis-node-agent`, `< 10 Mo RAM`, `0 % CPU` au repos).
-- **Plan d'action technique :**
-  1. Binaire multiplateforme autonome (`systemd` Linux, `launchd` macOS, service Windows) avec enrôlement automatisé par jeton éphémère à usage unique.
-  2. Inventaire logiciel local & CVE (ex. détection TeamViewer vulnérable, OpenSSL/sudo/navigateurs obsolètes) + contrôles d'hygiène (chiffrement disque BitLocker/FileVault/LUKS, pare-feu actif, correctifs OS).
-  3. **Heartbeat chiffré `mTLS` hybride Post-Quantique (`X25519MLKEM768` — NIST FIPS 203)** (`POST /api/v1/endpoints/posture`) entre les sondes Rust (`rustls-post-quantum`) et le Control Plane Go 1.25 pour immuniser la télémétrie d'infrastructure contre toute collecte rétroactive *HNDL*, couplé à l'accès conditionnel Zero-Trust dans `gate-proxy`.
-
-### 🔒 Verrou n°9 : Micro-Segmentation ZTNA « Assume Breach »
-- **Statut :** ⏳ En conception
-- **Priorité :** Moyenne (**P2**)
-- **Plan d'action technique :**
-  1. Supprimer les routes L3 directes entre postes bureautiques / Wi-Fi invités et les serveurs de données (TimescaleDB, PostgreSQL, ERP).
-  2. Imposer `gate-proxy` comme point de passage unique MFA + mTLS.
-  3. Ajouter une détection locale de scan ARP/ports (Honeypot réseau interne) pour alerter instantanément si un poste bureautique sonde les sous-réseaux serveurs.
+- **Statut :** ✅ Livré (`v1.3.1`)
+- **Priorité :** Critique (**P0** — Pré-requis CTF & exposition publique)
+- **Correctifs livrés :**
+  1. **Verrouillage du Control Plane & Kill-Switch** : authentification obligatoire par jeton interne en temps constant (`X-Aegis-Internal-Token`) ou session admin BFF (hors mode CTF) sur `/_aegis/mode` et `/_aegis/simulate`, suppression du CORS `*` sur les routes de contrôle, et ajout du middleware `requireInternalAuth` sur les routes mutatrices du Backend Go ([`apps/backend/internal/http/router.go`](apps/backend/internal/http/router.go)).
+  2. **Résolution IP Anti-Spoofing (`X-Forwarded-For`) & Suppression des IP codées en dur** : durcissement de [`getClientIp`](apps/gate-proxy/src/server.ts) (lecture droite $\rightarrow$ gauche uniquement depuis des reverse-proxies de confiance) et suppression de l'IP administrateur codée en dur dans [`ip-reputation.ts`](apps/gate-proxy/src/quarantine/ip-reputation.ts) et [`docker-compose.ctf.yml`](docker-compose.ctf.yml).
+  3. **Durcissement BFF OIDC & Secrets Cryptographiques** : désactivation par défaut de l'auto-login admin (réservé à `AEGIS_ALLOW_DEMO_AUTH=true` hors mode CTF), validation stricte du `state` PKCE et échange réel auprès du `tokenEndpoint`, et génération d'une clé aléatoire éphémère 256-bit si `BFF_SESSION_SECRET` est absent ou par défaut.
+  4. **Élargissement de la Surface WAF L7 & Anti-Auto-DoS** : inspection des en-têtes HTTP (`Referer`, `User-Agent`, `X-Forwarded-Host`, `Cookie` hors session), blocage du bypass `/api/*.css`, durcissement des règles XSS/RCE/SSRF, bornage des buffers M2M/contrôle, et plafond de connexions Tarpit simultanées (`MAX_CONCURRENT_TARPIT = 50`) adapté aux VM `e2-micro`.
+  5. **Durcissement des défauts CTF** : activation par défaut de `AEGIS_STEALTH_BLOCK=true` et `AEGIS_ALLOW_DEMO_AUTH=false` dans [`docker-compose.ctf.yml`](docker-compose.ctf.yml).
 
 ---
 
-## 🤖 Phase P3 — Sécurité IA, Passerelle MCP « Two-Door » & CTI Collaborative
+## 🛡️ Phase P2 — Durcissement Infrastructure Cœur (Recentrage sur 3 Piliers)
 
-### 🔒 Verrou n°10 : Architecture « Two-Door » & Injection Sortante « Zero-Secret Placeholder » (DLP IA)
+Pour maximiser la maturité production sans disperser l'effort d'ingénierie, la feuille de route cœur d'Aegis se concentre sur **3 piliers différenciants** (*Bouclier Edge & Anti-Artex*, *Frontière Egress & IA/MCP*, *Preuve Énergétique RAPL & Conformité Post-Quantique*). Les domaines IT périphériques (EDR postes de travail, DNS bureautique/RAT, ZTNA VLAN, CTI P2P) sont adressés via des **intégrations et partenariats souverains** (voir tableau ci-dessous).
+
+### 🔒 Verrou n°6 : Moteur WAF Production (Coraza / OWASP CRS v4), Consolidation Go & Confinement Noyau
+- **Statut :** ⏳ Prochaine étape (P1/P2)
+- **Priorité :** Haute (**P2** — Pilier n°1 : Bouclier Edge)
+- **Plan d'action technique :**
+  1. **Coraza WAF (OWASP CRS v4) + Couche Anti-Artex** : embarquer **Coraza** (moteur WAF open-source natif en Go compatible OWASP CRS v4) comme socle éprouvé de scoring d'anomalies L7, tout en conservant au-dessus la couche propriétaire **Aegis Anti-Artex** (Stealth Block, Canary Honeypot, BOLA, OAST, Context-Binding de session).
+  2. **Consolidation Native Go** : porter `gate-proxy` et `egress-gateway` (`miekg/dns` + résolution DNS upstream réelle + confinement réseau `nftables`/`iptables`) en Go pour diviser la RAM par 3, garantir une latence sub-milliseconde et supprimer tout risque de blocage de l'event-loop Node.js.
+  3. **Confinement Noyau (`eBPF / XDP` & `sched_process_exec` `SIGKILL`)** : faire évoluer [`apps/telemetry-agent`](apps/telemetry-agent/src/main.rs) du polling `/proc` (5s) vers un hook temps réel eBPF `sched_process_exec` (`SIGKILL < 10 ms` sur tout shell enfant illégitime d'un worker web) et `XDP_DROP` contre les paquets IPv4 TCP SYN malformés.
+
+### 🔒 Verrou n°7 : Canal `mTLS` Hybride Post-Quantique (`X25519MLKEM768`) & Preuves Conformité NIS 2 / EFRAG
 - **Statut :** ⏳ En conception
-- **Priorité :** Évolution Stratégique (**P3 / R&D**)
+- **Priorité :** Haute (**P2** — Pilier n°3 : Souveraineté Green & Conformité)
+- **Plan d'action technique :**
+  1. **Transport `mTLS` Hybride Post-Quantique (`X25519MLKEM768` — NIST FIPS 203)** : exploiter le support natif Go 1.25 `crypto/tls` + Rust `rustls-post-quantum` entre les sondes `telemetry-agent` / nœuds Edge et le Control Plane pour immuniser la télémétrie d'infrastructure contre la collecte rétroactive (*Harvest Now, Decrypt Later — HNDL*) à coût d'ingénierie quasi nul.
+  2. **Rapports Auditables NIS 2 & EFRAG/RGESN** : génération automatisée de rapports PDF/JSON signés combinant les Joules/Watts physiques Intel/AMD RAPL, la posture CVE CERT-FR et les preuves d'interception WAF.
+
+---
+
+## 🤖 Phase P3 — Sécurité IA, Passerelle MCP « Two-Door » & Registre Post-Quantique AI Act
+
+### 🔒 Verrou n°8 : Architecture « Two-Door » & Injection Sortante « Zero-Secret Placeholder » (DLP IA)
+- **Statut :** ⏳ En conception
+- **Priorité :** Évolution Stratégique (**P3** — Pilier n°2 : Frontière Egress & IA/MCP)
 - **Contexte :** L'adoption rapide des assistants IA et agents connectés aux bases documentaires expose les organisations aux fuites involontaires de secrets, au vol de clés d'API par *Prompt Injection* et aux manipulations d'instructions.
 - **Plan d'action technique :**
   1. **Porte 1 — Garde-fous d'entrée (`gate-proxy`)** : détection en bordure de réseau des *Prompt Injections*, tentatives de *Jailbreak* et dépassements de quotas de jetons ciblant les endpoints d'IA applicatifs avant passage aux modèles.
   2. **Porte 2 — Pattern « Zero-Secret Placeholder » & DLP Sortant (`egress-gateway`)** : l'environnement d'exécution de l'agent IA ne détient **aucune clé d'API réelle** en mémoire ou dans ses variables d'environnement (uniquement un jeton fantôme `AEGIS_PLACEHOLDER_KEY`). `egress-gateway` inspecte et anonymise les données personnelles (PII / RGPD), le code propriétaire et les secrets à la volée, puis injecte la véritable clé d'API externe uniquement à la frontière réseau sortante si la requête est conforme.
 
-### 🔒 Verrou n°11 : Passerelle MCP Zero-Trust (Filtrage d'Outils par Identité) & Registre Post-Quantique AI Act
+### 🔒 Verrou n°9 : Passerelle MCP Zero-Trust (Filtrage d'Outils par Identité) & Registre Post-Quantique AI Act (`ML-DSA-65`)
 - **Statut :** ⏳ En conception
-- **Priorité :** Évolution Stratégique (**P3 / R&D**)
+- **Priorité :** Évolution Stratégique (**P3** — Piliers n°2 & n°3)
 - **Contexte :** Les orchestrateurs multi-agents utilisent le protocole **MCP (*Model Context Protocol*)** pour invoquer des outils sensibles (accès SQL, exécution de scripts, appels API métiers), créant un risque majeur d'élévation de privilèges par injection indirecte.
 - **Plan d'action technique :**
   1. **Filtrage granulaire MCP par identité (`tools/list` & `tools/call`)** : inspection native du flux JSON-RPC MCP dans `gate-proxy` pour filtrer dynamiquement la liste des outils exposés et valider chaque appel `tools/call` selon l'identité OIDC / SPIFFE de l'agent ou de l'utilisateur, combinée au *sandboxing* noyau éphémère (`seccomp-bpf`, hooks `eBPF`, `namespaces` Linux).
   2. **Registre de traçabilité immuable à signature Post-Quantique (EU AI Act)** : journalisation cryptographique *append-only* dans TimescaleDB de chaque action d'agent IA, scellée par une **double signature hybride classique + post-quantique (`Ed25519 + ML-DSA-65` — NIST FIPS 204)** garantissant une non-répudiation à long terme conforme à l'**AI Act européen**.
 
-### 🔒 Verrou n°12 : CTI Collaborative P2P & Micro-SLM Frugaux `< 1B` CPU-Only
-- **Statut :** 🚧 Partiel (blocklist C2 statique + option **Nimble 9B** Ollama actifs en v1)
-- **Priorité :** Évolution Stratégique (**P3 / R&D**)
-- **État actuel (v1) :** [`apps/egress-gateway/src/cti/blocklist.ts`](apps/egress-gateway/src/cti/blocklist.ts) embarque une liste CrowdSec / exfil initiale, complétée en option par le service **Nimble 9B** sous Ollama air-gapped (`:11434` dans `docker-compose.yml`).
+### 🔒 Verrou n°10 : Flux CTI Open-Source Temps Réel & Micro-SLM Frugaux `< 1B` CPU-Only
+- **Statut :** 🚧 Partiel (blocklist C2/OAST statique + option `qwen2.5:0.5b` / `Nimble` Ollama actifs en v1)
+- **Priorité :** Évolution Stratégique (**P3**)
 - **Plan d'évolution :**
   1. **Enrichissement continu automatisé** : synchronisation des flux open source consolidés (**Abuse.ch URLhaus**, **ThreatFox**, **CERT-FR**, **CISA KEV**) en recherche `O(1)` (`< 0,05 ms`, empreinte `< 5 Mo RAM`).
-  2. **Réseau de réputation souverain & décentralisé (P2P)** : partage pair-à-pair anonymisé des IP attaquantes et indicateurs C2 confirmés entre nœuds Aegis, sans dépendance à un acteur cloud monopolistique étranger.
-  3. **Micro-SLM spécialisés `< 1B` sur CPU** : évolution vers des modèles quantifiés de moins d'un milliard de paramètres exécutables sur CPU standard (*Air-Gapped*, sans ferme de GPU) pour épauler ou remplacer le profil optionnel `Nimble 9B` selon la capacité matérielle.
+  2. **Micro-SLM spécialisés `< 1B` sur CPU** : modèles quantifiés de moins d'un milliard de paramètres exécutables sur CPU standard (*Air-Gapped*, sans ferme de GPU).
+
+---
+
+## 🤝 Écosystème, Partenariats Souverains & Périmètre Reporté
+
+Plutôt que de disperser l'effort produit sur des métiers connexes très concurrentiels, Aegis privilégie des **connecteurs natifs et partenariats souverains européens** pour les périmètres suivants (reportés hors roadmap serveur cœur) :
+
+| Périmètre (Reporté hors cœur) | Stratégie Recommandée | Écosystème & Partenaires Souverains / Open Source |
+| :--- | :--- | :--- |
+| **CTI Collaborative P2P** | Connecteur / Bouncer natif | **CrowdSec** (réputation IP communautaire), **MISP**, **Abuse.ch**, **CERT-FR** |
+| **EDR & Posture Postes (Win/macOS)** | Ingestion Webhook / API Posture | **Wazuh** (Open Source), **HarfangLab** / **Tehtris** (EDR souverains FR), **FleetDM / osquery**, **GLPI** |
+| **ZTNA & Micro-Segmentation VLAN** | Intégration Identité & Réseau | **NetBird**, **Headscale / WireGuard**, **OPNsense / pfSense** |
+| **DNS Bureautique & Filtrage RAT** | Brique dédiée / Stack Partenaire | **Bind9 RPZ**, **AdGuard Home**, **Technitium DNS**, **NextDNS** (UE) |
