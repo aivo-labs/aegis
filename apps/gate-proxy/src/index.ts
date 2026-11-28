@@ -52,8 +52,7 @@ const telemetry = new HttpTelemetryReporter(config.telemetryUrl);
 const forwarder = new HttpProxyForwarder();
 const authHandler = new BffAuthHandler(config);
 
-// Immunité garantie au démarrage pour l'IP du VPS / hôte administrateur
-ipReputation.unban('198.51.100.10');
+// Immunité garantie au démarrage pour le loopback local (les IP admin passent par AEGIS_ADMIN_IPS)
 ipReputation.unban('127.0.0.1');
 
 export const gateServer = createGateServer(
@@ -128,7 +127,6 @@ export async function syncWithControlPlane(): Promise<void> {
         .filter(Boolean);
       ipReputation.setAll(remoteIps);
       if (config.nodeMode !== 'edge') {
-        ipReputation.unban('198.51.100.10');
         ipReputation.unban('127.0.0.1');
       }
     }
