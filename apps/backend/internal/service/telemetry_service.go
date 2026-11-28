@@ -230,7 +230,7 @@ func (s *TelemetryService) IngestEgress(t domain.EgressTelemetry) error {
 }
 
 func isPrivateOrLoopbackIP(ip string) bool {
-	if ip == "" || ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || ip == "198.51.100.10" {
+	if ip == "" || ip == "127.0.0.1" || ip == "::1" || ip == "localhost" {
 		return true
 	}
 	if strings.HasPrefix(ip, "172.17.") || strings.HasPrefix(ip, "172.18.") || strings.HasPrefix(ip, "172.19.") || strings.HasPrefix(ip, "172.20.") || strings.HasPrefix(ip, "10.") || strings.HasPrefix(ip, "192.168.") {
