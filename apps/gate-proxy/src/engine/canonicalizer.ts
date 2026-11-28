@@ -131,10 +131,16 @@ export function canonicalizeInput(raw: string): string {
   // 4. Normalisation des séparateurs de chemin (/./, //, ..\)
   out = normalizePathTraversals(out);
 
-  // 5. Extraction et décodage des charges Base64 suspectes
+  // 5. Extraction et décodage des charges Base64 suspectes (avant conversion des '+' en espaces)
   const b64Payloads = extractDecodedBase64Payloads(out);
   if (b64Payloads.length > 0) {
     out = `${out} ${b64Payloads.join(' ')}`;
+  }
+
+  // 5-bis. Décodage des espaces form-urlencoded ('+' -> ' ') dans les query strings & formulaires
+  // On conserve aussi la forme brute afin de ne pas casser les signatures exigeant un '+' littéral (ex: PHP2Shell %ad-d+)
+  if (out.includes('+')) {
+    out = `${out} ${out.replace(/\+/g, ' ')}`;
   }
 
   // 6. Purge des octets nuls, commentaires SQL inline et normalisation des espaces

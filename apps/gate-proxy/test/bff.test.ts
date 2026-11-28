@@ -606,6 +606,11 @@ test('P0 Security Hardening — WAF inspects HTTP headers and blocks hardened XS
   // RCE ${IFS} bypass
   const rceIfs = inspector.inspect('/run?cmd=cat${IFS}/etc/hosts', 'GET', {}, '', 0, '203.0.113.13');
   assert.equal(rceIfs.blocked, true);
+
+  // SQLi avec espaces form-urlencoded ('+') en query string (ex: curl ...?q=UNION+SELECT+1+FROM+users)
+  const sqliPlus = inspector.inspect('/api/v1/ctf/flag?q=UNION+SELECT+1+FROM+users', 'GET', {}, '', 0, '203.0.113.14');
+  assert.equal(sqliPlus.blocked, true);
+  assert.equal(sqliPlus.threat_type, 'SQL_INJECTION');
 });
 
 
