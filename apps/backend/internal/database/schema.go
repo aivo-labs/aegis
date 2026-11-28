@@ -193,7 +193,7 @@ func EnsureDatabaseSchema(db *PgClient, defaultTenantID string) {
 			log.Printf("[Schema Notice] %v", err)
 		}
 	}
-	_ = db.Exec("DELETE FROM ip_ban_list WHERE ip_address IN ('198.51.100.10', '127.0.0.1');")
+	_ = db.Exec("DELETE FROM ip_ban_list WHERE ip_address IN ('127.0.0.1');")
 
 	// Consolidation automatique des métriques orphelines (ex: conteneurs Docker de télémétrie) vers le nœud souverain unique
 	_ = db.Exec(`
